@@ -63,6 +63,8 @@ def multiply1(a, b, bitlength=8):
         visualize(r, bitlength, "shift", True, rh=[1], sh=[1])
 
     z = r[3]
+    
+    assert z == a * b #sanity check
     return z
 
 if __name__ == "__main__":

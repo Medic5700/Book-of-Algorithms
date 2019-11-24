@@ -1,7 +1,7 @@
 import random
 import math
 
-def binarySearch(A,T):
+def binarySearch(A, T):
     """ Takes array of unique numbers A, and target number T -> returns index of T, None if not found
     https://en.wikipedia.org/wiki/Binary_search_algorithm#Alternative_procedure
     """    
@@ -28,6 +28,7 @@ def binarySearch(A,T):
         else:
             L = m
     visualize(A, L, R, T)
+    
     if A[L] == T:
         return L
     return None
