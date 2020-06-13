@@ -8,7 +8,25 @@ They are all trying to generate all primes less than 1000000
 import profile
 import sys
 
-#TODO implement isPrime without sqrt limitor for comparison reasons?
+#Ommitted for performance reasons
+#def isPrime0(t1):
+#	"""Takes an integer, returns True if it is a prime number
+#	
+#	The dumb, simple, and ineffecient way to do it"""
+#	assert t1 > 0
+#	if t1 == 1:
+#		return False
+#	for i in range(2, t1):
+#		if t1%i == 0:
+#			return False
+#	return True
+#
+#print("Profiling isPrime0")
+#for i in range(1, 1000000):
+#	isPrime0(i)
+#profile.run("""
+#        for i in range(1, 1000000):
+#                isPrime0(i)""")
 
 def isPrime1(t1):
 	"""Takes an integer, returns True if it's a prime number
