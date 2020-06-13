@@ -1,4 +1,6 @@
 '''
+Contains multiple algorithms and variations of algorithms for generating prime numbers.
+
 Note: In order to keep all profiling comparisons as 'apples to apples' as possible,
 They are all trying to generate all primes less than 1000000
 '''
@@ -136,9 +138,9 @@ print("Profiling [i for i in range(1, 1000000) if isPrime1(i)]")
 primes = [i for i in range(1, 1000000) if isPrime1(i)]
 profile.run("t = [i for i in range(1, 1000000) if isPrime1(i)]")
 
-#Original found on internet, ommitted because of how rediculously slow it is for the tests done in this program
+#ommitted for performance reasons
 #print("Profiling [i for i in range(2,100000) if not [j for j in range(2,i) if not (i % j)]]")
-#primes2 = [i for i in range(2,100000) if not [j for j in range(2,i) if not (i % j)]] # https://stackoverflow.com/questions/567222/simple-prime-generator-in-python
+#primes2 = [i for i in range(2,100000) if not [j for j in range(2,i) if not (i % j)]] # Original found on internet https://stackoverflow.com/questions/567222/simple-prime-generator-in-python
 #for i in range(len(primes)):
 #	assert primes[i] == primes2[i]
 #profile.run("[i for i in range(2,100000) if not [j for j in range(2,i) if not (i % j)]]")
@@ -189,7 +191,7 @@ profile.run("sieveOfEratosthenes1(1000000)")
 print("sieveOfEratosthenes1 sanity check passed ================================")
 
 #===================================================================================================================================
-print("Experimental Stuff Here")
+print("Experimental Stuff Here =================================================")
 
 def lowpassIterator1(maxElements=2, limit=10000):
 	"""A prime number generator (unoptimized, for readability and testing)

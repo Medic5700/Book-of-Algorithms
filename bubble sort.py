@@ -1,11 +1,12 @@
 import random
 import copy #for deepcopying arrays
 import time
-animationDelay = 0.05 #in seconds
 try:
     import colorama
 except:
-    print("Warning: Colorama not installed")
+    print("Warning: Colorama not installed. \n Visualizations may not work correctly on windows")
+    
+animationDelay = 0.05 #in seconds
 
 def visualize(A, newline=True, highlight=[]):
     """
