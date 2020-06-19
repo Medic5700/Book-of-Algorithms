@@ -1,3 +1,5 @@
+import random
+
 def div1(a,b):
     '''Takes in two unsigned integers, a, b -> returns an integer a//b
     
@@ -53,7 +55,6 @@ def mod1(a,b):
     return z
 
 if __name__ == "__main__":
-    import random
     
     print("testing a//b =========================================================================")
     for i in range(100):
