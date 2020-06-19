@@ -22,7 +22,8 @@ def strScreen():
         result += "\n" #newline here because it meshes with previous 'frame' better
         for x in range(len(GameMap)):
             if (AntX == x) and (AntY == y):
-                result += '1'
+                t1 = ['^', '>', 'v', '<']
+                result += t1[AntR]
             else:
                 result += ('-' if (GameMap[x][y] == False) else '0')
     return result
