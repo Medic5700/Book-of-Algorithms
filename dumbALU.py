@@ -1,12 +1,16 @@
 class DumbALU:
     def __init__(self, bitLength=16, intermediateSize=0, registerSize=1, memorySize=0, verboseLevel=1, animationDelay=0.5):
+        import time
+        self.sleep = time.sleep #avoids having to reimport time module in _display function every time it's called
+        self.animationDelay = animationDelay
+        
         self.bitLength = bitLength #the length of the registers in bits
         self.verboseLevel = verboseLevel
         self.memory = {}
         self.memory['i'] = [0 for i in range(intermediateSize)] #double length registers for stuff like multiplication
         self.memory['r'] = [0 for i in range(registerSize)] #standard registers
         self.memory['m'] = [0 for i in range(memorySize)] #standard memory
-        self.memory['s'] = [0] #special register for storing operation literals
+        self.memory['s'] = [0] #special register for storing static numbers that would be encoded in the instruction word
         self.memory['pc'] = 0
         self.code = None
         self.lastState = None
@@ -21,8 +25,78 @@ class DumbALU:
         lastState['s'] = [self.memory['s'][0]]
         lastState['pc'] = self.memory['pc']
         self.lastState = lastState
-    
+
     def _display(self, operation, readList, writeList):
+        """displays the current operation
+
+        display is arranged horizontally"""
+        #TODO figure out how to display memory
+
+        readColour = "\u001b[96m" #forground teal
+        writeColour = "\u001b[31m" #forground red
+        ansiEnd = "\u001b[0m"
+
+        opLine = '0x' + hex(self.lastState['pc'])[2:].rjust(2, '0') + '    '
+        opLine += str(operation.expandtabs(8))
+        
+        opLine = opLine.ljust(80 - (self.bitLength+2), ' ')
+        if 's0' in readList: #prints the 'static register' for static numbers, IE; adding a register to a number in the instruction word
+            opLine += "[" + readColour + str(bin(self.memory['s'][0])[2:].rjust(self.bitLength, '0')) + ansiEnd + "]"
+        else:
+            opLine += ''.ljust(self.bitLength+2, ' ')
+
+        registers = []
+        for i in range(len(self.memory['i'])):
+            column1 = '    ' + ('I' + str(i)).ljust(4, ' ')
+            
+            column2 = '['
+            if ('i'+str(i)) in readList:
+                column2 += readColour
+            column2 += str(bin(self.lastState['i'][i])[2:].rjust(self.bitLength*2, '0'))
+            if ('i'+str(i)) in readList:
+                column2 += ansiEnd
+            column2 += ']'
+
+            column3 = '['
+            if ('i'+str(i)) in writeList:
+                column3 += writeColour
+            column3 += str(bin(self.memory['i'][i])[2:].rjust(self.bitLength*2, '0'))
+            if ('i'+str(i)) in writeList:
+                column3 += ansiEnd
+            column3 += ']'
+
+            registers += [column1 + column2 + '    ' + column3]
+
+        for i in range(len(self.memory['r'])):
+            column1 = '    ' + ('R' + str(i)).ljust(4, ' ')
+            
+            column2 = '['
+            if ('r'+str(i)) in readList:
+                column2 += readColour
+            column2 += str(bin(self.lastState['r'][i])[2:].rjust(self.bitLength, '0'))
+            if ('r'+str(i)) in readList:
+                column2 += ansiEnd
+            column2 += ']'
+
+            column3 = '['
+            if ('r'+str(i)) in writeList:
+                column3 += writeColour
+            column3 += str(bin(self.memory['r'][i])[2:].rjust(self.bitLength, '0'))
+            if ('r'+str(i)) in writeList:
+                column3 += ansiEnd
+            column3 += ']'
+
+            registers += [column1 + column2 + ''.ljust(self.bitLength, ' ') + '    ' + column3]
+
+        screen = ''
+        screen += opLine
+        for i in registers:
+            screen += '\n' + i
+
+        self.sleep(self.animationDelay)
+        print(screen)
+    
+    def _display2(self, operation, readList, writeList):
         """displays the current operation
 
         does not scale, will need to be replaced with 'verticle orentation'"""
@@ -64,6 +138,10 @@ class DumbALU:
 
         print(line1 + line2 + line3)
 
+    def lazyDecode(command):
+        """parse a full assmbly string because calling operations directly with full syntax is tedious and error-prone, let the computer do the boring stuff"""
+        pass
+
     def _inject(self):
         """injects an array of data into memory"""
         pass
@@ -74,6 +152,7 @@ class DumbALU:
 
     def opNoop(self, lineNumber, text="no-op"):
         self._display(text, [], [])
+        return 1
 
     def opLoad(self, lineNumber, operation, source, destination):
         self.memory['pc'] = lineNumber
@@ -91,6 +170,7 @@ class DumbALU:
                       [source],
                       [destination]
                       )
+        return 1
 
     def opAnd (self, lineNumber, operation, source1, source2, destination):
         self.memory['pc'] = lineNumber
@@ -112,6 +192,7 @@ class DumbALU:
                       [source1, source2],
                       [destination]
                       )
+        return self.memory[destination[0]][int(destination[1:])]
 
     def opShiftL(self, lineNumber, operation, source1, source2, destination):
         self.memory['pc'] = lineNumber
@@ -133,6 +214,7 @@ class DumbALU:
                       [source1, source2],
                       [destination]
                       )
+        return self.memory[destination[0]][int(destination[1:])]
         
     def opShiftR(self, lineNumber, operation, source1, source2, destination):
         self.memory['pc'] = lineNumber
@@ -154,6 +236,7 @@ class DumbALU:
                       [source1, source2],
                       [destination]
                       )
+        return self.memory[destination[0]][int(destination[1:])]
 
     def opAdd(self, lineNumber, operation, source1, source2, destination):
         self.memory['pc'] = lineNumber
@@ -175,6 +258,7 @@ class DumbALU:
                       [source1, source2],
                       [destination]
                       )
+        return self.memory[destination[0]][int(destination[1:])]
 
     def opJump(self, lineNumber, operation, pc):
         self.memory['pc'] = lineNumber
@@ -190,6 +274,7 @@ class DumbALU:
                       [],
                       []
                       )
+        return 1
 
     def braEqual(self, lineNumber, operation, source1, source2, pc):
         self.memory['pc'] = lineNumber
@@ -213,6 +298,7 @@ class DumbALU:
                       [],
                       []
                       )
+        return self.memory[source1[0]][int(source1[1:])] == self.memory[source2[0]][int(source2[1:])]
 
     def braNotEqual(self, lineNumber, operation, source1, source2, pc):
         self.memory['pc'] = lineNumber
@@ -236,7 +322,19 @@ class DumbALU:
                       [],
                       []
                       )
+        return self.memory[source1[0]][int(source1[1:])] != self.memory[source2[0]][int(source2[1:])]
 
+    def halt(self, lineNumber, operation):
+        self.memory['pc'] = lineNumber
+        self._snapshot()
+        operation = 'halt'
+        
+        self._display(operation,
+                      [],
+                      []
+                      )
+        return 0
+        
 def multiply1(a, b, bitlength=8):
     '''Takes in two unsigned integers, a, b -> returns an integer a*b
 
@@ -246,7 +344,7 @@ def multiply1(a, b, bitlength=8):
     assert a < 2**bitlength
     assert b < 2**bitlength
 
-    ALU = DumbALU(16, 0, 4, 0, 0)
+    ALU = DumbALU(8, 0, 4, 0, 0)
 
     r = [0 for i in range(4)]
 
@@ -259,14 +357,13 @@ def multiply1(a, b, bitlength=8):
     ALU.opLoad(2, "load", 0, 'r3')
     r[3] = 0 #needs to be double the bit size of the number inputs
 
-    #visualize(r, bitlength, "no-op", True)
-
-    ALU.braEqual(3, '==', 'r1', 0, 11)
+    #ALU.braEqual(3, '==', 'r1', 0, 11) #ommitted for clearity        
     while(r[1] != 0):
-    #for i in range(bitlength):
+        ALU.braEqual(3, '==', 'r1', 0, 11)
+
         ALU.opAnd(4, 'and', 'r1', 1, 'r2')
         r[2] = r[1] & 1
-        #visualize(r, bitlength, "compare", False, rh=[2])
+        
         ALU.braNotEqual(5, '!=', 'r2', 1, 8)
         if r[2] == 1:
             ALU.opAdd(6, 'add', 'r0', 'r3', 'r3')
@@ -276,7 +373,7 @@ def multiply1(a, b, bitlength=8):
         ALU.opShiftR(9, 'shiftR', 'r1', 1, 'r1')
         r[1] = r[1] >> 1
         ALU.opJump(10, 'jump', 3)
-    ALU.opNoop('eof')
+    ALU.halt(11, 'halt')
 
     z = r[3]
     
