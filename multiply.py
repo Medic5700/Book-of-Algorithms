@@ -1,10 +1,6 @@
 import random
 import time
 animationDelay = 0.05 #in seconds
-try:
-    import colorama
-except:
-    print("Warning: Colorama not installed")
 
 def visualize(registers, bitlength, operation="", endline=True, rh=[], sh=[]):
     """Takes array of registers, bitlength, and opertation, and prints the line
