@@ -1,4 +1,33 @@
 class DumbALU:
+    """A prototype implimentation of an ALU for illistratuve purposes
+
+    issues:
+    reading and writing to 'pc' program counter is clunky at best, confusing at worst
+    program counter and ALU flags should only be shown when actually needed
+    this was trying to serve two distinct use cases:
+        -illistrate one line operations along side python code, with python handling the logic and the ALU illistrating the binary operations
+        -a fully functional generic ALU able to interprite assembly, along with all the logic and control functions
+        recommend making two different decoders to handle both use cases
+    accessing memory registers while implementing opcodes is downright source code soup. recommend implementing helper function to parse arguments. IE:
+        self.memory[destination[0]][int(destination[1:])] = self.memory[source1[0]][int(source1[1:])] & self.memory[source2[0]][int(source2[1:])]
+    unable to cleanly handle registar names longer then 1 char (IE: 'r2' is easy to parse because you use the first char, 'pc' is hard because you can't look at only the first char)
+    what ALU flags are really needed in this kind of generic processor
+    register binary display allignment should be right justified instead of left justified for easier reading/understandability
+    instructions are stored seperatly from data, there are arguments both for and agenst attempting to throw that into ALU memory
+    how to display ALU memory, and the changes made to it.
+        Should everything be shown, at the expense of not being able to clearly show 'before and after' memory values?
+        Should only read and written memory values be show, at the expense of showing almost no memory values at all
+        Should only a relavent 'page' of memroy be shown at a time?
+    what system calls are relavent? and how to implement them in a way that is human readable?
+        IE: 'syscall r1,r2' vs 'syscall r1, print'
+    how exactly should instruction values be handled? Storing a single value per instruction in a special 'static' register has a number of holes
+        IE: "add 5,2->r1" the current ALU would not be able to support this use case, but this is also technically a use case to be avoided in assembly if not outright forbidden by the archtecture
+    should direct access to ALU registers be allowed from calling program be allowed?
+        IE: shifting a register left, but manually accessing it to trunk it
+    no failsafes to check for memory integraty. IE: assert all values in registers are actually small enough to fit in the registers of a give bitlength size.
+    should an arbitrary sized register be allowed?
+        IE: taking in a 128-bit floating point value to be parsed/deconstructed so it's components can be moved into seperate small sized registers
+    """
     def __init__(self, bitLength=16, intermediateSize=0, registerSize=1, memorySize=0, verboseLevel=1, animationDelay=0.5):
         import time
         self.sleep = time.sleep #avoids having to reimport time module in _display function every time it's called
