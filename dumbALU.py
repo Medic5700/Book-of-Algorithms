@@ -31,6 +31,7 @@ class DumbALU:
 
         display is arranged horizontally"""
         #TODO figure out how to display memory
+        print(self.memory)
 
         readColour = "\u001b[96m" #forground teal
         writeColour = "\u001b[31m" #forground red
@@ -90,6 +91,7 @@ class DumbALU:
 
         screen = ''
         screen += opLine
+        screen += '\n' + statusLine
         for i in registers:
             screen += '\n' + i
 
@@ -170,7 +172,7 @@ class DumbALU:
                       [source],
                       [destination]
                       )
-        return 1
+        return self.memory[destination[0]][int(destination[1:])]
 
     def opAnd (self, lineNumber, operation, source1, source2, destination):
         self.memory['pc'] = lineNumber
@@ -268,11 +270,11 @@ class DumbALU:
         if type(pc) is int:
             self.memory['s'] = [pc]
             pc = 's0'
-        self.memory['pc'] = lineNumber
+        self.memory['pc'] = self.memory['s'][0]
 
         self._display(operation,
                       [],
-                      []
+                      ['pc']
                       )
         return 1
 
@@ -296,7 +298,7 @@ class DumbALU:
             
         self._display(operation,
                       [],
-                      []
+                      ['pc' if (self.memory[source1[0]][int(source1[1:])] == self.memory[source2[0]][int(source2[1:])]) else None]
                       )
         return self.memory[source1[0]][int(source1[1:])] == self.memory[source2[0]][int(source2[1:])]
 
@@ -320,7 +322,7 @@ class DumbALU:
             
         self._display(operation,
                       [],
-                      []
+                      ['pc' if (self.memory[source1[0]][int(source1[1:])] != self.memory[source2[0]][int(source2[1:])]) else None]
                       )
         return self.memory[source1[0]][int(source1[1:])] != self.memory[source2[0]][int(source2[1:])]
 
