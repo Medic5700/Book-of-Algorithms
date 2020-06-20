@@ -431,5 +431,52 @@ def multiply1(a, b, bitlength=8):
     assert z == a * b #sanity check
     return z
 
+def multiply2(a, b, bitlength=8):
+    '''Takes in two unsigned integers, a, b -> returns an integer a*b
+
+    bitlength is the size of the numbers/architecture, in bits
+    https://en.wikipedia.org/wiki/Binary_multiplier#Basics
+    '''
+    assert a < 2**bitlength
+    assert b < 2**bitlength
+
+    ALU = DumbALU(8, 2, 2, 0, 0)
+
+    i = [0 for j in range(2)]
+    r = [0 for i in range(2)]
+
+    ALU.lazyDecode('noop')
+
+    ALU.lazyDecode('load ' + str(a) + ', i0')
+    ALU.inject('i0', a) #this could be an alternative way to directly load stuff into memory/registers
+    i[0] = a
+    ALU.lazyDecode('load ' + str(b) + ', r0')
+    ALU.inject('r0', b)
+    r[0] = b
+
+    #ALU.lazyDecode('== r1, 0, 11)
+    while(r[0] != 0):
+        ALU.lazyDecode('add r0, 1, r1')
+        r[1] = r[0] & 1
+
+        #ALU.lazyDecpde('!= r2, 1, 8')
+        if r[1] == 1:
+            ALU.lazyDecode('add r0, r3, r3')
+            i[1] = i[0] + i[1]
+        ALU.lazyDecode('shiftleft r0, 1, r0')
+        i[0] = i[0] << 1
+        ALU.lazyDecode('shiftright r1, 1, r1')
+        r[0] = r[0] >> 1
+
+        #ALU.lazyDecode('jump 3')
+    ALU.lazyDecode('halt')
+
+    result = ALU.extract('r3') #this could be an alternative way to extract data from registers directly without using a made up syscall
+    z = r[3]
+
+    assert result == a * b
+    assert z == a * b #sanity check
+    return z
+
 if __name__ == "__main__":
     print(multiply1(3,4))
