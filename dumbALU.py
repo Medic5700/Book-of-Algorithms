@@ -46,6 +46,26 @@ class DumbALU:
         else:
             opLine += ''.ljust(self.bitLength+2, ' ')
 
+        column1 = '    ' + 'PC  '
+        column2 = '['
+        if 'pc' in readList:
+            column2 += readColour
+        column2 += '0x' + hex(self.lastState['pc'])[2:].rjust(2, '0')
+        if 'pc' in readList:
+            column2 += ansiEnd
+        column2 += ']'
+
+        column3 = '['
+        if 'pc' in writeList:
+            column3 += writeColour
+        column3 += '0x' + hex(self.memory['pc'])[2:].rjust(2, '0')
+        if 'pc' in writeList:
+            column3 += ansiEnd
+        column3 += ']'
+
+        statusLine = column1 + column2.ljust(self.bitLength*2+2, ' ') + '    ' + column3
+        
+
         registers = []
         for i in range(len(self.memory['i'])):
             column1 = '    ' + ('I' + str(i)).ljust(4, ' ')
