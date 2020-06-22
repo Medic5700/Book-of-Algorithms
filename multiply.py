@@ -14,10 +14,10 @@ def visualize(registers, bitlength, operation="", endline=True, rh=[], sh=[]):
         bitstring = str(bin(registers[i])[2:]).rjust(bitlength*2, "0")
         forground = ""
         if i in sh:
-            forground = "\u001b[96m" #teal
+            forground = "\u001b[31m" #red
         background = ""
         if i in rh:
-            background = "\u001b[40m" #grey?
+            background = "\u001b[46m" #teal
         line.append("[" + forground + background + bitstring  + "\u001b[0m" + "]")
     line.append(operation.rjust(8," "))
 

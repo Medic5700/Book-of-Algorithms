@@ -360,7 +360,7 @@ class XorShift:
     
 if __name__ == "__main__":
     animationDelay = 0.0
-    bitlength = 64
+    bitlength = 64 #TODO set it up to cycle through the different bitlengths, since only the short bitlength is animated
     
     seed = random.randint(1,2**(bitlength)-1)
     generator = XorShift(seed, (bitlength))
