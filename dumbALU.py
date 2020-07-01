@@ -16,8 +16,8 @@ class DumbALU_old:
     accessing memory registers while implementing opcodes is downright source code soup. recommend implementing helper function to parse arguments. IE:
         self.memory[destination[0]][int(destination[1:])] = self.memory[source1[0]][int(source1[1:])] & self.memory[source2[0]][int(source2[1:])]
     unable to cleanly handle registar names longer then 1 char (IE: 'r2' is easy to parse because you use the first char, 'pc' is hard because you can't look at only the first char)
-    what ALU flags are really needed in this kind of generic processor?
-        -> carry flag, overflow?
+    |what ALU flags are really needed in this kind of generic processor?
+    |    -> carry flag, overflow?
     register binary display allignment should be right justified instead of left justified for easier reading/understandability
     instructions are stored seperatly from data, there are arguments both for and agenst attempting to throw that into ALU memory
         -> recomend the option of storing them seperatly/together at instantiation, seperatly by default and if using the lazyDecoder, together allowed if loading a full assembly program
@@ -43,6 +43,20 @@ class DumbALU_old:
     should a program stack be implimented?
     -> operation 'load' should be replaced with 'move'
     -> should have a displayConfigure function to configure what lines the display displays
+    Should microcode be implimented? How exactly?
+        microcode could run with a completly seperate set of registers or the register state would be saved and wiped so the microcode could use the same registers with the same architecture (IE: context switch)
+            doesn't work since some operations require register value persistance or require reading/writing data to memory
+        real (intel) cpus use 'register renaming' to map inputs and outputs to real registers before and after execution
+        will have to take some sort of hybrid approch
+        Could use a recursive instance of dumbALU to run the microcode, and inject/extract only the input/output values
+            will not work since memory needs to be persistant
+                could pass memory reference to dumbALU instance, allowing it to alter memory?
+        UseCase1: multiply r1, r2 using shift add, store in r0
+        UseCase2: miltiply r1, r2 using shift add, store in m0
+        UseCase3: Add m0 through m255, store in r0
+    Per thread incryption? IE: encrypting memory accesses? Would that actually matter since this is only a single thread?
+    Should the different memory/registers have builtin counters (which would necessitate coding custom array types) for every read/write?
+        -> Feature Creep, Hell No for the right now
     """
     def __init__(self, bitLength=16, intermediateSize=0, registerSize=1, memorySize=0, verboseLevel=1, animationDelay=0.5):
         import time
