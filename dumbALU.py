@@ -471,47 +471,46 @@ def multiply2(a, b, bitlength=8):
     bitlength is the size of the numbers/architecture, in bits
     https://en.wikipedia.org/wiki/Binary_multiplier#Basics
     """
-    '''a non-functional mockup of how dumbALU could be used'''
+    '''another non-functional mockup to show how dumbALU could be used, but a couple iterations of design later'''
     assert 0 <= a < 2**bitlength
     assert 0 <= b < 2**bitlength
 
-    ALU = DumbALU(8, 2, 2, 0, 0)
+    ALU = DumbALU(8, 2, 0) #bitlength, register amount, memory amount
+    ALU.addRegister(16, 2, 'i') #bitlength, register amount, namespace symbol
 
     i = [0 for j in range(2)]
     r = [0 for i in range(2)]
 
-    ALU.lazyDecode('nop')
-
-    ALU.lazyDecode('move ' + str(a) + ', i0')
-    ALU.inject('i0', a) #this could be an alternative way to directly load stuff into memory/registers
-    i[0] = a
-    ALU.lazyDecode('move ' + str(b) + ', r0')
+    ALU.inject('i0', a)
     ALU.inject('r0', b)
+    ALU.decode('''
+                        nop
+                loop:   jumpEQ  (r0, 0, end)
+                            and     (r0, 1, r1)
+                            jumpNEQ (r1, 1, zero)
+                                add     (i0, i1, i1)
+                zero:       shiftL  (i0, 1, i0)
+                            shiftR  (r0, 1, r0)
+                            jump    (loop)
+                end:    halt
+                ''')
+    result = ALU.extract('i1')
+    
+    i[0] = a
     r[0] = b
-
-    #ALU.lazyDecode('== r1, 0, 11)
+    
     while(r[0] != 0):
-        ALU.lazyDecode('add r0, 1, r1')
         r[1] = r[0] & 1
-
-        #ALU.lazyDecpde('!= r2, 1, 8')
         if r[1] == 1:
-            ALU.lazyDecode('add r0, r3, r3')
             i[1] = i[0] + i[1]
-        ALU.lazyDecode('shiftleft r0, 1, r0')
         i[0] = i[0] << 1
-        ALU.lazyDecode('shiftright r1, 1, r1')
         r[0] = r[0] >> 1
-
-        #ALU.lazyDecode('jump 3')
-    ALU.lazyDecode('halt')
-
-    result = ALU.extract('r3') #this could be an alternative way to extract data from registers directly without using a made up syscall
-    z = r[3]
+        
+    z = i[1]
 
     assert result == a * b
     assert z == a * b #sanity check
-    return z
+    return result
 
 if __name__ == "__main__":
     #print(multiply1(3,4))
