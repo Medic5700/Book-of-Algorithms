@@ -4,6 +4,273 @@ An implementation of an ALU simulator to allow a better and standardized way to 
 This project is geared towards demonstrating algorithms, and therefor generalizes a lot of stuff. IE: bitLength is settable, instruction words are one memroy element big, etc
 """
 
+class DumbALUv2:
+    """A an implimentation of a generic and abstract ALU mainly geared towards illistrating algorithms
+
+    Issues:
+    should allow for adding arbitrary amount of arbitrary sized registers
+        -> registers that are not bitLength sized should be able to be added with a method instead of with the constructor.
+
+    references:
+        https://en.wikipedia.org/wiki/Very_long_instruction_word
+        Google(intel microarchitecture)
+            https://www.servethehome.com/intel-xeon-scalable-processor-family-microarchitecture-overview/
+        https://cs.lmu.edu/~ray/notes/gasexamples/
+        https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax
+        https://en.wikipedia.org/wiki/GNU_Assembler
+
+    Out of scope:
+        caching
+        multi-threading
+        memory controler/address translation
+        instruction scedualer
+        register file
+        CPU interupts
+            syscalls
+        CPU power states/sleep
+            device drivers/interactions
+        allowing accessing indicidual bytes in a register, IE: copy the lower 8 bits of a 64-bit register
+    """
+
+    def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1, doubleRegisterAmount=0, arbitraryRegisterAmount=0, arbitraryRegisterSize=64):
+        import time
+        self.sleep = time.sleep #avoids having to reimport time module in _display function every time it's called
+        import copy
+        self.deepCopy = copy.deepcopy #required because state['flags'] contains a dictionary which needs to be copied
+        
+        self.bitLength : int = bitLength #the length of the registers in bits
+        self.state = {}
+        self.state['m'] : list[int] = [0 for i in range(memoryAmount)] #standard memory
+        self.state['r'] : list[int] = [0 for i in range(registerAmount)] #standard registers
+        self.state['d'] : list[int] = [0 for i in range(doubleRegisterAmount)] #double length registers for stuff like multiplication
+        self.state['a'] : list[int] = [0 for i in range(arbitraryRegisterAmount)]
+        self.state['i'] : list[int] = [] #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
+        self.state['pc'] : int = 0 #program counter #this doesn't quite fit in here
+        self.state['flag'] : dict = {'carry': 0,
+                                     'overflow': 0
+                                     }
+        self.state['instruction'] : list[str] = [None for i in range(memoryAmount)] #stores the instructions
+        '''instruction words are assumed to be one memory unit big for simplicity
+        can impliment a data execution protection using this info
+        does not allow for dynamically altering/generating instructions, which is beyond the scope of this project (though if I can find a generic way to do it, I probably will)
+        '''
+        self.state['currentInstruction'] = "" #FUTURE
+        
+        self.state['sp'] = [0] #stack pointer #FUTURE
+        self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
+        '''the entire state information for registers, program pointers, etc, is stored as one memory unit for simplicity'''
+
+        self.config = {}
+        self.config['m'] : int = bitLength
+        self.config['r'] : int = bitLength
+        self.config['d'] : int = bitLength*2
+        self.config['a'] : int = arbitraryRegisterSize
+        self.config['i'] : int = bitLength
+        
+        self.lastState = None
+
+        self.animationDelay = 0.5
+
+        #the instructions table should be able to be overloaded (IE: add could have an array of funtions) where one is chosen (based on bitlength, etc) to be included 
+        instructionSetDumb = {'add'     : self._testAdd,
+                              'and'     : self._testAnd,
+                              'nop'     : self._testNop,
+                              '.int'    : self._directiveInt
+                              }
+        self.instructionSet = instructionSetDumb #used by the decoder to parse instructions
+
+        self._refresh()
+
+    def inject(self, target, value):
+        assert type(value) is int
+        t1, t2 = self._parseArguments([target])[0]
+        self.state[t1][t2] = value & (2**self.config[t1]-1)
+
+    def extract(self, target):
+        t1, t2 = self._parseArguments([target])
+        return self.state[t1][t2]
+
+    def decode(self, sourceCode): #TODO
+        lines = []
+        for i in sourceCode.split('\n'):
+            lines.append(i.strip())
+        print(lines)
+
+        '''
+        memoryPointer = 0
+        for i in lines:
+            if i == '':
+                continue
+            tokens = i.split()
+            for j in tokens:
+                if j in self.instructionSet.keys():
+                    self.state['instruction'][memoryPointer] = i
+                    memoryPointer += 1
+                    break
+        print(self.state['instruction'])
+        '''
+
+    def run(self):
+        pass
+
+    def lazy(self, code : str):
+        class node:
+            def __init__(self, parent, content):
+                self.parent = parent
+                self.content = content
+                self.leafs = []
+                
+        def tokenizer(segment : str) -> node:
+            '''takes in a string segment and returns a tree'''
+            pass
+        
+        line = code
+        
+        if '#' in line: #gets rid of comments
+            line = line.split('#')[0]
+
+        #TODO label processing
+
+        '''tokenize remaining string into a tree
+        split line into commands
+        each command is a node with child arguments (in perenthisis)
+        recruse until tree is built
+        '''
+        
+
+    def _display(self, readList, writeList): #TODO
+        for i in len(self.state['r']):
+            print('r' + str(i) + '\t' + '=\t[' + str(self.state['r'][i]) + ']')
+        
+
+    def _integrityCheck(self):
+        """checks the integridy of all current registers, memory, etc"""
+        pass
+
+    def _refresh(self):
+        """resets all required registers and flags between instructions, copies current state into lastState
+
+        note: can be omited in some cases, such as micro-code that sets flags for the calling procedure"""
+
+        self._integrityCheck()
+
+        self.lastState = self.deepCopy(self.state)
+        
+        for i in self.state['flag'].keys(): #resets all flags
+            self.state['flag'][i] = 0
+        self.state['i'] = []
+
+    def _parseArguments(self, argumentList):
+        """takes a bunch of arguments (EX: 'r1,r2,r3,i1,i4,m5,m10,25,pc'), and outputs an ordered list of tuples
+
+        The tuples represent (register, array index).
+        numbers (EX: 5,1,10,25) get loaded into immidiate registers, and then translated to register and array index (IE: 5->('i',9), 10->('i',1))
+        #addresses (EX: '0xff') get translated into register and array index (IE: 0xff->('m',255), 0x02->('m',2))
+        #    should 1xff refer to other stuff, like registers?
+        pointers??? #TODO
+        all named variables should be already translated (IE: the loop tag to indicate where to jump to for a jump address)
+        """
+
+        immidiatePointer = len(self.state['i'])
+        result = []
+        for i in argumentList:
+            if i in self.state.keys():
+                result.append((i,0))
+                continue
+            try:
+                t1 = int(i)
+                self.state['i'].append(int(i))
+                result.append(('i', immidiatePointer))
+                continue
+            except:
+                pass
+            if i.find('-') > 0:
+                t1, t2 = i.split('-')
+                result.append((t1, int(t2)))
+                continue
+            
+        return result
+
+    def _testNop(self, *args):
+        self._refresh()
+        
+        self.state['pc'] = self.lastState['pc'] + 1
+
+        self._display([],
+                      []
+                      )
+    _testNop.type = 'dumb' #the instruction type, CISC, RISC, VLIW
+    _testNop.inputs = 0 #the number of acceptable input args
+    _testNop.outputs = 0 #the number of acceptable output args
+    _testNop.executionUnit = [] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
+    _testNop.cost = 1
+    _testNop.cycles = 1
+    _testNop.bitLengthOK = lambda x: True #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
+
+
+    def _testAdd(self, *args):
+        self._refresh()
+        
+        argsParsed = self._parseArguments(args)
+        a1, a2 = argsParsed[0]
+        b1, b2 = argsParsed[1]
+        c1, c2 = argsParsed[2]
+
+        self.state[c1][c2] = self.lastState[a1][a2] + self.lastState[b1][b2]
+        if self.state[c1][c2] >= 2**self.config[c1]:
+            self.state['flag']['carry'] = 1
+            
+        self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1] - 1)
+
+        self.state['pc'] = self.lastState['pc'] + 1
+
+        self._display([argsParsed[0], argsParsed[1]],
+                      [argsParsed[2]]
+                      )
+    # https://www.servethehome.com/intel-xeon-scalable-processor-family-microarchitecture-overview/
+    _testAdd.type = 'dumb' #the instruction type, CISC, RISC, VLIW
+    _testAdd.inputs = 2 #the number of acceptable input args
+    _testAdd.executionUnit = ['integer'] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
+    _testAdd.cost = 1
+    _testAdd.cycles = 1
+    _testAdd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
+
+    def _testAnd(self, a : 'tuple[str, int]', b : 'tuple[str, int]', c : 'tuple[str, int]') -> 'tuple[list, list]':  #a different instruction with a different backend, to test out different styles
+        #self._refresh() is done by the calling function
+        #self._parseArguments(args) is done by the calling function, the arguments for this function are tuples
+
+        #
+        a1, a1 = a
+        b1, b2 = b
+        c1, c2 = c
+
+        #a check that the registers that are being accessed are of a compatible bitlength
+        assert self.config[a1] > 0
+        assert self.config[b1] > 0
+        assert self.config[c1] > 0
+
+        self.state[c1][c2] = self.lastState[a1][a2] & self.lastState[b1][b2] #performs the bitwise and operation
+
+        self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1] - 1) #'cuts down' the result to something that fits in the register/memory location
+
+        self.state['pc'] = self.lastState['pc'] + 1 #incriments the program counter
+
+        return ([a, b], #a and b are tuples(str, int)
+                [c]
+                )
+    _testAnd.type : str = 'test' #what type of function/instruction is it ('test', 'risc', 'cisc', 'directive')
+    _testAnd.executionUnit : 'list[str]' = ['logic'] #what execution unit this instruction corrisponds to ('integer, multiply, floiting point, memory management')
+    _testAnd.energyCost : int = 1
+    _testAnd.cycles : int = 1 #FUTURE
+    _testAnd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength, used at modual initialization (IE: a 64-bit floating point operation needs registers that are 64-bits)
+    #function should perform own check on inputs and output registers to determin if individual registers are compatible with the operation at run time
+    
+    def _directiveInt(self, *args): #(self, memory pointer, value)
+        pass
+    _directiveInt.type = 'directive'
+    _directiveInt.inputs = 2
+    _directiveInt.outputs = 0
+    _directiveInt.bitLengthOK = lambda x : x > 0
 
 class DumbALUv1:
     """A prototype implimentation of an ALU for illistratuve purposes
@@ -514,3 +781,10 @@ def multiply2(a, b, bitlength=8):
 
 if __name__ == "__main__":
     #print(multiply1(3,4))
+
+    ALU = DumbALUv2(8, 2, 2, 0, 0)
+    ALU.inject('r0', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
+    ALU.lazy('nop #test test test') #comments get ignored
+    ALU.lazy('copy(5, r0)') #an actual instruction
+    ALU.lazy('copy(1, r1); copy(2, r2)') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
+    #ALU.run()
