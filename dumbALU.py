@@ -1,9 +1,11 @@
 """
 By: Medic5700
 An implementation of an ALU simulator to allow a better and standardized way to illistrate bitwise instructions in lowlevel algorithms.
+This project is geared towards demonstrating algorithms, and therefor generalizes a lot of stuff. IE: bitLength is settable, instruction words are one memroy element big, etc
 """
 
-class DumbALU_old:
+
+class DumbALUv1:
     """A prototype implimentation of an ALU for illistratuve purposes
 
     issues:
@@ -18,6 +20,7 @@ class DumbALU_old:
     unable to cleanly handle registar names longer then 1 char (IE: 'r2' is easy to parse because you use the first char, 'pc' is hard because you can't look at only the first char)
     |what ALU flags are really needed in this kind of generic processor?
     |    -> carry flag, overflow?
+    |    -> flags should be accessable just like any other register to allow for more direct access for stuff like conditional jumps without obtuse architecture specific flag commands and what not
     register binary display allignment should be right justified instead of left justified for easier reading/understandability
     instructions are stored seperatly from data, there are arguments both for and agenst attempting to throw that into ALU memory
         -> recomend the option of storing them seperatly/together at instantiation, seperatly by default and if using the lazyDecoder, together allowed if loading a full assembly program
@@ -177,7 +180,7 @@ class DumbALU_old:
         self.sleep(self.animationDelay)
         print(screen)
     
-    def _display2(self, operation, readList, writeList):
+    def _display_old(self, operation, readList, writeList):
         """displays the current operation
 
         does not scale, will need to be replaced with 'verticle orentation'"""
@@ -417,15 +420,16 @@ class DumbALU_old:
         return 0
         
 def multiply1(a, b, bitlength=8):
-    '''Takes in two unsigned integers, a, b -> returns an integer a*b
+    """Takes in two unsigned integers, a, b -> returns an integer a*b
 
     bitlength is the size of the numbers/architecture, in bits
     https://en.wikipedia.org/wiki/Binary_multiplier#Basics
-    '''
+    """
+    '''The inital prototype attempt that works'''
     assert a < 2**bitlength
     assert b < 2**bitlength
 
-    ALU = DumbALU_old(8, 0, 4, 0, 0)
+    ALU = DumbALUv1(8, 0, 4, 0, 0)
 
     r = [0 for i in range(4)]
 
@@ -462,25 +466,26 @@ def multiply1(a, b, bitlength=8):
     return z
 
 def multiply2(a, b, bitlength=8):
-    '''Takes in two unsigned integers, a, b -> returns an integer a*b
+    """Takes in two unsigned integers, a, b -> returns an integer a*b
 
     bitlength is the size of the numbers/architecture, in bits
     https://en.wikipedia.org/wiki/Binary_multiplier#Basics
-    '''
-    assert a < 2**bitlength
-    assert b < 2**bitlength
+    """
+    '''a non-functional mockup of how dumbALU could be used'''
+    assert 0 <= a < 2**bitlength
+    assert 0 <= b < 2**bitlength
 
     ALU = DumbALU(8, 2, 2, 0, 0)
 
     i = [0 for j in range(2)]
     r = [0 for i in range(2)]
 
-    ALU.lazyDecode('noop')
+    ALU.lazyDecode('nop')
 
-    ALU.lazyDecode('load ' + str(a) + ', i0')
+    ALU.lazyDecode('move ' + str(a) + ', i0')
     ALU.inject('i0', a) #this could be an alternative way to directly load stuff into memory/registers
     i[0] = a
-    ALU.lazyDecode('load ' + str(b) + ', r0')
+    ALU.lazyDecode('move ' + str(b) + ', r0')
     ALU.inject('r0', b)
     r[0] = b
 
@@ -509,4 +514,4 @@ def multiply2(a, b, bitlength=8):
     return z
 
 if __name__ == "__main__":
-    print(multiply1(3,4))
+    #print(multiply1(3,4))
