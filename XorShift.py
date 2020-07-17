@@ -1,3 +1,8 @@
+"""
+By: Medic5700
+An implementation of the xorShift random number generatore
+"""
+
 import random
 import time
 animationDelay = 0.05 #in seconds

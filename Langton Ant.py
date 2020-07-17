@@ -8,11 +8,11 @@ note: The map is a pac-man map-space
 import time #used for limiting frames per second
 
 #global game settings
-MapX = 80 #map width
-MapY = 20 #map height
-timeout = 2**12 #max run time in steps, -1 for infinite runtime
+MapX : int = 80 #map width
+MapY : int = 20 #map height
+timeout : int = 2**12 #max run time in steps, -1 for infinite runtime
 
-def strScreen():
+def strScreen() -> str:
     """Takes the GameMap, returns string representing gameMap for print()"""
     global AntX, AntY, AntR
     global GameMap

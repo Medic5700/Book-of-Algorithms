@@ -1,3 +1,8 @@
+"""
+By: Medic5700
+A binary search algorithm
+"""
+
 import random
 import math
 

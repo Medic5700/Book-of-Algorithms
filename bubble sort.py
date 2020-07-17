@@ -1,3 +1,8 @@
+"""
+By: Medic5700
+A series a bubble sort algorithms, visualized
+"""
+
 import random
 import copy #for deepcopying arrays
 import time
@@ -39,7 +44,7 @@ def visualize(A, newline=True, highlight=[]):
     time.sleep(animationDelay)
     print("\u001b[0G" + "[" + ''.join(line) + "\u001b[0m" + "]", end=endline, flush=True)
 
-def bubbleSort1(A):
+def bubbleSort1(A : list) -> list:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
     The simple dumb way"""
@@ -53,7 +58,7 @@ def bubbleSort1(A):
         visualize(A, True)
     return A
 
-def bubbleSort2(A):
+def bubbleSort2(A : list) -> list:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers"""
     for i in range(len(A)):
         for j in range(len(A) - 1 - i):
@@ -65,7 +70,7 @@ def bubbleSort2(A):
         visualize(A, True)
     return A
 
-def bubbleSort3(A):
+def bubbleSort3(A : list) -> list:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
     https://en.wikipedia.org/wiki/Bubble_sort
@@ -84,7 +89,7 @@ def bubbleSort3(A):
             break
     return A
 
-def cocktailShakerSort1(A):
+def cocktailShakerSort1(A : list) -> list:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
     https://en.wikipedia.org/wiki/Cocktail_shaker_sort
@@ -105,7 +110,7 @@ def cocktailShakerSort1(A):
         visualize(A, True)
     return A
 
-def cocktailShakerSort2(A):
+def cocktailShakerSort2(A : list) -> list:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
     https://en.wikipedia.org/wiki/Cocktail_shaker_sort
@@ -131,7 +136,7 @@ def cocktailShakerSort2(A):
             break
     return A
 
-def gnomeSort1(A):
+def gnomeSort1(A : list) -> list:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
     https://en.wikipedia.org/wiki/Gnome_sort

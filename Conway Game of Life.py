@@ -11,11 +11,11 @@ import random #used for initial map generation
 import time #used for limiting frames per second
 
 #global game settings
-mapX = 80 #map width
-mapY = 20 #map height
+mapX : int = 80 #map width
+mapY : int = 20 #map height
 timeout = 1024 #max run time in steps, -1 for infinite runtime
 
-def generateMap(width, height):
+def generateMap(width : int, height : int) -> 'list[list[bool]]':
     """takes dimensions, Generates random map, returns a two dimensional array of True or False"""
     assert (width > 0) and (height > 0)
     gameMap = [[(False) for x in range(width)] for y in range(height)]
