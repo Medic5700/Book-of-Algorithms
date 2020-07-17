@@ -32,7 +32,7 @@ class DumbALUv2:
         allowing accessing indicidual bytes in a register, IE: copy the lower 8 bits of a 64-bit register
     """
 
-    def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1, doubleRegisterAmount=0, arbitraryRegisterAmount=0, arbitraryRegisterSize=64):
+    def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1):
         import time
         self.sleep = time.sleep #avoids having to reimport time module in _display function every time it's called
         import copy
@@ -42,8 +42,6 @@ class DumbALUv2:
         self.state = {}
         self.state['m'] : list[int] = [0 for i in range(memoryAmount)] #standard memory
         self.state['r'] : list[int] = [0 for i in range(registerAmount)] #standard registers
-        self.state['d'] : list[int] = [0 for i in range(doubleRegisterAmount)] #double length registers for stuff like multiplication
-        self.state['a'] : list[int] = [0 for i in range(arbitraryRegisterAmount)]
         self.state['i'] : list[int] = [] #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
         self.state['pc'] : int = 0 #program counter #this doesn't quite fit in here
         self.state['flag'] : dict = {'carry': 0,
@@ -54,24 +52,24 @@ class DumbALUv2:
         can impliment a data execution protection using this info
         does not allow for dynamically altering/generating instructions, which is beyond the scope of this project (though if I can find a generic way to do it, I probably will)
         '''
-        self.state['currentInstruction'] = "" #FUTURE
+        #self.state['currentInstruction'] = "" #FUTURE
         
-        self.state['sp'] = [0] #stack pointer #FUTURE
-        self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
-        '''the entire state information for registers, program pointers, etc, is stored as one memory unit for simplicity'''
+        #self.state['sp'] = [0] #stack pointer #FUTURE
+        #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
+        #'''the entire state information for registers, program pointers, etc, is stored as one memory unit for simplicity'''
 
         self.config = {}
         self.config['m'] : int = bitLength
         self.config['r'] : int = bitLength
-        self.config['d'] : int = bitLength*2
-        self.config['a'] : int = arbitraryRegisterSize
         self.config['i'] : int = bitLength
         
         self.lastState = None
 
         self.animationDelay = 0.5
 
-        #the instructions table should be able to be overloaded (IE: add could have an array of funtions) where one is chosen (based on bitlength, etc) to be included 
+        #self.stats = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
+
+        #FUTURE the instructions table should be able to be overloaded (IE: add could have an array of funtions) where one is chosen (based on bitlength, etc) to be included 
         instructionSetDumb = {'add'     : self._testAdd,
                               'and'     : self._testAnd,
                               'nop'     : self._testNop,
@@ -90,25 +88,23 @@ class DumbALUv2:
         t1, t2 = self._parseArguments([target])
         return self.state[t1][t2]
 
-    def decode(self, sourceCode): #TODO
-        lines = []
-        for i in sourceCode.split('\n'):
-            lines.append(i.strip())
-        print(lines)
-
-        '''
-        memoryPointer = 0
-        for i in lines:
-            if i == '':
-                continue
-            tokens = i.split()
-            for j in tokens:
-                if j in self.instructionSet.keys():
-                    self.state['instruction'][memoryPointer] = i
-                    memoryPointer += 1
-                    break
-        print(self.state['instruction'])
-        '''
+##    def decode(self, sourceCode): #TODO not enough implimented to make this meaningfully implimented
+##        lines = []
+##        for i in sourceCode.split('\n'):
+##            lines.append(i.strip())
+##        print(lines)
+##
+##        memoryPointer = 0
+##        for i in lines:
+##            if i == '':
+##                continue
+##            tokens = i.split()
+##            for j in tokens:
+##                if j in self.instructionSet.keys():
+##                    self.state['instruction'][memoryPointer] = i
+##                    memoryPointer += 1
+##                    break
+##        print(self.state['instruction'])
 
     def run(self):
         pass
@@ -160,36 +156,38 @@ class DumbALUv2:
             self.state['flag'][i] = 0
         self.state['i'] = []
 
-    def _parseArguments(self, argumentList):
-        """takes a bunch of arguments (EX: 'r1,r2,r3,i1,i4,m5,m10,25,pc'), and outputs an ordered list of tuples
+        
 
-        The tuples represent (register, array index).
-        numbers (EX: 5,1,10,25) get loaded into immidiate registers, and then translated to register and array index (IE: 5->('i',9), 10->('i',1))
-        #addresses (EX: '0xff') get translated into register and array index (IE: 0xff->('m',255), 0x02->('m',2))
-        #    should 1xff refer to other stuff, like registers?
-        pointers??? #TODO
-        all named variables should be already translated (IE: the loop tag to indicate where to jump to for a jump address)
-        """
-
-        immidiatePointer = len(self.state['i'])
-        result = []
-        for i in argumentList:
-            if i in self.state.keys():
-                result.append((i,0))
-                continue
-            try:
-                t1 = int(i)
-                self.state['i'].append(int(i))
-                result.append(('i', immidiatePointer))
-                continue
-            except:
-                pass
-            if i.find('-') > 0:
-                t1, t2 = i.split('-')
-                result.append((t1, int(t2)))
-                continue
-            
-        return result
+##    def _parseArguments(self, argumentList):
+##        """takes a bunch of arguments (EX: 'r1,r2,r3,i1,i4,m5,m10,25,pc'), and outputs an ordered list of tuples
+##
+##        The tuples represent (register, array index).
+##        numbers (EX: 5,1,10,25) get loaded into immidiate registers, and then translated to register and array index (IE: 5->('i',9), 10->('i',1))
+##        #addresses (EX: '0xff') get translated into register and array index (IE: 0xff->('m',255), 0x02->('m',2))
+##        #    should 1xff refer to other stuff, like registers?
+##        pointers??? #TODO
+##        all named variables should be already translated (IE: the loop tag to indicate where to jump to for a jump address)
+##        """
+##
+##        immidiatePointer = len(self.state['i'])
+##        result = []
+##        for i in argumentList:
+##            if i in self.state.keys():
+##                result.append((i,0))
+##                continue
+##            try:
+##                t1 = int(i)
+##                self.state['i'].append(int(i))
+##                result.append(('i', immidiatePointer))
+##                continue
+##            except:
+##                pass
+##            if i.find('-') > 0:
+##                t1, t2 = i.split('-')
+##                result.append((t1, int(t2)))
+##                continue
+##            
+##        return result
 
     def _testNop(self, *args):
         self._refresh()
@@ -207,14 +205,12 @@ class DumbALUv2:
     _testNop.cycles = 1
     _testNop.bitLengthOK = lambda x: True #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
 
-
-    def _testAdd(self, *args):
-        self._refresh()
-        
-        argsParsed = self._parseArguments(args)
-        a1, a2 = argsParsed[0]
-        b1, b2 = argsParsed[1]
-        c1, c2 = argsParsed[2]
+    def _testAdd(self, a, b, c):
+        #self._refresh()
+        #argsParsed = self._parseArguments(args)
+        a1, a2 = a
+        b1, b2 = b
+        c1, c2 = c
 
         self.state[c1][c2] = self.lastState[a1][a2] + self.lastState[b1][b2]
         if self.state[c1][c2] >= 2**self.config[c1]:
@@ -224,22 +220,22 @@ class DumbALUv2:
 
         self.state['pc'] = self.lastState['pc'] + 1
 
-        self._display([argsParsed[0], argsParsed[1]],
-                      [argsParsed[2]]
-                      )
+        return ([a, b], #read highlight
+                [c] #write highlight
+                )
     # https://www.servethehome.com/intel-xeon-scalable-processor-family-microarchitecture-overview/
-    _testAdd.type = 'dumb' #the instruction type, CISC, RISC, VLIW
-    _testAdd.inputs = 2 #the number of acceptable input args
-    _testAdd.executionUnit = ['integer'] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
-    _testAdd.cost = 1
-    _testAdd.cycles = 1
+    _testAdd.type = 'test' #the instruction type, CISC, RISC, VLIW
+    #_testAdd.inputs = 2 #the number of acceptable input args
+    #_testAdd.executionUnit = ['integer'] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
+    #_testAdd.cost = 1
+    #_testAdd.cycles = 1
     _testAdd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
 
     def _testAnd(self, a : 'tuple[str, int]', b : 'tuple[str, int]', c : 'tuple[str, int]') -> 'tuple[list, list]':  #a different instruction with a different backend, to test out different styles
         #self._refresh() is done by the calling function
         #self._parseArguments(args) is done by the calling function, the arguments for this function are tuples
 
-        #
+        #arguments are (str, int) pairs, representing the memory type and index
         a1, a1 = a
         b1, b2 = b
         c1, c2 = c
@@ -259,17 +255,17 @@ class DumbALUv2:
                 [c]
                 )
     _testAnd.type : str = 'test' #what type of function/instruction is it ('test', 'risc', 'cisc', 'directive')
-    _testAnd.executionUnit : 'list[str]' = ['logic'] #what execution unit this instruction corrisponds to ('integer, multiply, floiting point, memory management')
-    _testAnd.energyCost : int = 1
-    _testAnd.cycles : int = 1 #FUTURE
+    #_testAnd.executionUnit : 'list[str]' = ['logic'] #what execution unit this instruction corrisponds to ('integer, multiply, floiting point, memory management')
+    #_testAnd.energyCost : int = 1
+    #_testAnd.cycles : int = 1 #FUTURE
     _testAnd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength, used at modual initialization (IE: a 64-bit floating point operation needs registers that are 64-bits)
     #function should perform own check on inputs and output registers to determin if individual registers are compatible with the operation at run time
     
     def _directiveInt(self, *args): #(self, memory pointer, value)
         pass
     _directiveInt.type = 'directive'
-    _directiveInt.inputs = 2
-    _directiveInt.outputs = 0
+    #_directiveInt.inputs = 2
+    #_directiveInt.outputs = 0
     _directiveInt.bitLengthOK = lambda x : x > 0
 
 class DumbALUv1:
