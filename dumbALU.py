@@ -34,8 +34,8 @@ class DumbALUv2:
     """
 
     def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1):
-        import time
-        self.sleep = time.sleep #avoids having to reimport time module in _display function every time it's called
+        #import time
+        #self.sleep = time.sleep #avoids having to reimport time module in _display function every time it's called
         import copy
         self.deepCopy = copy.deepcopy #required because state['flags'] contains a dictionary which needs to be copied
         
@@ -141,16 +141,16 @@ class DumbALUv2:
             print('r' + str(i) + '\t' + '=\t[' + str(self.state['r'][i]) + ']')
         
 
-    def _integrityCheck(self):
-        """checks the integridy of all current registers, memory, etc"""
-        pass
+##    def _integrityCheck(self):
+##        """checks the integridy of all current registers, memory, etc"""
+##        pass
 
     def _refresh(self):
         """resets all required registers and flags between instructions, copies current state into lastState
 
         note: can be omited in some cases, such as micro-code that sets flags for the calling procedure"""
 
-        self._integrityCheck()
+        #self._integrityCheck()
 
         self.lastState = self.deepCopy(self.state) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
         
@@ -239,12 +239,12 @@ class DumbALUv2:
         self._display([],
                       []
                       )
-    _testNop.type = 'dumb' #the instruction type, CISC, RISC, VLIW
-    _testNop.inputs = 0 #the number of acceptable input args
-    _testNop.outputs = 0 #the number of acceptable output args
-    _testNop.executionUnit = [] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
-    _testNop.cost = 1
-    _testNop.cycles = 1
+    _testNop.type = 'test' #the instruction type, CISC, RISC, VLIW
+    #_testNop.inputs = 0 #the number of acceptable input args
+    #_testNop.outputs = 0 #the number of acceptable output args
+    #_testNop.executionUnit = [] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
+    #_testNop.cost = 1
+    #_testNop.cycles = 1
     _testNop.bitLengthOK = lambda x: True #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
 
     def _testAdd(self, a, b, c):
