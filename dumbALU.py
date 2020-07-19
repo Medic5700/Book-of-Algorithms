@@ -80,6 +80,14 @@ class DumbALUv2:
 
         self._refresh()
 
+    def addRegister(self, bitlength : int, amount : int, name : str):
+        assert type(name) is str
+        assert name not in self.state.keys()
+        
+        self.state[name] = [0 for i in range(amount)]
+        self.config[name] = bitlength
+        self._refresh()
+
     def inject(self, target : str, value : int):
         assert type(value) is int
         #TODO handle negative value
