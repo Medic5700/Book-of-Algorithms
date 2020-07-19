@@ -29,7 +29,8 @@ class DumbALUv2:
             syscalls
         CPU power states/sleep
             device drivers/interactions
-        allowing accessing indicidual bytes in a register, IE: copy the lower 8 bits of a 64-bit register
+        allowing accessing individual bytes in a register, IE: copy the lower 8 bits of a 64-bit register
+        CISC recursion to simulate a context switch
     """
 
     def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1):
@@ -43,7 +44,7 @@ class DumbALUv2:
         self.state['m'] : list[int] = [0 for i in range(memoryAmount)] #standard memory
         self.state['r'] : list[int] = [0 for i in range(registerAmount)] #standard registers
         self.state['i'] : list[int] = [] #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
-        self.state['pc'] : int = 0 #program counter #this doesn't quite fit in here
+        self.state['pc'] : list[int] = [0] #program counter, it's a list because the parser will auto-convert references to 'pc' to 'pc[0]'
         self.state['flag'] : dict = {'carry': 0,
                                      'overflow': 0
                                      }
@@ -70,22 +71,23 @@ class DumbALUv2:
         #self.stats = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
 
         #FUTURE the instructions table should be able to be overloaded (IE: add could have an array of funtions) where one is chosen (based on bitlength, etc) to be included 
-        instructionSetDumb = {'add'     : self._testAdd,
+        instructionSetTest = {'add'     : self._testAdd,
                               'and'     : self._testAnd,
                               'nop'     : self._testNop,
                               '.int'    : self._directiveInt
                               }
-        self.instructionSet = instructionSetDumb #used by the decoder to parse instructions
+        self.instructionSet = instructionSetTest #used by the decoder to parse instructions
 
         self._refresh()
 
-    def inject(self, target, value):
+    def inject(self, target : str, value : int):
         assert type(value) is int
-        t1, t2 = self._parseArguments([target])[0]
+        #TODO handle negative value
+        t1, t2 = self._translateArgument(target)
         self.state[t1][t2] = value & (2**self.config[t1]-1)
 
-    def extract(self, target):
-        t1, t2 = self._parseArguments([target])
+    def extract(self, target : str) -> int:
+        t1, t2 = self._translateArgument(target)
         return self.state[t1][t2]
 
 ##    def decode(self, sourceCode): #TODO not enough implimented to make this meaningfully implimented
@@ -150,7 +152,7 @@ class DumbALUv2:
 
         self._integrityCheck()
 
-        self.lastState = self.deepCopy(self.state)
+        self.lastState = self.deepCopy(self.state) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
         
         for i in self.state['flag'].keys(): #resets all flags
             self.state['flag'][i] = 0
@@ -232,7 +234,7 @@ class DumbALUv2:
     def _testNop(self):
         self._refresh()
         
-        self.state['pc'] = self.lastState['pc'] + 1
+        self.state['pc'][0] = self.lastState['pc'][0] + 1
 
         self._display([],
                       []
@@ -258,7 +260,7 @@ class DumbALUv2:
             
         self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1] - 1)
 
-        self.state['pc'] = self.lastState['pc'] + 1
+        self.state['pc'][0] = self.lastState['pc'][0] + 1
 
         return ([a, b], #read highlight
                 [c] #write highlight
@@ -289,10 +291,12 @@ class DumbALUv2:
 
         self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1] - 1) #'cuts down' the result to something that fits in the register/memory location
 
-        self.state['pc'] = self.lastState['pc'] + 1 #incriments the program counter
+        self.state['pc'][0] = self.lastState['pc'][0] + 1 #incriments the program counter
 
-        return ([a, b], #a and b are tuples(str, int)
-                [c]
+        #tells what registers to highlight to indicate activity
+        #a and b are tuples(str, int)
+        return ([a, b], #read highlight
+                [c] #write highlight
                 )
     _testAnd.type : str = 'test' #what type of function/instruction is it ('test', 'risc', 'cisc', 'directive')
     #_testAnd.executionUnit : 'list[str]' = ['logic'] #what execution unit this instruction corrisponds to ('integer, multiply, floiting point, memory management')
@@ -779,46 +783,49 @@ def multiply2(a, b, bitlength=8):
     assert 0 <= b < 2**bitlength
 
     ALU = DumbALU(8, 2, 0) #bitlength, register amount, memory amount
-    ALU.addRegister(16, 2, 'i') #bitlength, register amount, namespace symbol
+    ALU.addRegister(16, 2, 't') #bitlength, register amount, namespace symbol
 
-    i = [0 for j in range(2)]
+    t = [0 for j in range(2)]
     r = [0 for i in range(2)]
 
-    ALU.inject('i0', a)
-    ALU.inject('r0', b)
     ALU.decode('''
                         nop
                 loop:   jumpEQ  (r0, 0, end)
                             and     (r0, 1, r1)
                             jumpNEQ (r1, 1, zero)
-                                add     (i0, i1, i1)
-                zero:       shiftL  (i0, 1, i0)
+                                add     (t0, t1, t1)
+                zero:       shiftL  (t0, 1, t0)
                             shiftR  (r0, 1, r0)
                             jump    (loop)
                 end:    halt
                 ''')
-    result = ALU.extract('i1')
+    ALU.inject('t0', a)
+    ALU.inject('r0', b)
+    ALU.run()
+    resultALU = ALU.extract('t1')
     
-    i[0] = a
+    t[0] = a
     r[0] = b
     
     while(r[0] != 0):
         r[1] = r[0] & 1
         if r[1] == 1:
-            i[1] = i[0] + i[1]
-        i[0] = i[0] << 1
+            t[1] = t[0] + t[1]
+        t[0] = t[0] << 1
         r[0] = r[0] >> 1
         
-    z = i[1]
+    resultPython = t[1]
 
-    assert result == a * b
-    assert z == a * b #sanity check
-    return result
+    #sanity check
+    assert resultALU == a * b
+    assert resultPython == a * b
+    
+    return resultALU
 
 if __name__ == "__main__":
     #print(multiply1(3,4))
 
-    ALU = DumbALUv2(8, 2, 2, 0, 0)
+    ALU = DumbALUv2(8, 0, 2)
     ALU.inject('r0', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
     ALU.lazy('nop #test test test') #comments get ignored
     ALU.lazy('copy(5, r0)') #an actual instruction
