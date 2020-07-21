@@ -4,7 +4,7 @@ An implementation of an ALU simulator to allow a better and standardized way to 
 This project is geared towards demonstrating algorithms, and therefor generalizes a lot of stuff. IE: bitLength is settable, instruction words are one memroy element big, etc
 """
 
-class DumbALUv2:
+class CPUsimulatorV2:
     """A an implimentation of a generic and abstract ALU mainly geared towards illistrating algorithms
 
     Issues:
@@ -885,7 +885,7 @@ def multiply2(a, b, bitlength=8):
     assert 0 <= a < 2**bitlength
     assert 0 <= b < 2**bitlength
 
-    ALU = DumbALU(8, 2, 0) #bitlength, register amount, memory amount
+    ALU = CPUsimulatorV2(8, 2, 0) #bitlength, register amount, memory amount
     ALU.addRegister(16, 2, 't') #bitlength, register amount, namespace symbol
 
     t = [0 for j in range(2)]
@@ -928,7 +928,7 @@ def multiply2(a, b, bitlength=8):
 if __name__ == "__main__":
     #print(multiply1(3,4))
 
-    ALU = DumbALUv2(8, 0, 2)
+    ALU = CPUsimulatorV2(8, 0, 2)
     ALU.inject('r0', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
     ALU.lazy('nop #test test test') #comments get ignored
     ALU.lazy('copy(5, r0)') #an actual instruction
