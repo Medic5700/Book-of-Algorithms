@@ -31,6 +31,8 @@ class DumbALUv2:
             device drivers/interactions
         allowing accessing individual bytes in a register, IE: copy the lower 8 bits of a 64-bit register
         CISC recursion to simulate a context switch
+        execution unit instruction queueing
+        enforcment of hardware register limitations (IE: r0 is hardwared to be zero)
     """
 
     def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1):
@@ -81,6 +83,7 @@ class DumbALUv2:
         self._refresh()
 
     def addRegister(self, bitlength : int, amount : int, name : str):
+        #TODO allow flags to be added
         assert type(name) is str
         assert name not in self.state.keys()
         
@@ -929,5 +932,5 @@ if __name__ == "__main__":
     ALU.inject('r0', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
     ALU.lazy('nop #test test test') #comments get ignored
     ALU.lazy('copy(5, r0)') #an actual instruction
-    ALU.lazy('copy(1, r1); copy(2, r2)') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
+    ALU.lazy('copy(1, r1), copy(2, r2)') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
     #ALU.run()
