@@ -167,75 +167,49 @@ class DumbALUv2:
         self.state['i'] = []
 
     def _translateArgument(self, arg : str) -> 'tuple[str, int]':
-        #takes r0, turns it into ('r', 0)
-        #should be able to take flags[carry]
         #FUTURE may have to take pointers of form m*r[0] IE: number in r0 points to memory index
-        '''
-        |if (arg == number) or (arg == number in hex):
-        |    copy into immidiate register
-        |    return appropriate key[index] pair. IE: i0, i1, i256, etc
-        |if '[]' in arg: #it has a bracket:
-        |    match the first part to a state.key()
-        |    key = first part
-        |    if second part is int:
-        |        convert to int
-        |        index = second part
-        |    return key, index
-        |if arg == self.key:
-        |    return key = arg, index = 0
-        |if arg matches pattern '[key][number]':
-        |    index = number
-        |    return key, index
-        |test access to key[index]
-        '''
         
-        import re
+        import re #TODO move this
 
         key : str = None
         index : 'int xor str' = None
 
         word = arg.strip().lower()
 
-        #matches a postive or negative integer
-        if re.match("^[-]{0,1}[\d]*$", arg) != None:
-            #matches negative and positive intigers
-            "^[-]{0,1}[\d]{1,5}$"
-            "^[-]{0,1}[\d]*$"
-            key = 'i'
-            self.state['i'].append(int(arg))
-            index = len(self.state['i']) - 1
-        #matchs an integer in hex notation
-        if re.match("^0x[0-9a-fA-F]*$", arg) != None:
-            #matches hex intigers
-            "^0x[0-9a-fA-F]*$"
-            key = 'i'
-            self.state['i'].append(int(arg, 16))
-            index = len(self.state['i']) - 1
-        #matches a register index of form 'r0', 'r25', etc
-        for i in self.state.keys():
-            if re.match("^" + str(i) + "[\d]*$", arg) != None:
-                key = i
-                temp = arg.replace(i, '')
-                index = int(temp)
-                break
-        #matches a gerister index of form 'r[0]', 'r[25]', etc
-        for i in self.state.keys():
-            if re.match("^" + str(i) + "\[[\d]*\]$", arg) != None:
-                key = i
-                temp = arg.replace(i, '')
-                temp = temp.replace('[', '')
-                temp = temp.replace(']', '')
-                index = int(temp)
-                break
         #matches if the arg IS a key
         if arg in self.state.keys():
             key = arg
             index = 0
-
-        try:
-            test = self.state[key][index]
-        except:
-            print('error:', key, index)
+        #matches a postive or negative integer
+        elif re.match("^[-]{0,1}[\d]*$", arg) != None:
+            key = 'i'
+            self.state['i'].append(int(arg))
+            index = len(self.state['i']) - 1
+        #matchs an integer in hex notation
+        elif re.match("^0x[0-9a-fA-F]*$", arg) != None:
+            key = 'i'
+            self.state['i'].append(int(arg, 16))
+            index = len(self.state['i']) - 1
+        #matches a register index of form 'r0', 'r25', etc
+        if key == None: #this skips maching if key index was already found
+            for i in self.state.keys():
+                if re.match("^" + str(i) + "[\d]*$", arg) != None:
+                    key = i
+                    temp = arg.replace(i, '')
+                    index = int(temp)
+                    break
+        #matches a register index of form 'r[0]', 'r[25]', etc
+        if key == None: #this skips maching if key index was already found
+            for i in self.state.keys():
+                if re.match("^" + str(i) + "\[[\d]*\]$", arg) != None:
+                    key = i
+                    temp = arg.replace(i, '')
+                    temp = temp.replace('[', '')
+                    temp = temp.replace(']', '')
+                    index = int(temp)
+                    break
+        
+        test = self.state[key][index] #test if key index pair is accessable
 
         return (key, index)
 
