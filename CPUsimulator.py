@@ -4,6 +4,10 @@ An implementation of an ALU simulator to allow a better and standardized way to 
 This project is geared towards demonstrating algorithms, and therefor generalizes a lot of stuff. IE: bitLength is settable, instruction words are one memroy element big, etc
 """
 
+import sys
+version = sys.version_info
+assert version[0] == 3 and version[1] >= 8 #asserts python version 3.8 or greater
+
 class CPUsimulatorV2:
     """A an implimentation of a generic and abstract ALU mainly geared towards illistrating algorithms
 
