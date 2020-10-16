@@ -3,8 +3,7 @@ A mess because I'm still in the early stages and am mainly just finding stuff to
 Ranges from ways to implement multiplication in microcode-like environments to various sorting algorithms. Can include some visualizations to help understand it (but only command line visulizations using ANSI, YAY)
 Uses Python3 for consistancy, focus is on understandability instead of efficentcy or being tied to a particular architecture (results will vary).
 
-Stack:
-	Windows 10/Ubuntu
-	Windows Terminal/Bash
-	Python3
-
+Development Stack:
+	Windows 10	/	Ubuntu
+	Windows Terminal/	default Terminal #specifying this because some terminals don't support ANSI properly (like default powershell terminal on windows)
+	Python v3.8
