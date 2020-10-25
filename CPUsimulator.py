@@ -2,6 +2,10 @@
 By: Medic5700
 An implementation of an ALU simulator to allow a better and standardized way to illistrate bitwise instructions in lowlevel algorithms.
 This project is geared towards demonstrating algorithms, and therefor generalizes a lot of stuff. IE: bitLength is settable, instruction words are one memroy element big, etc
+
+IE: I needed something for a super dumb/special use case of demonstrating how a low level operation/algorithm works (memory error correction)
+    without using a weird workaround (having a seperate 8-bit memory and 1-bit parity array vs creating a cpu with 9-bit memory)
+    in a reliable and extensable way (making a cpu simulator that can be used for multiple algorithms)
 """
 
 import sys
@@ -17,11 +21,19 @@ class CPUsimulatorV2:
 
     references:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
+        https://en.wikipedia.org/wiki/Explicitly_parallel_instruction_computing
+        https://en.wikipedia.org/wiki/IA-64
         Google(intel microarchitecture)
             https://www.servethehome.com/intel-xeon-scalable-processor-family-microarchitecture-overview/
         https://cs.lmu.edu/~ray/notes/gasexamples/
         https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax
         https://en.wikipedia.org/wiki/GNU_Assembler
+        https://github.com/vmmc2/Vulcan     #a "RISC-V Instruction Set Simulator Built For Education"
+        https://www.youtube.com/watch?v=QKdiZSfwg-g     #Lecture 3. ISA Tradeoffs - Carnegie Mellon - Computer Architecture 2015 - Onur Mutlu
+
+    Issues:
+        Instruction functions return display highlight stuff, should be handled auto-magically by register arrays with a custom list class.
+        Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
 
     Out of scope:
         caching
@@ -33,10 +45,19 @@ class CPUsimulatorV2:
             syscalls
         CPU power states/sleep
             device drivers/interactions
-        allowing accessing individual bytes in a register, IE: copy the lower 8 bits of a 64-bit register
         CISC recursion to simulate a context switch
         execution unit instruction queueing
         enforcment of hardware register limitations (IE: r0 is hardwared to be zero)
+        importing instruction functions and instruction sets
+            instruction function currying on instruction set assignment (IE: 'addInt' = curry(add, 8 bit), 'addDouble' = curry(add, 16 bit))
+        parsing
+            math operorators
+            indentation
+            escape characters
+            allowing accessing individual bytes in a register, IE: copy the lower 8 bits of a 64-bit register
+        Reverse dirty bit for register file to impliment out of order super scaler execution
+            IE: an instruction is run on dummy data at runtime to see what registers are accessed, and marked dirty.
+            Allowing multiple instructions to be queeued up without implimenting a complex dependency graph (a short cut)
     """
 
     def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1):
