@@ -151,15 +151,16 @@ class CPUsimulatorV2:
         class Node:
             def __init__(self, content):
                 self.type : str = None
-                self.content = : str = content
+                self.content : str = content
                 self.child : list = []
                 self.parent : Node = None
                 
-        def parse(line : str) -> node:
+        def parse(line : str) -> Node:
             '''
             https://tomassetti.me/parsing-in-python/
             '''
             '''assembles the tree as it goes
+
             starts with a root node
             currentnode = root
 
@@ -178,116 +179,63 @@ class CPUsimulatorV2:
                     create node for operator
                     node.child = currentnode
                     currentnode.replace(node)
-                    
+            '''
+            '''#test use cases, but strictly focusing on token parsing without the application of rules
             test(2,3,4), test(2 + 5, 3)
 
-            test <function>
-                2   <litteral>
-                3   <litteral>
-                4   <litteral>
-            test <function>
+            test    <keyword>
+            (   <function>
+                2   <number>
+                ,   <seperator>
+                3   <number>
+                ,   <seperator>
+                4   <number>
+            test    <keyword>
+            (   <function>
+                2   <number>
                 +   <operator>
-                    2   <litteral>
-                    5   <litteral>
-                3   <litteral>
+                5   <number>
+                ,   <seperator>
+                3   <number>
 
             test(r[5], r10), test(r6, r[5 + 3])
 
-            test    <function>
-                r   <index>
-                    5   <litteral>
-                r10 <litteral>
-            test    <function>
-                r6  <litteral>
-                r   <index>
+            test    <keyword>
+            (   <function>
+                r   <keyword>
+                [   <index>
+                    5   <number>
+                ,   <seperator>
+                r10 <keyword>
+            test    <keyword>
+            (   <function>
+                r6  <keyword>
+                ,   <seoerator>
+                r   <keyword>
+                [   <index>
+                    5   <number>
                     +   <operator>
-                        5   <litteral>
-                        3   <litteral>
+                    3   <number>
 
             test(r[1][3])
 
             test    <keyword>
-                r
-                    1
-                3
-                
-            test    <keyword>
-                (   <function>
-                    r   <keyword>
-                        [   <index>
-                            1
-                        [   <index>
-                            3
+            (       <function>
+                r   <keyword>
+                [   <index>
+                    1   <number>
+                [   <index>
+                    2   <number>
             '''
-        
-        def tokenizer(segment : str) -> node:
-            '''takes in a string segment and returns a tree'''
-##            firstBracket : int = None
-##            lastBracket : int = None
-##            bracketStack : list = [] #a stack for keeping track of brackets
-##            #bracketStackIndex : list = []
-##            for i in range(len(segment)):
-##                if segment[i] == '[' or segment[i] == '(':
-##                    #bracketStack.append(segment[i])
-##                    bracketStackIndex.append(i)
-##                    if firstBracket == None:
-##                        firstBracket = i
-##                if segment[i] == ']':
-##                    if bracketStack[-1] == '[':
-##                        bracketStack.pop()
-##                        lastBracket = i
-##                    else:
-##                        raise Exception
-##                elif segment[i] == ')':
-##                    if bracketStack[-1] == '(':
-##                        bracketStack.pop()
-##                        lastBracket = i
-##                    else:
-##                        raise Exception
-##            print(segment, firstBracket, lastBracket, bracketStack)
-            
-##            '''
-##            takes in line 'test(5, 6), test(1), test'
-##            turns it into ['test(5, 6)', 'test(1)', 'test']
-##            recursively turns it into [ ['test', ['5','6']] , ['test', ['1']] , ['test'] ]
-##
-##            '''
-##            bracketStack : list = [] #a stack for keeping track of brackets
-##            bracketStackIndex : list = []
-##            tokenBig = []
-##            tokenLittle = []
-##            for i in range(len(segment)):
-##                if segment[i] == '[' or segment[i] == '(':
-##                    bracketStack.append(segment[i])
-##                    bracketStackIndex.append(i)
-##                elif segment[i] == ']':
-##                    if bracketStack[-1] == '[':
-##                        bracketStack.pop()
-##                        first = bracketStackIndex.pop()
-##                        tokenLittle.append(segment[first:i + 1])
-##                    else:
-##                        raise Exception
-##                elif segment[i] == ')':
-##                    if bracketStack[-1] == '(':
-##                        bracketStack.pop()
-##                        first = bracketStackIndex.pop()
-##                        tokenLittle.append(segment[first:i + 1])
-##                    else:
-##                        raise Exception
-##                if segment[i] == ',' and bracketStack == []:
-##                    
-##            print(segment, bracketStack, bracketStackIndex, tokenLittle)
+
             pass
                 
-        
         line = code
         
         if '#' in line: #gets rid of comments
             line = line.split('#')[0]
 
-        #TODO label processing
-
-        tree = tokenizer(line)
+        tree = parse(line)
         
 
     def _display(self, readList, writeList): #TODO
