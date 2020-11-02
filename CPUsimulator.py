@@ -852,33 +852,32 @@ def multiply2(a, b, bitlength=8):
     """Takes in two unsigned integers, a, b -> returns an integer a*b
 
     bitlength is the size of the numbers/architecture, in bits
-    https://en.wikipedia.org/wiki/Binary_multiplier#Basics
     """
     '''another non-functional mockup to show how dumbALU could be used, but a couple iterations of design later'''
     assert 0 <= a < 2**bitlength
     assert 0 <= b < 2**bitlength
 
-    ALU = CPUsimulatorV2(8, 2, 0) #bitlength, register amount, memory amount
-    ALU.addRegister(16, 2, 't') #bitlength, register amount, namespace symbol
+    ALU = CPUsimulatorV2(bitlength, 2, 0) #bitlength, register amount, memory amount
+    ALU.addRegister(bitlength * 2, 2, 't') #bitlength, register amount, namespace symbol
 
     t = [0 for j in range(2)]
     r = [0 for i in range(2)]
 
     ALU.decode('''
                         nop
-                loop:   jumpEQ  (r0, 0, end)
-                            and     (r0, 1, r1)
-                            jumpNEQ (r1, 1, zero)
-                                add     (t0, t1, t1)
-                zero:       shiftL  (t0, 1, t0)
-                            shiftR  (r0, 1, r0)
+                loop:   jumpEQ  (r[0], 0, end)
+                            and     (r[0], 1, r1)
+                            jumpNEQ (r[1], 1, zero)
+                                add     (t[0], t[1], t[1])
+                zero:       shiftL  (t[0], 1, t[0])
+                            shiftR  (r[0], 1, r[0])
                             jump    (loop)
                 end:    halt
                 ''')
-    ALU.inject('t0', a)
-    ALU.inject('r0', b)
+    ALU.inject('t[0]', a)
+    ALU.inject('r[0]', b)
     ALU.run()
-    resultALU = ALU.extract('t1')
+    resultALU = ALU.extract('t[1]')
     
     t[0] = a
     r[0] = b
@@ -904,6 +903,6 @@ if __name__ == "__main__":
     ALU = CPUsimulatorV2(8, 0, 2)
     ALU.inject('r0', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
     ALU.lazy('nop #test test test') #comments get ignored
-    ALU.lazy('copy(5, r0)') #an actual instruction
-    ALU.lazy('copy(1, r1), copy(2, r2)') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
+    ALU.lazy('copy(5, r[0])') #an actual instruction
+    ALU.lazy('copy(1, r[1]), copy(2, r[2])') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
     #ALU.run()
