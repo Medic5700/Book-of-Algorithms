@@ -321,9 +321,7 @@ class CPUsimulatorV2:
         
         self.state['pc'][0] = self.lastState['pc'][0] + 1
 
-        self._display([],
-                      []
-                      )
+        return
     _testNop.type = 'test' #the instruction type, CISC, RISC, VLIW
     #_testNop.inputs = 0 #the number of acceptable input args
     #_testNop.outputs = 0 #the number of acceptable output args
@@ -347,9 +345,7 @@ class CPUsimulatorV2:
 
         self.state['pc'][0] = self.lastState['pc'][0] + 1
 
-        return ([a, b], #read highlight
-                [c] #write highlight
-                )
+        return
     # https://www.servethehome.com/intel-xeon-scalable-processor-family-microarchitecture-overview/
     _testAdd.type = 'test' #the instruction type, CISC, RISC, VLIW
     #_testAdd.inputs = 2 #the number of acceptable input args
@@ -378,11 +374,7 @@ class CPUsimulatorV2:
 
         self.state['pc'][0] = self.lastState['pc'][0] + 1 #incriments the program counter
 
-        #tells what registers to highlight to indicate activity
-        #a and b are tuples(str, int)
-        return ([a, b], #read highlight
-                [c] #write highlight
-                )
+        return
     _testAnd.type : str = 'test' #what type of function/instruction is it ('test', 'risc', 'cisc', 'directive')
     #_testAnd.executionUnit : 'list[str]' = ['logic'] #what execution unit this instruction corrisponds to ('integer, multiply, floiting point, memory management')
     #_testAnd.energyCost : int = 1
