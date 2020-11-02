@@ -126,25 +126,11 @@ class CPUsimulatorV2:
         t1, t2 = self._translateArgument(target)
         return self.state[t1][t2]
 
-##    def decode(self, sourceCode): #TODO not enough implimented to make this meaningfully implimented
-##        lines = []
-##        for i in sourceCode.split('\n'):
-##            lines.append(i.strip())
-##        print(lines)
-##
-##        memoryPointer = 0
-##        for i in lines:
-##            if i == '':
-##                continue
-##            tokens = i.split()
-##            for j in tokens:
-##                if j in self.instructionSet.keys():
-##                    self.state['instruction'][memoryPointer] = i
-##                    memoryPointer += 1
-##                    break
-##        print(self.state['instruction'])
+    def decode(self, code: str): #TODO MVP
+        """takes in a string of assembly instructions, and compiles/loads it into memory"""
+        pass
 
-    def run(self, cycleLimit=None):
+    def run(self, cycleLimit=None): #TODO MVP
         """starts execution of instructions"""
         pass
 
@@ -230,31 +216,23 @@ class CPUsimulatorV2:
             '''
 
             pass
-                
-        line = code
-        
-        if '#' in line: #gets rid of comments
-            line = line.split('#')[0]
 
         pass
         
 
-    def lazy(self, code : str):
+    def lazy(self, code : str): #TODO MVP
         """decodes and executes a single instruction line"""
-        
-        tree = parse(line)
-
         pass
         
 
-    def _display(self, readList, writeList): #TODO
-        for i in len(self.state['r']):
-            print('r' + str(i) + '\t' + '=\t[' + str(self.state['r'][i]) + ']')
-        
+    def _display(self, readList, writeList): #TODO MVP
+##        for i in len(self.state['r']):
+##            print('r' + str(i) + '\t' + '=\t[' + str(self.state['r'][i]) + ']')
+        pass
 
-##    def _integrityCheck(self):
-##        """checks the integridy of all current registers, memory, etc"""
-##        pass
+    def _integrityCheck(self): #TODO
+        """checks the integridy of all current registers, memory, etc"""
+        pass
 
     def _refresh(self):
         """resets all required registers and flags between instructions, copies current state into lastState
@@ -326,8 +304,8 @@ class CPUsimulatorV2:
     #_testNop.inputs = 0 #the number of acceptable input args
     #_testNop.outputs = 0 #the number of acceptable output args
     #_testNop.executionUnit = [] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
-    #_testNop.cost = 1
-    #_testNop.cycles = 1
+    #_testNop.energyCost = lambda x : 0
+    #_testNop.propagationDelay = lambda x : 0
     _testNop.bitLengthOK = lambda x: True #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
 
     def _testAdd(self, a, b, c):
@@ -350,8 +328,8 @@ class CPUsimulatorV2:
     _testAdd.type = 'test' #the instruction type, CISC, RISC, VLIW
     #_testAdd.inputs = 2 #the number of acceptable input args
     #_testAdd.executionUnit = ['integer'] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
-    #_testAdd.cost = 1
-    #_testAdd.cycles = 1
+    #_testAdd.energyCost = lambda x : x #IE: the bitlength multiplied by how complex the operation is
+    #_testAdd.propagationDelay = lambda x : x #IE: the distance a bit change can propograte
     _testAdd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
 
     def _testAnd(self, a : 'tuple[str, int]', b : 'tuple[str, int]', c : 'tuple[str, int]') -> 'tuple[list, list]':  #a different instruction with a different backend, to test out different styles
@@ -377,8 +355,8 @@ class CPUsimulatorV2:
         return
     _testAnd.type : str = 'test' #what type of function/instruction is it ('test', 'risc', 'cisc', 'directive')
     #_testAnd.executionUnit : 'list[str]' = ['logic'] #what execution unit this instruction corrisponds to ('integer, multiply, floiting point, memory management')
-    #_testAnd.energyCost : int = 1
-    #_testAnd.cycles : int = 1 #FUTURE
+    #_testAnd.energyCost = lambda x : 1
+    #_testAnd.propagationDelay = lambda x : 1
     _testAnd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength, used at modual initialization (IE: a 64-bit floating point operation needs registers that are 64-bits)
     #function should perform own check on inputs and output registers to determin if individual registers are compatible with the operation at run time
     
