@@ -30,6 +30,7 @@ class CPUsimulatorV2:
         https://en.wikipedia.org/wiki/GNU_Assembler
         https://github.com/vmmc2/Vulcan     #a "RISC-V Instruction Set Simulator Built For Education"
         https://www.youtube.com/watch?v=QKdiZSfwg-g     #Lecture 3. ISA Tradeoffs - Carnegie Mellon - Computer Architecture 2015 - Onur Mutlu
+        https://www.anandtech.com/show/16195/a-broadwell-retrospective-review-in-2020-is-edram-still-worth-it #memroy latency of different cache levels
 
     Issues:
         Instruction functions return display highlight stuff, should be handled auto-magically by register arrays with a custom list class.
@@ -58,6 +59,9 @@ class CPUsimulatorV2:
         Reverse dirty bit for register file to impliment out of order super scaler execution
             IE: an instruction is run on dummy data at runtime to see what registers are accessed, and marked dirty.
             Allowing multiple instructions to be queeued up without implimenting a complex dependency graph (a short cut)
+        _baked
+            allow instructions to override instruction annotations during runtime execution
+            IE: an instruction uses a variable amount of energy dependent on the data processed. It can report the energy used during its execution
     """
 
     def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1):

@@ -56,4 +56,5 @@ for y in range(20, -20, -2): #prints every other line since characters in the te
     print(test)
 
 
+# https://www.ibm.com/developerworks/community/blogs/jfp/entry/How_To_Compute_Mandelbrodt_Set_Quickly?lang=en
 

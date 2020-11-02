@@ -8,7 +8,7 @@ They are all trying to generate all primes less than 1000000
 import profile
 import sys
 
-#Ommitted for performance reasons
+##Ommitted for performance reasons
 #def isPrime0(t1):
 #	"""Takes an integer, returns True if it is a prime number
 #	
