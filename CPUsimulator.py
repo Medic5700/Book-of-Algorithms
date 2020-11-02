@@ -140,11 +140,30 @@ class CPUsimulatorV2:
 
     def Parse:
         class Node:
-            def __init__(self, content):
-                self.type : str = None
+            def __init__(self, typeStr: str, content: str):
+                self.type : str = typeStr
                 self.content : str = content
                 self.child : list = []
                 self.parent : Node = None
+
+            def addChild(self, node : "Node"):
+                self.child.append(node)
+            
+            def __repr__(self, depth=0):
+                block = ""
+                line = ""
+                for i in range(depth):
+                    line += " "
+                line += str(self.content)
+                line.ljust(40, " ")
+                line += ":" + str(self.type) + "\n"
+
+                childLines = [i.__repr__(depth+1) for i in self.child]
+                block += line
+                for i in childLines:
+                    block += i
+
+                return block
                 
         def parse(line : str) -> Node:
             '''
