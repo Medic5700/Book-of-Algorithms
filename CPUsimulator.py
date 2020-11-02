@@ -144,10 +144,11 @@ class CPUsimulatorV2:
 ##                    break
 ##        print(self.state['instruction'])
 
-    def run(self):
+    def run(self, cycleLimit=None):
+        """starts execution of instructions"""
         pass
 
-    def lazy(self, code : str):
+    def Parse:
         class Node:
             def __init__(self, content):
                 self.type : str = None
@@ -161,7 +162,7 @@ class CPUsimulatorV2:
             '''
             '''assembles the tree as it goes
 
-            starts with a root node
+            starts with a root node, "line"
             currentnode = root
 
             goes through character by charcter
@@ -235,7 +236,15 @@ class CPUsimulatorV2:
         if '#' in line: #gets rid of comments
             line = line.split('#')[0]
 
+        pass
+        
+
+    def lazy(self, code : str):
+        """decodes and executes a single instruction line"""
+        
         tree = parse(line)
+
+        pass
         
 
     def _display(self, readList, writeList): #TODO
