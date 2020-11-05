@@ -1,6 +1,6 @@
 """
 By: Medic5700
-An implementation of an ALU simulator to allow a better and standardized way to illistrate bitwise instructions in lowlevel algorithms.
+An implementation of an CPU simulator to allow a better and standardized way to illistrate bitwise instructions in lowlevel algorithms.
 This project is geared towards demonstrating algorithms, and therefor generalizes a lot of stuff. IE: bitLength is settable, instruction words are one memroy element big, etc
 
 IE: I needed something for a super dumb/special use case of demonstrating how a low level operation/algorithm works (memory error correction)
@@ -148,6 +148,11 @@ class CPUsimulatorV2:
 
             def addChild(self, node : "Node"):
                 self.child.append(node)
+    def _display(self): #TODO MVP
+        for i in range(len(self.state['r'])):
+            print('r' + str(i) + '\t' + '=\t[' + str(self.state['r'][i]) + ']')
+
+    #=====================================================================================================================
             
             def __repr__(self, depth=0):
                 block = ""
@@ -220,7 +225,7 @@ class CPUsimulatorV2:
             test    <keyword>
             (   <function>
                 r6  <keyword>
-                ,   <seoerator>
+                ,   <seperator>
                 r   <keyword>
                 [   <index>
                     5   <number>
@@ -237,22 +242,16 @@ class CPUsimulatorV2:
                 [   <index>
                     2   <number>
             '''
-
-            pass
+            
 
         pass
         
+    #=================================================================================================================
 
     def lazy(self, code : str): #TODO MVP
         """decodes and executes a single instruction line"""
         pass
         
-
-    def _display(self, readList, writeList): #TODO MVP
-##        for i in len(self.state['r']):
-##            print('r' + str(i) + '\t' + '=\t[' + str(self.state['r'][i]) + ']')
-        pass
-
     def _integrityCheck(self): #TODO
         """checks the integridy of all current registers, memory, etc"""
         pass
@@ -360,7 +359,7 @@ class CPUsimulatorV2:
         #self._parseArguments(args) is done by the calling function, the arguments for this function are tuples
 
         #arguments are (str, int) pairs, representing the memory type and index
-        a1, a1 = a
+        a1, a2 = a
         b1, b2 = b
         c1, c2 = c
 
@@ -607,7 +606,7 @@ class DumbALUv1:
 
         print(line1 + line2 + line3)
 
-    def lazyDecode(command):
+    def lazyDecode(self, command):
         """parse a full assmbly string because calling operations directly with full syntax is tedious and error-prone, let the computer do the boring stuff"""
         pass
 
@@ -868,7 +867,7 @@ def multiply2(a, b, bitlength=8):
     ALU.decode('''
                         nop
                 loop:   jumpEQ  (r[0], 0, end)
-                            and     (r[0], 1, r1)
+                            and     (r[0], 1, r[1])
                             jumpNEQ (r[1], 1, zero)
                                 add     (t[0], t[1], t[1])
                 zero:       shiftL  (t[0], 1, t[0])
@@ -900,11 +899,16 @@ def multiply2(a, b, bitlength=8):
     return resultALU
 
 if __name__ == "__main__":
-    #print(multiply1(3,4))
+    #print(multiply1(3,4)) #old working prototype
 
-    ALU = CPUsimulatorV2(8, 0, 2)
-    ALU.inject('r0', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
-    ALU.lazy('nop #test test test') #comments get ignored
-    ALU.lazy('copy(5, r[0])') #an actual instruction
-    ALU.lazy('copy(1, r[1]), copy(2, r[2])') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
-    #ALU.run()
+    CPU = CPUsimulatorV2(8, 0, 2)
+    CPU.inject('r[0]', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
+
+
+    #testing/implementing
+    CPU._display()
+    #CPU.lazy('nop #test test test') #comments get ignored
+    #CPU.lazy('copy(5, r[0])') #an actual instruction
+    #CPU.lazy('copy(1, r[1]), copy(2, r[2])') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
+    #CPU._display()
+    #CPU.run()
