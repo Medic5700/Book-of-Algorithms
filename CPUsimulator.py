@@ -138,23 +138,29 @@ class CPUsimulatorV2:
         """starts execution of instructions"""
         pass
 
-    def Parse:
-        class Node:
-            def __init__(self, typeStr: str, content: str):
-                self.type : str = typeStr
-                self.content : str = content
-                self.child : list = []
-                self.parent : Node = None
-
-            def addChild(self, node : "Node"):
-                self.child.append(node)
+    #==================================================================================================================
     def _display(self): #TODO MVP
         for i in range(len(self.state['r'])):
             print('r' + str(i) + '\t' + '=\t[' + str(self.state['r'][i]) + ']')
 
-    #=====================================================================================================================
+    #==================================================================================================================
+    class Parse:
+        def __init__(self, namespace : dict):
+            pass
+
+        class Node:
+            def __init__(self, typeStr: str, content: str, position: int = None):
+                self.type : str = typeStr
+                self.content : str = content
+                self.child : list = []
+                self.parent : "Node" = None
+                self.position : int = position #the line number of the string or character position in a line, will be needed for indentation awareness if it's ever needed
+
+            def addChild(self, node : "Node"):
+                self.child.append(node)
             
             def __repr__(self, depth=0):
+                """Recursivly composes a string representing the node hierarchy, returns a string"""
                 block = ""
                 line = ""
                 for i in range(depth):
@@ -170,7 +176,53 @@ class CPUsimulatorV2:
 
                 return block
                 
-        def parse(line : str) -> Node:
+        def _tokenize(self, code : str) -> Node:
+            """Takes in a string of code, returns a node tree representing a simple tokenization of the code. No characters are filtered out
+            
+            code is split into lines
+            each line is tokenized until the end of line is reached
+
+            no characters are filtered out
+            """
+            
+            #done like this to easily add extra characters
+            _isToken = lambda x : x.isalnum() or x in "_"
+            _isSpace = lambda x : x in " \t\n"
+            _isSpecial = lambda x : x in "()[]{}\"'-+/*:.,;\\#"
+            
+            root = self.Node("root", None, None)
+            workingString = code.split("\n")
+            
+            result = []
+
+            #TODO do not filter out newline characters
+
+            for i in workingString: #for each line
+                tokenList = []
+                token = ""
+                for j in i:
+                    if _isToken(j):
+                        token += j
+                    elif _isSpace(j) or _isSpecial(j):
+                        if token != "":
+                            tokenList.append(token)
+                            token = ""
+                        tokenList.append(j)
+                    else:
+                        if token != "":
+                            tokenList.append(token)
+                            token = ""
+                        tokenList.append(j)
+                if token != "": #adds last token
+                    tokenList.append(token)
+                    token = ""
+
+
+                
+                result.append(tokenList)
+            print(result)
+
+        def parseLine(self, line : str) -> "Node":
             '''
             https://tomassetti.me/parsing-in-python/
             '''
@@ -904,6 +956,8 @@ if __name__ == "__main__":
     CPU = CPUsimulatorV2(8, 0, 2)
     CPU.inject('r[0]', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
 
+    parser = CPU.Parse(NotImplemented)
+    parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty")
 
     #testing/implementing
     CPU._display()
