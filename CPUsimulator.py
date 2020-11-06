@@ -146,27 +146,36 @@ class CPUsimulatorV2:
     #==================================================================================================================
     class Parse:
         def __init__(self, namespace : dict):
-            pass
+            self.namespace = namespace
+            self.pointers = {}
 
         class Node:
-            def __init__(self, typeStr: str, content: str, position: int = None):
-                self.type : str = typeStr
-                self.content : str = content
+            def __init__(self, type: str, token: str, lineNum: int, charNum: int):
+                self.type : str = type
+                self.token : str = token
                 self.child : list = []
+
                 self.parent : "Node" = None
-                self.position : int = position #the line number of the string or character position in a line, will be needed for indentation awareness if it's ever needed
+                self.nodePrevious : "Node" = None
+                self.nodeNext : "Node" = None
+
+                #the line number of the string or character position in a line, will be needed for indentation awareness if it's ever needed
+                self.lineNum : int = lineNum 
+                self.charNum : int = charNum
 
             def addChild(self, node : "Node"):
                 self.child.append(node)
             
             def __repr__(self, depth=0):
-                """Recursivly composes a string representing the node hierarchy, returns a string"""
+                """Recursivly composes a string representing the node hierarchy, returns a string.
+                
+                Called by print() to display the object"""
                 block = ""
                 line = ""
                 for i in range(depth):
-                    line += " "
-                line += str(self.content)
-                line.ljust(40, " ")
+                    line += "    "
+                line += repr(self.token)
+                line = line.ljust(40, " ")
                 line += ":" + str(self.type) + "\n"
 
                 childLines = [i.__repr__(depth+1) for i in self.child]
@@ -176,56 +185,41 @@ class CPUsimulatorV2:
 
                 return block
                 
-        def _tokenize(self, code : str) -> Node:
-            """Takes in a string of code, returns a node tree representing a simple tokenization of the code. No characters are filtered out
-            
-            code is split into lines
-            each line is tokenized until the end of line is reached
-
-            no characters are filtered out
-            """
+        def _tokenize(self, code : str) -> "list[tuple(str, int, int)]" :
+            """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). No characters are filtered out"""
             
             #done like this to easily add extra characters
-            _isToken = lambda x : x.isalnum() or x in "_"
-            _isSpace = lambda x : x in " \t\n"
-            _isSpecial = lambda x : x in "()[]{}\"'-+/*:.,;\\#"
-            
-            root = self.Node("root", None, None)
-            workingString = code.split("\n")
-            
-            result = []
+            _isName = lambda x : x.isalnum() or x in "_"
 
             #TODO do not filter out newline characters
 
-            for i in workingString: #for each line
-                tokenList = []
+            tokenList = []
+            token = ""
+            lineNum = 0
+            characterNum = 0
+            for j in code:
+                if _isName(j): #creates tokens from everything that could be a variable name
+                    token += j
+                else: #everything else is a special character
+                    if token != "":
+                        tokenList.append((token, lineNum, characterNum))
+                        token = ""
+                    tokenList.append((j, lineNum, characterNum))
+
+                #keeps track of line and positition numbers
+                if j == "\n":
+                    lineNum += 1
+                    characterNum = 0
+                else:
+                    characterNum += 1
+            if token != "": #adds last token
+                tokenList.append((token, lineNum, characterNum))
                 token = ""
-                for j in i:
-                    if _isToken(j):
-                        token += j
-                    elif _isSpace(j) or _isSpecial(j):
-                        if token != "":
-                            tokenList.append(token)
-                            token = ""
-                        tokenList.append(j)
-                    else:
-                        if token != "":
-                            tokenList.append(token)
-                            token = ""
-                        tokenList.append(j)
-                if token != "": #adds last token
-                    tokenList.append(token)
-                    token = ""
 
+            return tokenList
 
-                
-                result.append(tokenList)
-            print(result)
-
-        def parseLine(self, line : str) -> "Node":
-            '''
-            https://tomassetti.me/parsing-in-python/
-            '''
+        def parseCode(self, code : str) -> "Node":
+            """Takes a string of code, returns a parsed execution tree?"""
             '''assembles the tree as it goes
 
             starts with a root node, "line"
@@ -247,56 +241,17 @@ class CPUsimulatorV2:
                     node.child = currentnode
                     currentnode.replace(node)
             '''
-            '''#test use cases, but strictly focusing on token parsing without the application of rules
-            test(2,3,4), test(2 + 5, 3)
-
-            test    <keyword>
-            (   <function>
-                2   <number>
-                ,   <seperator>
-                3   <number>
-                ,   <seperator>
-                4   <number>
-            test    <keyword>
-            (   <function>
-                2   <number>
-                +   <operator>
-                5   <number>
-                ,   <seperator>
-                3   <number>
-
-            test(r[5], r10), test(r6, r[5 + 3])
-
-            test    <keyword>
-            (   <function>
-                r   <keyword>
-                [   <index>
-                    5   <number>
-                ,   <seperator>
-                r10 <keyword>
-            test    <keyword>
-            (   <function>
-                r6  <keyword>
-                ,   <seperator>
-                r   <keyword>
-                [   <index>
-                    5   <number>
-                    +   <operator>
-                    3   <number>
-
-            test(r[1][3])
-
-            test    <keyword>
-            (       <function>
-                r   <keyword>
-                [   <index>
-                    1   <number>
-                [   <index>
-                    2   <number>
-            '''
             
+            root = self.Node("root", None, None, None)
+            currentNode = self.Node("line", None, 0, 0)
+            root.addChild(currentNode)
 
-        pass
+            for i in self._tokenize(code):
+                currentNode.addChild(self.Node("token", i[0], i[1], i[2]))
+
+            print(root)
+
+
         
     #=================================================================================================================
 
@@ -957,7 +912,8 @@ if __name__ == "__main__":
     CPU.inject('r[0]', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
 
     parser = CPU.Parse(NotImplemented)
-    parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty")
+    print(parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
+    print(parser.parseCode("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
 
     #testing/implementing
     CPU._display()
