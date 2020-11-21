@@ -19,22 +19,32 @@ class CPUsimulatorV2:
     should allow for adding arbitrary amount of arbitrary sized registers
         -> registers that are not bitLength sized should be able to be added with a method instead of with the constructor.
 
-    references:
+    references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
+            the instruction word contains multiple instruction for each individual execution unit, so less reliance on the CPU figuring out how to out of order execution
+            can result in a lot of NOPs as not every execution unit needs to be doing something at every point in the code
+            relies heavily on the compiler
+            more hardware dependent
         https://en.wikipedia.org/wiki/Explicitly_parallel_instruction_computing
+            VLIW refined
         https://en.wikipedia.org/wiki/IA-64
+            Intel's attempt at EPIC architecture
         Google(intel microarchitecture)
             https://www.servethehome.com/intel-xeon-scalable-processor-family-microarchitecture-overview/
         https://cs.lmu.edu/~ray/notes/gasexamples/
         https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax
         https://en.wikipedia.org/wiki/GNU_Assembler
-        https://github.com/vmmc2/Vulcan     #a "RISC-V Instruction Set Simulator Built For Education"
+        https://github.com/vmmc2/Vulcan     #a "RISC-V Instruction Set Simulator Built For Education", web based
         https://www.youtube.com/watch?v=QKdiZSfwg-g     #Lecture 3. ISA Tradeoffs - Carnegie Mellon - Computer Architecture 2015 - Onur Mutlu
         https://www.anandtech.com/show/16195/a-broadwell-retrospective-review-in-2020-is-edram-still-worth-it #memroy latency of different cache levels
+        https://www.youtube.com/watch?v=Q4aTB0k633Y&ab_channel=Level1Techs #Ryzen is Released - Rant/Rave with Tech Tech Potato (Dr. Ian Cutress
+            four times the L3 cache (16MB to 64MB), eight extra clock cycle access time
+            AMD 64-bit int division, 19-ish cycles (down from like 90-120 cyles years ago)
 
     Issues:
         Instruction functions return display highlight stuff, should be handled auto-magically by register arrays with a custom list class.
         Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
+        Instruction functions should be in their own class, for better modularity
 
     Out of scope:
         caching
@@ -72,10 +82,10 @@ class CPUsimulatorV2:
         
         self.bitLength : int = bitLength #the length of the registers in bits
         self.state = {}
-        self.state['m'] : list[int] = [0 for i in range(memoryAmount)] #standard memory
-        self.state['r'] : list[int] = [0 for i in range(registerAmount)] #standard registers
-        self.state['i'] : list[int] = [] #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
-        self.state['pc'] : list[int] = [0] #program counter, it's a list because the parser will auto-convert references to 'pc' to 'pc[0]'
+        self.state['m'] : "list[int]" = [0 for i in range(memoryAmount)] #standard memory
+        self.state['r'] : "list[int]" = [0 for i in range(registerAmount)] #standard registers
+        self.state['i'] : "list[int]" = [] #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
+        self.state['pc'] : "list[int]" = [0] #program counter, it's a list because the parser will auto-convert references to 'pc' to 'pc[0]'
         self.state['flag'] : dict = {'carry': 0,
                                      'overflow': 0
                                      }
@@ -150,8 +160,8 @@ class CPUsimulatorV2:
             self.pointers = {}
 
         class Node:
-            def __init__(self, type: str, token: str, lineNum: int, charNum: int):
-                self.type : str = type
+            def __init__(self, typeStr: str, token: str, lineNum: int, charNum: int):
+                self.type : str = typeStr
                 self.token : str = token
                 self.child : list = []
 
@@ -253,7 +263,7 @@ class CPUsimulatorV2:
 
 
         
-    #=================================================================================================================
+    #==================================================================================================================
 
     def lazy(self, code : str): #TODO MVP
         """decodes and executes a single instruction line"""
@@ -323,6 +333,7 @@ class CPUsimulatorV2:
 
         return (key, index)
 
+    #==================================================================================================================
     def _testNop(self):
         self._refresh()
         
@@ -908,12 +919,9 @@ def multiply2(a, b, bitlength=8):
 if __name__ == "__main__":
     #print(multiply1(3,4)) #old working prototype
 
+    """
     CPU = CPUsimulatorV2(8, 0, 2)
     CPU.inject('r[0]', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
-
-    parser = CPU.Parse(NotImplemented)
-    print(parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
-    print(parser.parseCode("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
 
     #testing/implementing
     CPU._display()
@@ -922,3 +930,9 @@ if __name__ == "__main__":
     #CPU.lazy('copy(1, r[1]), copy(2, r[2])') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
     #CPU._display()
     #CPU.run()
+    """
+
+    CPU = CPUsimulatorV2(8, 0, 2)
+    parser = CPU.Parse(NotImplemented)
+    print(parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
+    print(parser.parseCode("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
