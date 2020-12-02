@@ -16,8 +16,11 @@ class CPUsimulatorV2:
     """A an implimentation of a generic and abstract ALU mainly geared towards illistrating algorithms
 
     Issues:
-    should allow for adding arbitrary amount of arbitrary sized registers
-        -> registers that are not bitLength sized should be able to be added with a method instead of with the constructor.
+        should allow for adding arbitrary amount of arbitrary sized registers
+            -> registers that are not bitLength sized should be able to be added with a method instead of with the constructor.
+        Instruction functions return display highlight stuff, should be handled auto-magically by register arrays with a custom list class.
+        Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
+        Instruction functions should be in their own class, for better modularity
 
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -40,11 +43,6 @@ class CPUsimulatorV2:
         https://www.youtube.com/watch?v=Q4aTB0k633Y&ab_channel=Level1Techs #Ryzen is Released - Rant/Rave with Tech Tech Potato (Dr. Ian Cutress
             four times the L3 cache (16MB to 64MB), eight extra clock cycle access time
             AMD 64-bit int division, 19-ish cycles (down from like 90-120 cyles years ago)
-
-    Issues:
-        Instruction functions return display highlight stuff, should be handled auto-magically by register arrays with a custom list class.
-        Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
-        Instruction functions should be in their own class, for better modularity
 
     Out of scope:
         caching
@@ -72,6 +70,7 @@ class CPUsimulatorV2:
         _baked
             allow instructions to override instruction annotations during runtime execution
             IE: an instruction uses a variable amount of energy dependent on the data processed. It can report the energy used during its execution
+        Support for self-modifying code
     """
 
     def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1):
@@ -95,6 +94,7 @@ class CPUsimulatorV2:
         does not allow for dynamically altering/generating instructions, which is beyond the scope of this project (though if I can find a generic way to do it, I probably will)
         '''
         #self.state['currentInstruction'] = "" #FUTURE
+        self.instructionArray = self.state['instruction'] #TODO impliment #this sets which array of memory/registers/etc the 'instructions' are 'located' in
         
         #self.state['sp'] = [0] #stack pointer #FUTURE
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
@@ -160,7 +160,7 @@ class CPUsimulatorV2:
             self.pointers = {}
 
         class Node:
-            def __init__(self, typeStr: str, token: str, lineNum: int, charNum: int):
+            def __init__(self, typeStr : str, token : str, lineNum : int, charNum : int):
                 self.type : str = typeStr
                 self.token : str = token
                 self.child : list = []
@@ -941,7 +941,7 @@ def multiply2(a, b, bitlength=8):
 
     bitlength is the size of the numbers/architecture, in bits
     """
-    '''another non-functional mockup to show how dumbALU could be used, but a couple iterations of design later'''
+    '''another non-functional mockup to show how CPUsimulatorV2 could be used, but a couple iterations of design later'''
     assert 0 <= a < 2**bitlength
     assert 0 <= b < 2**bitlength
 
