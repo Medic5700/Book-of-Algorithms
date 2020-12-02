@@ -228,6 +228,75 @@ class CPUsimulatorV2:
 
             return tokenList
 
+        def _applyRuleRemoveLeadingWhitespace(self, tree : Node) -> Node:
+            """Takes in a node, removes all white space tokens between a new line token and the next token; does not recurse. Returns a node
+            
+            Example: "test test \ntest\n  \ttest\t\n     \n" -> "test test \ntest\ntest\t\n\n"
+            node
+                'test'
+                ' '
+                'test'
+                ' '
+                '\n'
+                'test'
+                '\n'
+                'test'
+                '\t'
+                '\n'
+                '\n'
+            """
+            pass
+
+        def _applyRuleStringSimple(self, tree : Node) -> Node:
+            """Takes in a node, combines all the tokens that are contained by quote tokens into a string node; does not recurse. Returns a node
+            
+            Example: "test 'test'" ->
+            node
+                'test'
+                ' '
+                "test"
+            Example: "'test\n\'test\''\ntest" ->
+            node
+                "test\n\'test\'"
+                '\n'
+                'test'
+            """
+            current = tree.child[0]
+            pass
+
+        def _applyRuleFilterComments(self, tree : Node) -> Node:
+            """Takes in a node, removes any tokens between a "#" token and a new line token; does not recuse. Returns a node
+            
+            Example: "test #test\n #test\n\t\#test" -> "test \n \n\t\#test" ->
+            node
+                'test'
+                ' '
+                '\n'
+                ' '
+                '\n'
+                '\t'
+                '\#'
+                'test'
+            """
+            pass
+
+        def _applyRuleContainer(self, tree : Node) -> Node:
+            """Takes in a node, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers, Returns a node
+            
+            Example: "test[test(test)]" ->
+            node
+                'test'
+                '['
+                    'test'
+                    '('
+                        'test'
+            """
+            pass
+
+        def _applyRuleCatalogLabels(self, tree : Node, symbolTable : dict) -> {int:Node}:
+            """Takes in a node, attempts to find a label (a token not in symbolTable), returns a dictionary of position : Node"""
+            pass
+
         def parseCode(self, code : str) -> "Node":
             """Takes a string of code, returns a parsed execution tree?"""
             '''assembles the tree as it goes
