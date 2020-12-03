@@ -121,6 +121,9 @@ class CPUsimulatorV2:
 
         self._refresh()
 
+
+        self.display = self.DisplaySimpleAndClean()
+
     def addRegister(self, bitlength : int, amount : int, name : str):
         #TODO allow flags to be added
         assert type(name) is str
@@ -135,6 +138,8 @@ class CPUsimulatorV2:
         #TODO handle negative value
         t1, t2 = self._translateArgument(target)
         self.state[t1][t2] = value & (2**self.config[t1]-1)
+
+        self.display.runtime(self.state, self.state, self.config)
 
     def extract(self, target : str) -> int:
         t1, t2 = self._translateArgument(target)
@@ -152,6 +157,57 @@ class CPUsimulatorV2:
     def _display(self): #TODO MVP
         for i in range(len(self.state['r'])):
             print('r' + str(i) + '\t' + '=\t[' + str(self.state['r'][i]) + ']')
+
+    class DisplaySimpleAndClean: #TODO
+        """A simple display example of the interface expected for displaying information on the screen during and post runtime
+        
+        Displays all registers, memory, and flags after every execution cycle. Displays some postrun stats.
+        Uses ANSI for some colouring
+        """
+
+        def __init__(self):
+            self.textRed = "\u001b[31m" #forground red, meant for register writes
+            #self.textTeal = "\u001b[96m" #forground teal, meant for register reads
+            self.ANSIend = "\u001b[0m" #resets ANSI colours
+
+        def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
+            """Executed after every instruction/cycle. Accesses/takes in all information about the engine, takes control of the screen to print information."""
+            
+            screen : str = ""
+
+            lineOp : str = "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "\t"
+            lineOp += "Instruction #TODO" #TODO
+            lineOp += "\n"
+
+            lineRequired : str = ""
+            lineRequired += "\t" + "PC".ljust(8, ' ') + "[" + "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "]" + "\t" + "[" + "0x" + hex(newState['pc'][0])[2:].rjust(8, '0').upper() + "]" + "\n"
+            for i in range(len(oldState['i'])): #handles the immidiate registers
+                lineRequired += "\t" + ("i[" + str(i) + "]\t").ljust(8, " ") + "[" + str(bin(oldState["i"][i]))[2:].rjust(config["i"], "0") + "]" + "\n"
+            for i in oldState["flag"].keys(): #handles the CPU flags
+                lineRequired += "\t" + ("flag-" + str(i)).ljust(16, " ") + "[" + str(oldState["flag"][i]) + "]" + "\t" + "[" + str(newState["flag"][i]) + "]" + "\n"
+
+            lineRegisters : str = ""
+
+            #get keys, but exclude the 'special' keys
+            keys : "list[str]" = list(oldState.keys())
+            keys.remove("instruction")
+            keys.remove("flag")
+            keys.remove("pc")
+            keys.remove("i")
+
+            for i in keys:
+                for j in range(len(oldState[i])):
+                    lineRegisters += "\t" + (str(i) + "[" + str(j) + "]").ljust(8, " ") + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i], "0") + "]" + "\t" + "[" + str(bin(newState[i][j]))[2:].rjust(config[i], "0") + "]" + "\n"
+
+            screen += lineOp
+            screen += lineRequired
+            screen += lineRegisters
+
+            print(screen)
+
+        def postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None): #TODO
+            """When CPU execution HALTS, displays information about execution stats, etc"""
+            print("CPU Halted")
 
     #==================================================================================================================
     class Parse:
