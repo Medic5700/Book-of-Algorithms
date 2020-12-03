@@ -139,7 +139,7 @@ class CPUsimulatorV2:
         t1, t2 = self._translateArgument(target)
         self.state[t1][t2] = value & (2**self.config[t1]-1)
 
-        self.display.runtime(self.state, self.state, self.config)
+        self.display.runtime(self.lastState, self.state, self.config)
 
     def extract(self, target : str) -> int:
         t1, t2 = self._translateArgument(target)
@@ -167,24 +167,39 @@ class CPUsimulatorV2:
 
         def __init__(self):
             self.textRed = "\u001b[31m" #forground red, meant for register writes
-            #self.textTeal = "\u001b[96m" #forground teal, meant for register reads
+            self.textTeal = "\u001b[96m" #forground teal, meant for register reads
             self.ANSIend = "\u001b[0m" #resets ANSI colours
 
         def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
             """Executed after every instruction/cycle. Accesses/takes in all information about the engine, takes control of the screen to print information."""
             
             screen : str = ""
+            highlight : str = ""
 
             lineOp : str = "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "\t"
             lineOp += "Instruction #TODO" #TODO
             lineOp += "\n"
 
             lineRequired : str = ""
-            lineRequired += "\t" + "PC".ljust(8, ' ') + "[" + "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "]" + "\t" + "[" + "0x" + hex(newState['pc'][0])[2:].rjust(8, '0').upper() + "]" + "\n"
+
+            #handles the 'pc' register
+            highlight = self.textRed if (oldState['pc'][0] != newState['pc'][0]) else ""
+            lineRequired += "\t" + "PC".ljust(8, ' ') \
+                + "[" + "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "]" \
+                + "\t" \
+                + "[" + highlight + "0x" + hex(newState['pc'][0])[2:].rjust(8, '0').upper() + self.ANSIend + "]" \
+                + "\n"
             for i in range(len(oldState['i'])): #handles the immidiate registers
-                lineRequired += "\t" + ("i[" + str(i) + "]\t").ljust(8, " ") + "[" + str(bin(oldState["i"][i]))[2:].rjust(config["i"], "0") + "]" + "\n"
+                lineRequired += "\t" + ("i[" + str(i) + "]\t").ljust(8, " ") \
+                    + "[" + self.textTeal + str(bin(oldState["i"][i]))[2:].rjust(config["i"], "0") + self.ANSIend + "]" \
+                    + "\n"
             for i in oldState["flag"].keys(): #handles the CPU flags
-                lineRequired += "\t" + ("flag-" + str(i)).ljust(16, " ") + "[" + str(oldState["flag"][i]) + "]" + "\t" + "[" + str(newState["flag"][i]) + "]" + "\n"
+                highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
+                lineRequired += "\t" + ("flag-" + str(i)).ljust(16, " ") \
+                    + "[" + str(oldState["flag"][i]) + "]" \
+                    + "\t" \
+                    + "[" + highlight + str(newState["flag"][i]) + self.ANSIend + "]" \
+                    + "\n"
 
             lineRegisters : str = ""
 
@@ -197,7 +212,12 @@ class CPUsimulatorV2:
 
             for i in keys:
                 for j in range(len(oldState[i])):
-                    lineRegisters += "\t" + (str(i) + "[" + str(j) + "]").ljust(8, " ") + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i], "0") + "]" + "\t" + "[" + str(bin(newState[i][j]))[2:].rjust(config[i], "0") + "]" + "\n"
+                    highlight = self.textRed if (oldState[i][j] != newState[i][j]) else ""
+                    lineRegisters += "\t" + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
+                        + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i], "0") + "]" \
+                        + "\t" \
+                        + "[" + highlight + str(bin(newState[i][j]))[2:].rjust(config[i], "0") + self.ANSIend + "]" \
+                        + "\n"
 
             screen += lineOp
             screen += lineRequired
