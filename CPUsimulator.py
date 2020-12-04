@@ -81,10 +81,8 @@ class CPUsimulatorV2:
         
         self.bitLength : int = bitLength #the length of the registers in bits
         self.state = {}
-        self.state['m'] : "list[int]" = [0 for i in range(memoryAmount)] #standard memory
-        self.state['r'] : "list[int]" = [0 for i in range(registerAmount)] #standard registers
-        self.state['i'] : "list[int]" = [] #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
-        self.state['pc'] : "list[int]" = [0] #program counter, it's a list because the parser will auto-convert references to 'pc' to 'pc[0]'
+        self.config = {}
+
         self.state['flag'] : dict = {'carry': 0,
                                      'overflow': 0
                                      }
@@ -93,17 +91,19 @@ class CPUsimulatorV2:
         can impliment a data execution protection using this info
         does not allow for dynamically altering/generating instructions, which is beyond the scope of this project (though if I can find a generic way to do it, I probably will)
         '''
+
+        self.ConfigAddRegister('r', 8, bitLength) #standard registers
+        self.ConfigAddRegister('m', 32, bitLength) #standard memory
+
+        self.ConfigAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
+        self.ConfigAddRegister('pc', 1, bitLength) #program counter, it's a list because the parser will auto-convert references from 'pc' to 'pc[0]'
+        
         #self.state['currentInstruction'] = "" #FUTURE
         self.instructionArray = self.state['instruction'] #TODO impliment #this sets which array of memory/registers/etc the 'instructions' are 'located' in
         
         #self.state['sp'] = [0] #stack pointer #FUTURE
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
         #'''the entire state information for registers, program pointers, etc, is stored as one memory unit for simplicity'''
-
-        self.config = {}
-        self.config['m'] : int = bitLength
-        self.config['r'] : int = bitLength
-        self.config['i'] : int = bitLength
         
         self.lastState = None
 
@@ -124,20 +124,20 @@ class CPUsimulatorV2:
 
         self.display = self.DisplaySimpleAndClean()
 
-    def addRegister(self, bitlength : int, amount : int, name : str):
-        #TODO allow flags to be added
+    def ConfigAddRegister(self, name : str, amount : int, bitlength : int):
         assert type(name) is str
-        assert name not in self.state.keys()
         
         self.state[name] = [0 for i in range(amount)]
-        self.config[name] = bitlength
+        self.config[name] = {}
+
+        self.config[name]['bitlength'] = bitlength
         self._refresh()
 
     def inject(self, target : str, value : int):
         assert type(value) is int
         #TODO handle negative value
         t1, t2 = self._translateArgument(target)
-        self.state[t1][t2] = value & (2**self.config[t1]-1)
+        self.state[t1][t2] = value & (2**self.config[t1]['bitlength']-1)
 
         self.display.runtime(self.lastState, self.state, self.config)
 
@@ -191,7 +191,7 @@ class CPUsimulatorV2:
                 + "\n"
             for i in range(len(oldState['i'])): #handles the immidiate registers
                 lineRequired += "\t" + ("i[" + str(i) + "]\t").ljust(8, " ") \
-                    + "[" + self.textTeal + str(bin(oldState["i"][i]))[2:].rjust(config["i"], "0") + self.ANSIend + "]" \
+                    + "[" + self.textTeal + str(bin(oldState["i"][i]))[2:].rjust(config["i"]['bitlength'], "0") + self.ANSIend + "]" \
                     + "\n"
             for i in oldState["flag"].keys(): #handles the CPU flags
                 highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
@@ -214,9 +214,9 @@ class CPUsimulatorV2:
                 for j in range(len(oldState[i])):
                     highlight = self.textRed if (oldState[i][j] != newState[i][j]) else ""
                     lineRegisters += "\t" + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
-                        + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i], "0") + "]" \
+                        + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + "]" \
                         + "\t" \
-                        + "[" + highlight + str(bin(newState[i][j]))[2:].rjust(config[i], "0") + self.ANSIend + "]" \
+                        + "[" + highlight + str(bin(newState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + self.ANSIend + "]" \
                         + "\n"
 
             screen += lineOp
@@ -501,10 +501,10 @@ class CPUsimulatorV2:
         c1, c2 = c
 
         self.state[c1][c2] = self.lastState[a1][a2] + self.lastState[b1][b2]
-        if self.state[c1][c2] >= 2**self.config[c1]:
+        if self.state[c1][c2] >= 2**self.config[c1]['bitlength']:
             self.state['flag']['carry'] = 1
             
-        self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1] - 1)
+        self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1]['bitlength'] - 1)
 
         self.state['pc'][0] = self.lastState['pc'][0] + 1
 
@@ -527,13 +527,13 @@ class CPUsimulatorV2:
         c1, c2 = c
 
         #a check that the registers that are being accessed are of a compatible bitlength
-        assert self.config[a1] > 0
-        assert self.config[b1] > 0
-        assert self.config[c1] > 0
+        assert self.config[a1]['bitlength'] > 0
+        assert self.config[b1]['bitlength'] > 0
+        assert self.config[c1]['bitlength'] > 0
 
         self.state[c1][c2] = self.lastState[a1][a2] & self.lastState[b1][b2] #performs the bitwise and operation
 
-        self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1] - 1) #'cuts down' the result to something that fits in the register/memory location
+        self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
         self.state['pc'][0] = self.lastState['pc'][0] + 1 #incriments the program counter
 
@@ -1021,8 +1021,10 @@ def multiply2(a, b, bitlength=8):
     assert 0 <= a < 2**bitlength
     assert 0 <= b < 2**bitlength
 
-    ALU = CPUsimulatorV2(bitlength, 2, 0) #bitlength, register amount, memory amount
-    ALU.addRegister(bitlength * 2, 2, 't') #bitlength, register amount, namespace symbol
+    ALU = CPUsimulatorV2(bitlength) #bitlength
+    ALU.ConfigAddRegister('r', 2, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults
+    ALU.ConfigAddRegister('m', 0, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults, in this case, erasing it
+    ALU.ConfigAddRegister('t', 2, bitlength * 2) #bitlength, register amount, namespace symbol
 
     t = [0 for j in range(2)]
     r = [0 for i in range(2)]
