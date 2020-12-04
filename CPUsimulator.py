@@ -15,6 +15,28 @@ assert version[0] == 3 and version[1] >= 8 #asserts python version 3.8 or greate
 import copy #copy.deepcopy() required because state['flag'] contains a dictionary which needs to be copied
 import re #Regex, used in CPUsimualtorV2._translateArgument()
 
+#debugging and logging
+import logging
+import inspect
+def debugHelper(frame) -> str:
+    """Takes in a frame object, returns a string representing debug location info (IE: the line number and container name of the debug call)
+
+    Usage -> logging.debug(debugHelper(inspect.currentframe()) + "String") -> DEBUG:root:<container>"remove"[0348]@line[0372] = String
+    Used for easy debugging identification of a specific line
+
+    Reference:
+        https://docs.python.org/3/library/inspect.html#types-and-members
+    """
+    
+    line : str = ""
+   
+    line += "<container>\"" + str(frame.f_code.co_name) + "\"" #the name of the encapuslating method that the frame was generated in
+    line += "[" + str(frame.f_code.co_firstlineno).rjust(4, '0') + "]" #the line number of the encapsulating method that the frame was generated in
+    line += "@line[" + str(frame.f_lineno).rjust(4, '0') + "]" #the line number when the frame was generate
+    line += " = "
+
+    return line
+
 class CPUsimulatorV2:
     """A an implimentation of a generic and abstract ALU mainly geared towards illistrating algorithms
 
@@ -1100,6 +1122,7 @@ def multiply2(a, b, bitlength=8):
 
 if __name__ == "__main__":
     #print(multiply1(3,4)) #old working prototype
+    logging.basicConfig(level = logging.DEBUG)
 
     CPU = CPUsimulatorV2(8)
     CPU.ConfigAddRegister('r', 2, 16)
