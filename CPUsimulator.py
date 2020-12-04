@@ -83,20 +83,22 @@ class CPUsimulatorV2:
         self.state = {}
         self.config = {}
 
-        self.state['flag'] : dict = {'carry': 0,
-                                     'overflow': 0
-                                     }
         self.state['instruction'] : list[str] = [None for i in range(memoryAmount)] #stores the instructions
         '''instruction words are assumed to be one memory unit big for simplicity
         can impliment a data execution protection using this info
         does not allow for dynamically altering/generating instructions, which is beyond the scope of this project (though if I can find a generic way to do it, I probably will)
         '''
+        #configure CPU flags
+        self.ConfigAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
+        self.state['flag'] : dict = {} #overrides default array of numbers
+
+        self.ConfigAddFlag('carry')
+        self.ConfigAddFlag('overflow')
+        
 
         self.ConfigAddRegister('r', 8, bitLength) #standard registers
         self.ConfigAddRegister('m', 32, bitLength) #standard memory
 
-        self.ConfigAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
-        self.ConfigAddRegister('pc', 1, bitLength) #program counter, it's a list because the parser will auto-convert references from 'pc' to 'pc[0]'
         
         #self.state['currentInstruction'] = "" #FUTURE
         self.instructionArray = self.state['instruction'] #TODO impliment #this sets which array of memory/registers/etc the 'instructions' are 'located' in
@@ -131,7 +133,13 @@ class CPUsimulatorV2:
         self.config[name] = {}
 
         self.config[name]['bitlength'] = bitlength
-        self._refresh()
+
+    def ConfigAddFlag(self, name : str):
+        """Takes in a name for a CPU flag to add, Adds it to self.state"""
+        assert type(name) is str
+        assert 'flag' in self.state.keys()
+
+        self.state['flag'][name] = 0
 
     def inject(self, target : str, value : int):
         assert type(value) is int
