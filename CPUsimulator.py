@@ -21,7 +21,9 @@ class CPUsimulatorV2:
         Instruction functions return display highlight stuff, should be handled auto-magically by register arrays with a custom list class.
         Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
         Instruction functions should be in their own class, for better modularity
-
+        ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
+            This would allow for representation of variable length instructions in 'memory'
+            
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
             the instruction word contains multiple instruction for each individual execution unit, so less reliance on the CPU figuring out how to out of order execution
@@ -73,21 +75,18 @@ class CPUsimulatorV2:
         Support for self-modifying code
     """
 
-    def __init__(self, bitLength=16, memoryAmount=0, registerAmount=1):
+    def __init__(self, bitLength : int = 16):
         #import time
-        #self.sleep = time.sleep #avoids having to reimport time module in _display function every time it's called
         import copy
-        self.deepCopy = copy.deepcopy #required because state['flags'] contains a dictionary which needs to be copied
+        self.deepCopy = copy.deepcopy #required because state['flag'] contains a dictionary which needs to be copied
         
         self.bitLength : int = bitLength #the length of the registers in bits
-        self.state = {}
-        self.config = {}
+        self.state : dict = {}
+        self.lastState : dict = None
+        self.config : dict = {}
+        #self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
+        #self.engine : dict = {} #FUTURE used to keep track of CPU engine information?
 
-        self.state['instruction'] : list[str] = [None for i in range(memoryAmount)] #stores the instructions
-        '''instruction words are assumed to be one memory unit big for simplicity
-        can impliment a data execution protection using this info
-        does not allow for dynamically altering/generating instructions, which is beyond the scope of this project (though if I can find a generic way to do it, I probably will)
-        '''
         #configure CPU flags
         self.ConfigAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
         self.state['flag'] : dict = {} #overrides default array of numbers
@@ -95,23 +94,19 @@ class CPUsimulatorV2:
         self.ConfigAddFlag('carry')
         self.ConfigAddFlag('overflow')
         
+        #adds special registers that are required
+        self.ConfigAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
+        self.ConfigAddRegister('pc', 1, bitLength) #program counter, it's a list because the parser will auto-convert references from 'pc' to 'pc[0]'
 
-        self.ConfigAddRegister('r', 8, bitLength) #standard registers
-        self.ConfigAddRegister('m', 32, bitLength) #standard memory
+        #this should not be stored in self.state
+        #self.state['instruction'] : "list[str]" = [None for i in range(memoryAmount)] #stores the instructions
+        #instruction words are assumed to be one memory unit big for simplicity
 
-        
-        #self.state['currentInstruction'] = "" #FUTURE
-        self.instructionArray = self.state['instruction'] #TODO impliment #this sets which array of memory/registers/etc the 'instructions' are 'located' in
+        #self.instructionArray = self.state['instruction'] #TODO impliment #this sets which array of memory/registers/etc the 'instructions' are 'located' in
         
         #self.state['sp'] = [0] #stack pointer #FUTURE
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
-        #'''the entire state information for registers, program pointers, etc, is stored as one memory unit for simplicity'''
-        
-        self.lastState = None
-
-        self.animationDelay = 0.5
-
-        #self.stats = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
+        #the entire state information for registers, program pointers, etc, is stored as one memory unit for simplicity
 
         #FUTURE the instructions table should be able to be overloaded (IE: add could have an array of funtions) where one is chosen (based on bitlength, etc) to be included 
         instructionSetTest = {'add'     : self._testAdd,
@@ -119,15 +114,39 @@ class CPUsimulatorV2:
                               'nop'     : self._testNop,
                               '.int'    : self._directiveInt
                               }
-        self.instructionSet = instructionSetTest #used by the decoder to parse instructions
+        self.instructionSet : dict = instructionSetTest #used by the decoder to parse instructions
+
+        self.namespace : dict = self._computeNamespace()
+
+        self.display = self.DisplaySimpleAndClean()
+        """This is a user swappable class function call for displaying runtime information on the screen during runtime about runtime operations
+        display.runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None)
+            is called after every execution cycle
+        display.postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None)
+            is called when the CPU HALTS execution
+        """
+
+        #convinence added stuff for 'works out of the box' functionality
+        self.ConfigAddRegister('r', 8, bitLength) #standard registers
+        self.ConfigAddRegister('m', 32, bitLength) #standard memory
 
         self._refresh()
 
-
-        self.display = self.DisplaySimpleAndClean()
+    def _computeNamespace(self):
+        """computes the namespace of instructions, registers, etc for the CPU. Returns a dictionary if string:pointer pairs"""
+        names = {}
+        keys = self.state.keys()
+        for i in keys:
+            if i != "instruction":
+                names[str(i)] = self.state[i]
+        names.update(self.instructionSet)
+        return names
 
     def ConfigAddRegister(self, name : str, amount : int, bitlength : int):
+        """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
         assert type(name) is str
+        assert bitlength > 0
+        assert amount >= 0
         
         self.state[name] = [0 for i in range(amount)]
         self.config[name] = {}
@@ -162,18 +181,19 @@ class CPUsimulatorV2:
         pass
 
     #==================================================================================================================
-    def _display(self): #TODO MVP
-        for i in range(len(self.state['r'])):
-            print('r' + str(i) + '\t' + '=\t[' + str(self.state['r'][i]) + ']')
 
-    class DisplaySimpleAndClean: #TODO
+    class DisplaySimpleAndClean:
         """A simple display example of the interface expected for displaying information on the screen during and post runtime
         
         Displays all registers, memory, and flags after every execution cycle. Displays some postrun stats.
         Uses ANSI for some colouring
         """
 
-        def __init__(self):
+        def __init__(self, animationDelay : int = 0.5):
+            import time
+            self.sleep : 'function'= time.sleep
+            self.animationDelay : int = animationDelay
+
             self.textRed = "\u001b[31m" #forground red, meant for register writes
             self.textTeal = "\u001b[96m" #forground teal, meant for register reads
             self.ANSIend = "\u001b[0m" #resets ANSI colours
@@ -203,7 +223,7 @@ class CPUsimulatorV2:
                     + "\n"
             for i in oldState["flag"].keys(): #handles the CPU flags
                 highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
-                lineRequired += "\t" + ("flag-" + str(i)).ljust(16, " ") \
+                lineRequired += "\t" + ("flag[" + str(i) + "]").ljust(16, " ") \
                     + "[" + str(oldState["flag"][i]) + "]" \
                     + "\t" \
                     + "[" + highlight + str(newState["flag"][i]) + self.ANSIend + "]" \
@@ -213,7 +233,6 @@ class CPUsimulatorV2:
 
             #get keys, but exclude the 'special' keys
             keys : "list[str]" = list(oldState.keys())
-            keys.remove("instruction")
             keys.remove("flag")
             keys.remove("pc")
             keys.remove("i")
@@ -232,6 +251,7 @@ class CPUsimulatorV2:
             screen += lineRegisters
 
             print(screen)
+            self.sleep(self.animationDelay)
 
         def postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None): #TODO
             """When CPU execution HALTS, displays information about execution stats, etc"""
@@ -550,7 +570,8 @@ class CPUsimulatorV2:
     #_testAnd.executionUnit : 'list[str]' = ['logic'] #what execution unit this instruction corrisponds to ('integer, multiply, floiting point, memory management')
     #_testAnd.energyCost = lambda x : 1
     #_testAnd.propagationDelay = lambda x : 1
-    _testAnd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength, used at modual initialization (IE: a 64-bit floating point operation needs registers that are 64-bits)
+    _testAnd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength, used at modual initialization 
+        #(IE: a 64-bit floating point operation needs registers that are 64-bits)
     #function should perform own check on inputs and output registers to determin if individual registers are compatible with the operation at run time
     
     def _directiveInt(self, *args): #(self, memory pointer, value)
@@ -1074,10 +1095,10 @@ def multiply2(a, b, bitlength=8):
 if __name__ == "__main__":
     #print(multiply1(3,4)) #old working prototype
 
-    """
-    CPU = CPUsimulatorV2(8, 0, 2)
+    
+    CPU = CPUsimulatorV2(8)
     CPU.inject('r[0]', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
-
+    """
     #testing/implementing
     CPU._display()
     #CPU.lazy('nop #test test test') #comments get ignored
@@ -1087,7 +1108,7 @@ if __name__ == "__main__":
     #CPU.run()
     """
 
-    CPU = CPUsimulatorV2(8, 0, 2)
+    CPU = CPUsimulatorV2(8)
     parser = CPU.Parse(NotImplemented)
     print(parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
     print(parser.parseCode("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
