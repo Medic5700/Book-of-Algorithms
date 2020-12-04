@@ -23,6 +23,12 @@ class CPUsimulatorV2:
         Instruction functions should be in their own class, for better modularity
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
+        using ConfigAddRegister() followed by Inject() will cause an unhandled display exception because Inject() calls self.display.runtime() which glitches out, display can't handle self.state and self.lastState having different sized stuff
+            Mitigated by doing ConfigAddRegister(); self.postCycle(); Inject() will not cause an exception (because the new register modified self.state is now copied to self.lastState)
+            Either:
+                self.postCycle() will need to be called after every ConfigAddRegister() to manually 'increment' the simulation
+                self.display will need to be able to handle registers dropping into and out of existance at any time
+                ConfigAddRegister() will need to call self.postCycle() BUT since it's used to add CPU Flags, that CPU Flag initialization will need to be reworked, and made messier
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -1095,10 +1101,13 @@ def multiply2(a, b, bitlength=8):
 if __name__ == "__main__":
     #print(multiply1(3,4)) #old working prototype
 
-    
     CPU = CPUsimulatorV2(8)
+    CPU.ConfigAddRegister('r', 2, 16)
+    CPU.ConfigAddRegister('m', 8, 8)
+    CPU.postCycle() #required because program architecture bug
     CPU.inject('r[0]', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
-    """
+    CPU.inject('m[0]', 8)
+    '''
     #testing/implementing
     CPU._display()
     #CPU.lazy('nop #test test test') #comments get ignored
@@ -1106,7 +1115,7 @@ if __name__ == "__main__":
     #CPU.lazy('copy(1, r[1]), copy(2, r[2])') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
     #CPU._display()
     #CPU.run()
-    """
+    '''
 
     CPU = CPUsimulatorV2(8)
     parser = CPU.Parse(NotImplemented)
