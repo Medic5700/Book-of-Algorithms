@@ -12,6 +12,9 @@ import sys
 version = sys.version_info
 assert version[0] == 3 and version[1] >= 8 #asserts python version 3.8 or greater
 
+import copy #copy.deepcopy() required because state['flag'] contains a dictionary which needs to be copied
+import re #Regex, used in CPUsimualtorV2._translateArgument()
+
 class CPUsimulatorV2:
     """A an implimentation of a generic and abstract ALU mainly geared towards illistrating algorithms
 
@@ -82,9 +85,6 @@ class CPUsimulatorV2:
     """
 
     def __init__(self, bitLength : int = 16):
-        #import time
-        import copy
-        self.deepCopy = copy.deepcopy #required because state['flag'] contains a dictionary which needs to be copied
         
         self.bitLength : int = bitLength #the length of the registers in bits
         self.state : dict = {}
@@ -196,8 +196,10 @@ class CPUsimulatorV2:
         """
 
         def __init__(self, animationDelay : int = 0.5):
-            import time
-            self.sleep : 'function'= time.sleep
+            #TODO this should be in the class, but outside of the instantiation?
+            import time #this is imported for the specific class because this class is supposed to able to be 'swapped out' and may not be neccassary if another display class doesn't need the 'time' module
+            self.sleep : 'function' = time.sleep
+
             self.animationDelay : int = animationDelay
 
             self.textRed = "\u001b[31m" #forground red, meant for register writes
@@ -459,7 +461,7 @@ class CPUsimulatorV2:
 
         #self._integrityCheck()
 
-        self.lastState = self.deepCopy(self.state) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
+        self.lastState = copy.deepcopy(self.state) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
         
         for i in self.state['flag'].keys(): #resets all flags
             self.state['flag'][i] = 0
@@ -467,8 +469,6 @@ class CPUsimulatorV2:
 
     def _translateArgument(self, arg : str) -> 'tuple[str, int]':
         #FUTURE may have to take pointers of form m*r[0] IE: number in r0 points to memory index
-        
-        import re #TODO move this
 
         key : str = None
         index : 'int xor str' = None
