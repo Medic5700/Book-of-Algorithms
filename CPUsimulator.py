@@ -361,14 +361,14 @@ class CPUsimulatorV2:
                     node.parent = self
                 self.child.append(node)
             
-            def copyInfo(self):
+            def copyInfo(self) -> "Node":
                 """Creates a new node with the properties (but not relational data) of this node. returns the created node. 
                 
                 IE: returns a copy of the node with type, token, lineNum, charNum. Does not copy links to children, parent, nodeNext, nodePrevious, etc"""
 
                 return self.__class__(self.type, self.token, self.lineNum, self.charNum) #TODO This feels wrong, but I don't know why it's wrong
 
-            def copyDeep(self):
+            def copyDeep(self) -> "Node":
                 """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree."""
                 
                 newNode = self.__class__(self.type, self.token, self.lineNum, self.charNum)
@@ -384,9 +384,54 @@ class CPUsimulatorV2:
                     newNode.addChild(self.child[i].copyDeep())
                 return newNode
 
-            def replace(self, node : "Node"):
-                assert type(node) == self.__class__
-                pass
+            def replace(self, oldNode : "Node", newNode : "Node"):
+                """Takes in an oldNode that is child of self, and replaces it with newNode. Deletes oldNode"""
+                assert type(oldNode) == self.__class__
+                assert type(newNode) == self.__class__
+
+                index = None
+                for i in range(len(self.child)):
+                    if self.child[i] is oldNode:
+                        index = i
+                
+                if index == None:
+                    raise Exception
+
+                removeNode = self.child[index]
+                
+                #'rewires' the references of the children nodes
+                newNode.parent = self
+                if len(self.child) == 1: #case where oldNode is the only child in the list
+                    logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
+                    pass
+                elif index == 0: #case where oldNode is first child in the list, but not the only child in the list
+                    logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
+
+                    newNode.nodeNext = self.child[1]
+                    self.child[1].nodePrevious = newNode
+                elif index == len(self.child) - 1: #case where oldNode is the last child in the list, but not the only child in the list
+                    logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
+
+                    newNode.nodePrevious = self.child[-1]
+                    self.child[-1].nodeNext = newNode
+                elif 0 < index < len(self.child) -1: #case where oldNode is between two other nodes
+                    logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
+
+                    newNode.nodePrevious = self.child[index - 1]
+                    newNode.nodeNext = self.child[index + 1]
+
+                    self.child[index - 1] = newNode
+                    self.child[index + 1] = newNode
+
+                self.child[index] = newNode
+
+                #deletes oldNode
+                removeNode.parent = None
+                removeNode.nodeNext = None
+                removeNode.nodePrevious = None
+
+                for i in range(len(removeNode.child) - 1, -1, -1):
+                    removeNode.remove(removeNode.child[i])
 
             def remove(self, node : "Node"):
                 """Takes in a node that is a child of self, removes node. raises exception if node is not a child
@@ -437,7 +482,7 @@ class CPUsimulatorV2:
                 for i in range(len(removeNode.child) - 1, -1, -1):
                     removeNode.remove(removeNode.child[i])
 
-            def __repr__(self, depth : int = 0):
+            def __repr__(self, depth : int = 0) -> str:
                 """Recursivly composes a string representing the node hierarchy, returns a string.
                 
                 Called by print() to display the object"""
