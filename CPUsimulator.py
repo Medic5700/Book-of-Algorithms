@@ -306,7 +306,7 @@ class CPUsimulatorV2:
             self.pointers = {}
 
         class Node:
-            def __init__(self, typeStr : str, token : str, lineNum : int, charNum : int):
+            def __init__(self, typeStr : str = None, token : str = None, lineNum : int = None, charNum : int = None):
                 self.type : str = typeStr
                 self.token : str = token
                 self.child : list = []
@@ -321,10 +321,15 @@ class CPUsimulatorV2:
                 self.charNum : int = charNum
 
             def addChild(self, node : "Node"):
+                """Adds a new node object to self as a child (at end of list)"""
+
+                assert type(node) == self.__class__
+
                 if len(self.child) != 0:
                     self.child[-1].nodeNext = node
                     node.nodePrevious = self.child[-1]
-                node.parent = self
+                if node.parent == None:
+                    node.parent = self
                 self.child.append(node)
             
             def copyInfo(self):
@@ -332,13 +337,26 @@ class CPUsimulatorV2:
                 
                 IE: returns a copy of the node with type, token, lineNum, charNum. Does not copy links to children, parent, nodeNext, nodePrevious, etc"""
 
-                return self.__class__(self.type, self.token, self.lineNum, self.charNum) #This feels wrong, but I don't know why it's wrong
+                return self.__class__(self.type, self.token, self.lineNum, self.charNum) #TODO This feels wrong, but I don't know why it's wrong
 
             def copyDeep(self):
-                """Creates a new node with all properties of current node including recursivly copying all children. Returns a node tree."""
-                pass
+                """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree."""
+                
+                newNode = self.__class__(self.type, self.token, self.lineNum, self.charNum)
+
+                logging.debug(debugHelper(inspect.currentframe()) + "attempting to copyDeep node"+ "\n" + str((
+                        self.type,
+                        self.token,
+                        self.lineNum,
+                        self.charNum,
+                        self.child)))
+
+                for i in range(len(self.child)):
+                    newNode.addChild(self.child[i].copyDeep())
+                return newNode
 
             def replace(self, node : "Node"):
+                assert type(node) == self.__class__
                 pass
 
             def remove(self, node : "Node"):
@@ -346,6 +364,8 @@ class CPUsimulatorV2:
                 
                 deletes references to other nodes from Node, recursively removes child nodes of Node using remove()
                 This is to make it easier to the python garbage collecter to destroy it, because cyclic references"""
+
+                assert type(node) == self.__class__
 
                 index = None
                 for i in range(len(self.child)):
@@ -388,17 +408,21 @@ class CPUsimulatorV2:
                 for i in range(len(removeNode.child) - 1, -1, -1):
                     removeNode.remove(removeNode.child[i])
 
-            def __repr__(self, depth=0):
+            def __repr__(self, depth : int = 0):
                 """Recursivly composes a string representing the node hierarchy, returns a string.
                 
                 Called by print() to display the object"""
+
                 block = ""
                 line = ""
                 for i in range(depth):
                     line += "    "
                 line += repr(self.token)
                 line = line.ljust(40, " ")
-                line += ":" + str(self.type) + "\n"
+                line += ":" + str(self.type)
+                #line += "\t" + str(self.lineNum) + "\t" + str(self.charNum)
+                line += "\t" + str(depth)
+                line += "\n"
 
                 childLines = [i.__repr__(depth+1) for i in self.child]
                 block += line
@@ -407,12 +431,11 @@ class CPUsimulatorV2:
 
                 return block
                 
-            '''#No longer needed since remove() cleans up enough recursivly for the python garbage collector to pick it up. This function might be useful for debugging purposes?
+            #No longer needed since remove() cleans up enough recursivly for the python garbage collector to pick it up. This function might be useful for debugging purposes
             def __del__(self):
                 """Decontructor, needed because the various inter-node references may make it harder for the python garbage collector to properly delete an entire tree
                 
                 will not touch pointers to this node from other nodes. IE: nodeNext's pointer to this node could be set to None, but that could get messy?"""
-                # https://www.geeksforgeeks.org/python-__delete__-vs-__del__/
                 
                 logging.debug(debugHelper(inspect.currentframe()) + "Deleting Node" + "\n" + str((
                         self.type,
@@ -420,18 +443,13 @@ class CPUsimulatorV2:
                         self.lineNum,
                         self.charNum))
                         )
-
+                
                 self.parent = None
                 self.nodeNext = None
                 self.nodePrevious = None
 
-                for i in self.child:
-                    i.parent = None
-                    i.nodeNext = None
-                    i.nodePrevious = None
-                
-                self.child.clear()
-            '''
+                while len(self.child) != 0:
+                    self.remove(self.child[0])
 
         def _tokenize(self, code : str) -> "list[tuple(str, int, int)]" :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). No characters are filtered out"""
@@ -559,7 +577,7 @@ class CPUsimulatorV2:
                     currentnode.replace(node)
             '''
             
-            root = self.Node("root", None, None, None)
+            root = self.Node("root")
             currentNode = self.Node("line", None, 0, 0)
             root.addChild(currentNode)
 
