@@ -311,6 +311,7 @@ class CPUsimulatorV2:
                 self.token : str = token
                 self.child : list = []
 
+                #relational references to other nodes
                 self.parent : "Node" = None
                 self.nodePrevious : "Node" = None
                 self.nodeNext : "Node" = None
@@ -320,8 +321,73 @@ class CPUsimulatorV2:
                 self.charNum : int = charNum
 
             def addChild(self, node : "Node"):
+                if len(self.child) != 0:
+                    self.child[-1].nodeNext = node
+                    node.nodePrevious = self.child[-1]
+                node.parent = self
                 self.child.append(node)
             
+            def copyInfo(self):
+                """Creates a new node with the properties (but not relational data) of this node. returns the created node. 
+                
+                IE: returns a copy of the node with type, token, lineNum, charNum. Does not copy links to children, parent, nodeNext, nodePrevious, etc"""
+
+                return self.__class__(self.type, self.token, self.lineNum, self.charNum) #This feels wrong, but I don't know why it's wrong
+
+            def copyDeep(self):
+                """Creates a new node with all properties of current node including recursivly copying all children. Returns a node tree."""
+                pass
+
+            def replace(self, node : "Node"):
+                pass
+
+            def remove(self, node : "Node"):
+                """Takes in a node that is a child of self, removes node. raises exception if node is not a child
+                
+                deletes references to other nodes from Node, recursively removes child nodes of Node using remove()
+                This is to make it easier to the python garbage collecter to destroy it, because cyclic references"""
+
+                index = None
+                for i in range(len(self.child)):
+                    if self.child[i] is node:
+                        index = i
+
+                if index == None:
+                    raise Exception
+
+                removeNode = self.child[index]
+
+                logging.debug(debugHelper(inspect.currentframe()) + "attempting to remove node"+ "\n" + str((
+                        self.type,
+                        self.token,
+                        self.lineNum,
+                        self.charNum,
+                        self.child)))
+
+                #'rewires' the references of the children nodes to remove removeNode
+                if len(self.child) == 1: #case where removeNode is the only child in the list
+                    logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
+                    pass
+                elif index == 0: #case where removeNode is first child in the list, but not the only child in the list
+                    logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
+                    removeNode.nodeNext.nodePrevious = None
+                elif index == len(self.child) - 1: #case where removeNode is the last child in the list, but not the only child in the list
+                    logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
+                    removeNode.nodePrevious.nodeNext = None
+                elif 0 < index < len(self.child) -1: #case where removeNode is between two other nodes
+                    logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
+                    removeNode.nodePrevious.nodeNext = removeNode.nodeNext
+                    removeNode.nodeNext.nodePrevious = removeNode.nodePrevious
+                
+                removeNode.parent = None
+                removeNode.nodeNext = None
+                removeNode.nodePrevious = None
+                
+                self.child.pop(index)
+                
+                for i in range(len(removeNode.child) - 1, -1, -1):
+                    removeNode.remove(removeNode.child[i])
+
             def __repr__(self, depth=0):
                 """Recursivly composes a string representing the node hierarchy, returns a string.
                 
@@ -341,6 +407,32 @@ class CPUsimulatorV2:
 
                 return block
                 
+            '''#No longer needed since remove() cleans up enough recursivly for the python garbage collector to pick it up. This function might be useful for debugging purposes?
+            def __del__(self):
+                """Decontructor, needed because the various inter-node references may make it harder for the python garbage collector to properly delete an entire tree
+                
+                will not touch pointers to this node from other nodes. IE: nodeNext's pointer to this node could be set to None, but that could get messy?"""
+                # https://www.geeksforgeeks.org/python-__delete__-vs-__del__/
+                
+                logging.debug(debugHelper(inspect.currentframe()) + "Deleting Node" + "\n" + str((
+                        self.type,
+                        self.token,
+                        self.lineNum,
+                        self.charNum))
+                        )
+
+                self.parent = None
+                self.nodeNext = None
+                self.nodePrevious = None
+
+                for i in self.child:
+                    i.parent = None
+                    i.nodeNext = None
+                    i.nodePrevious = None
+                
+                self.child.clear()
+            '''
+
         def _tokenize(self, code : str) -> "list[tuple(str, int, int)]" :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). No characters are filtered out"""
             
