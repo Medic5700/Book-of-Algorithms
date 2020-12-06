@@ -6,6 +6,10 @@ This project is geared towards demonstrating algorithms, and therefor generalize
 IE: I needed something for a super dumb/special use case of demonstrating how a low level operation/algorithm works (memory error correction)
     without using a weird workaround (having a seperate 8-bit memory and 1-bit parity array vs creating a cpu with 9-bit memory)
     in a reliable and extensable way (making a cpu simulator that can be used for multiple algorithms)
+
+Development Stack:
+    Python 3.8 or greater
+    A terminal that supports ANSI (IE: default Ubuntu Terminal or the "Windows Terminal" app for Windows)
 """
 
 import sys
@@ -52,20 +56,29 @@ def debugHelper(frame) -> str:
 class CPUsimulatorV2:
     """A an implimentation of a generic and abstract ALU mainly geared towards illistrating algorithms
 
-    Issues:
-        should allow for adding arbitrary amount of arbitrary sized registers
-            -> registers that are not bitLength sized should be able to be added with a method instead of with the constructor.
-        Instruction functions return display highlight stuff, should be handled auto-magically by register arrays with a custom list class.
+    Issues/TODO:
         Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
         Instruction functions should be in their own class, for better modularity
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
+        Instruction functions should be more functional (IE: they take in as arguments/pointers self.state, self.oldstate, self.config, etc) so as to make coding for it easier?
         using ConfigAddRegister() followed by Inject() will cause an unhandled display exception because Inject() calls self.display.runtime() which glitches out, display can't handle self.state and self.lastState having different sized stuff
             Mitigated by doing ConfigAddRegister(); self.postCycle(); Inject() will not cause an exception (because the new register modified self.state is now copied to self.lastState)
             Either:
                 self.postCycle() will need to be called after every ConfigAddRegister() to manually 'increment' the simulation
                 self.display will need to be able to handle registers dropping into and out of existance at any time
                 ConfigAddRegister() will need to call self.postCycle() BUT since it's used to add CPU Flags, that CPU Flag initialization will need to be reworked, and made messier
+        Data to keep track of:
+            engine:
+                original source code
+                current cycle number
+            stats:
+                number of times a line is executed
+                energy use per line
+                cycles used for execution
+        Instruction functions on execution should return a dictionary of info on function stats (IE: energy used, latency, instruction unit used, etc?)
+            Makes instruction set composition easier (since lambda functions don't also need to copy a bunch of function properties)
+            Makes instruction manipulation harder (IE: you can't know how long an instruction will take to execute ahead of time, or which execution unit it will use, or how to profile it)
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -79,7 +92,7 @@ class CPUsimulatorV2:
             Intel's attempt at EPIC architecture
         Google(intel microarchitecture)
             https://www.servethehome.com/intel-xeon-scalable-processor-family-microarchitecture-overview/
-        https://cs.lmu.edu/~ray/notes/gasexamples/
+        https://cs.lmu.edu/~ray/notes/gasexamples/  #Some stuff on GCC, with a lot of assembly examples
         https://en.wikibooks.org/wiki/X86_Assembly/GAS_Syntax
         https://en.wikipedia.org/wiki/GNU_Assembler
         https://github.com/vmmc2/Vulcan     #a "RISC-V Instruction Set Simulator Built For Education", web based
@@ -89,20 +102,19 @@ class CPUsimulatorV2:
             four times the L3 cache (16MB to 64MB), eight extra clock cycle access time
             AMD 64-bit int division, 19-ish cycles (down from like 90-120 cyles years ago)
 
-    Out of scope:
+    Out of scope (for this itteration):
         caching
         multi-threading
-        memory controler/address translation
-        instruction scedualer
+        instruction schedualer
+            execution unit instruction queueing
         register file
         CPU interupts
             syscalls
         CPU power states/sleep
             device drivers/interactions
         CISC recursion to simulate a context switch
-        execution unit instruction queueing
         enforcment of hardware register limitations (IE: r0 is hardwared to be zero)
-        importing instruction functions and instruction sets
+        importing instruction functions and instruction sets #need to get MVP working first
             instruction function currying on instruction set assignment (IE: 'addInt' = curry(add, 8 bit), 'addDouble' = curry(add, 16 bit))
         parsing
             math operorators
@@ -116,6 +128,18 @@ class CPUsimulatorV2:
             allow instructions to override instruction annotations during runtime execution
             IE: an instruction uses a variable amount of energy dependent on the data processed. It can report the energy used during its execution
         Support for self-modifying code
+        Custom register/memory objects (instead of simple arrays) for tracking access (reads/writes) + transational history + additional stats and stat tracking
+            memory controler/address translation
+            will need a simple address pointer lookup function to simulate a redirect at the instruction composting stage
+                IE: add(m[r[0]], r[1], r[4]) needs to be allowed
+            can merge self.lastState and self.state into single state?
+        Memory aliasing into namespace (IE: letting R[0] be refered to by an alias 'z0' instead of 'r[0]')
+        Microcode. The execution engine just isn't built out enough yet to consider this yet
+            Microcode could run as a recursive CPU call, elimating the need for complex tracking of register windows, since it's run in a 'custom cpu construct' made for that instruction
+            Microcode could be implimented at the instruction set composition level instead
+                IE: add(a,b,c) used to make a vector add instruction (lambda a,b,c : add(a,b,c), add(a+1,b+1,c+1), add(a+2,b+2,c+2), etc)
+                Only useful for simple instructions
+        Instruction non-execution analysis utilities to better help calabrate instructions (IE: some utilities to help the user see energy use for each instruction in a graph before code is run)
     """
 
     def __init__(self, bitLength : int = 16):
@@ -125,7 +149,7 @@ class CPUsimulatorV2:
         self.lastState : dict = None
         self.config : dict = {}
         #self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
-        #self.engine : dict = {} #FUTURE used to keep track of CPU engine information?
+        #self.engine : dict = {} #FUTURE used to keep track of CPU engine information?, should it be merged with self.stats?
 
         #configure CPU flags
         self.ConfigAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
@@ -159,12 +183,17 @@ class CPUsimulatorV2:
         self.namespace : dict = self._computeNamespace()
 
         self.display = self.DisplaySimpleAndClean()
-        """This is a user swappable class function call for displaying runtime information on the screen during runtime about runtime operations
+        '''This is a user swappable class function call for displaying runtime information on the screen during runtime about runtime operations
         display.runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None)
             is called after every execution cycle
         display.postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None)
             is called when the CPU HALTS execution
-        """
+        '''
+
+        self.postCycle = self._refresh
+        '''This is a user swappable function call executed after every execution cycle.        
+        explicidly copies the self.state to self.lastState, resets CPU flags, etc
+        '''
 
         #convinence added stuff for 'works out of the box' functionality
         self.ConfigAddRegister('r', 8, bitLength) #standard registers
@@ -587,6 +616,9 @@ class CPUsimulatorV2:
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(code))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
 
+            #root = self._applyRuleStringSimple(root)
+
+            return root
 
         
     #==================================================================================================================
@@ -594,23 +626,21 @@ class CPUsimulatorV2:
     def lazy(self, code : str): #TODO MVP
         """decodes and executes a single instruction line"""
         pass
-        
-    def _integrityCheck(self): #TODO
-        """checks the integridy of all current registers, memory, etc"""
-        pass
 
     def _refresh(self):
         """resets all required registers and flags between instructions, copies current state into lastState
 
         note: can be omited in some cases, such as micro-code that sets flags for the calling procedure"""
 
-        #self._integrityCheck()
-
         self.lastState = copy.deepcopy(self.state) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
         
         for i in self.state['flag'].keys(): #resets all flags
             self.state['flag'][i] = 0
         self.state['i'] = []
+
+    def _postEngineCycle(self):
+        """runs at the end of each execution cycle, meant to handle engine level stuff"""
+        pass
 
     def _translateArgument(self, arg : str) -> 'tuple[str, int]':
         #FUTURE may have to take pointers of form m*r[0] IE: number in r0 points to memory index
@@ -1259,7 +1289,6 @@ if __name__ == "__main__":
     CPU.inject('m[0]', 8)
     '''
     #testing/implementing
-    CPU._display()
     #CPU.lazy('nop #test test test') #comments get ignored
     #CPU.lazy('copy(5, r[0])') #an actual instruction
     #CPU.lazy('copy(1, r[1]), copy(2, r[2])') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
@@ -1268,6 +1297,6 @@ if __name__ == "__main__":
     '''
 
     CPU = CPUsimulatorV2(8)
-    parser = CPU.Parse(NotImplemented)
-    print(parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
-    print(parser.parseCode("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
+    parser = CPU.Parse({})
+    #print(parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
+    #print(parser.parseCode("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
