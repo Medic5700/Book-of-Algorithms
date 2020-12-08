@@ -23,7 +23,7 @@ import re #Regex, used in CPUsimualtorV2._translateArgument()
 import logging
 import inspect
 debugHighlight = lambda x : False #debugHighlight = lambda x : 322 <= x <= 565 #will highlight the debug lines between those number, or set to -1 to highlight nothing
-def debugHelper(frame) -> str:
+def debugHelper(frame : "Frame Object") -> str:
     """Takes in a frame object, returns a string representing debug location info (IE: the line number and container name of the debug call)
 
     Usage -> logging.debug(debugHelper(inspect.currentframe()) + "String") -> DEBUG:root:<container>"remove"[0348]@line[0372] = String
@@ -33,6 +33,7 @@ def debugHelper(frame) -> str:
     Reference:
         https://docs.python.org/3/library/inspect.html#types-and-members
     """
+    assert inspect.isframe(frame)
     
     #textRed = "\u001b[31m" #forground red
     textTeal = "\u001b[96m" #forground teal
@@ -54,7 +55,10 @@ def debugHelper(frame) -> str:
     return line
 
 class CPUsimulatorV2:
-    """A an implimentation of a generic and abstract ALU mainly geared towards illistrating algorithms
+    """A implimentation of a generic and abstract ALU/CPU mainly geared towards illistrating algorithms
+    """
+
+    '''Random Design Notes:
 
     Issues/TODO:
         Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
@@ -140,7 +144,7 @@ class CPUsimulatorV2:
                 IE: add(a,b,c) used to make a vector add instruction (lambda a,b,c : add(a,b,c), add(a+1,b+1,c+1), add(a+2,b+2,c+2), etc)
                 Only useful for simple instructions
         Instruction non-execution analysis utilities to better help calabrate instructions (IE: some utilities to help the user see energy use for each instruction in a graph before code is run)
-    """
+    '''
 
     def __init__(self, bitLength : int = 16):
         
@@ -202,7 +206,7 @@ class CPUsimulatorV2:
         self._refresh()
 
     def _computeNamespace(self):
-        """computes the namespace of instructions, registers, etc for the CPU. Returns a dictionary if string:pointer pairs"""
+        """computes the namespace of instructions, registers, etc for the CPU. Returns a dictionary of string:pointer pairs"""
         names = {}
         keys = self.state.keys()
         for i in keys:
@@ -231,13 +235,18 @@ class CPUsimulatorV2:
 
     def inject(self, target : str, value : int):
         assert type(value) is int
+        assert value >= 0
         #TODO handle negative value
+
         t1, t2 = self._translateArgument(target)
         self.state[t1][t2] = value & (2**self.config[t1]['bitlength']-1)
 
         self.display.runtime(self.lastState, self.state, self.config)
 
     def extract(self, target : str) -> int:
+        """Takes in a target of format 'register[index]', and returns an int representing the value stored"""
+        assert type(target) is str
+
         t1, t2 = self._translateArgument(target)
         return self.state[t1][t2]
 
@@ -258,8 +267,9 @@ class CPUsimulatorV2:
         Uses ANSI for some colouring
         """
 
-        def __init__(self, animationDelay : int = 0.5):
-            #TODO this should be in the class, but outside of the instantiation?
+        def __init__(self, animationDelay : float = 0.5):
+            assert type(animationDelay) is float or type(animationDelay) is int
+
             import time #this is imported for the specific class because this class is supposed to able to be 'swapped out' and may not be neccassary if another display class doesn't need the 'time' module
             self.sleep : 'function' = time.sleep
 
@@ -335,7 +345,11 @@ class CPUsimulatorV2:
             self.pointers = {}
 
         class Node:
-            def __init__(self, typeStr : str = None, token : str = None, lineNum : int = None, charNum : int = None):
+            def __init__(self, typeStr : str = None, token : "str/int" = None, lineNum : int = None, charNum : int = None):
+                assert type(typeStr) is str or typeStr == None
+                assert type(lineNum) is int or lineNum == None
+                assert type(charNum) is int or charNum == None
+
                 self.type : str = typeStr
                 self.token : str = token
                 self.child : list = []
@@ -349,9 +363,8 @@ class CPUsimulatorV2:
                 self.lineNum : int = lineNum 
                 self.charNum : int = charNum
 
-            def addChild(self, node : "Node"):
+            def addChild(self, node : "Node"): #TODO should change name to 'append()'
                 """Adds a new node object to self as a child (at end of list)"""
-
                 assert type(node) == self.__class__
 
                 if len(self.child) != 0:
@@ -368,7 +381,7 @@ class CPUsimulatorV2:
 
                 return self.__class__(self.type, self.token, self.lineNum, self.charNum) #TODO This feels wrong, but I don't know why it's wrong
 
-            def copyDeep(self) -> "Node":
+            def copyDeep(self) -> "Node": #TODO should change name to 'deepCopy()'
                 """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree."""
                 
                 newNode = self.__class__(self.type, self.token, self.lineNum, self.charNum)
@@ -438,7 +451,6 @@ class CPUsimulatorV2:
                 
                 deletes references to other nodes from Node, recursively removes child nodes of Node using remove()
                 This is to make it easier to the python garbage collecter to destroy it, because cyclic references"""
-
                 assert type(node) == self.__class__
 
                 index = None
@@ -527,7 +539,8 @@ class CPUsimulatorV2:
 
         def _tokenize(self, code : str) -> "list[tuple(str, int, int)]" :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). No characters are filtered out"""
-            
+            assert type(code) is str
+
             #done like this to easily add extra characters
             _isName = lambda x : x.isalnum() or x in "_"
 
@@ -575,6 +588,8 @@ class CPUsimulatorV2:
                 '\n'
                 '\n'
             """
+            assert type(tree) is self.Node
+
             pass
 
         def _applyRuleStringSimple(self, tree : Node) -> Node:
@@ -608,6 +623,8 @@ class CPUsimulatorV2:
                 '\#'
                 'test'
             """
+            assert type(tree) is self.Node
+
             pass
 
         def _applyRuleContainer(self, tree : Node) -> Node:
@@ -621,10 +638,15 @@ class CPUsimulatorV2:
                     '('
                         'test'
             """
+            assert type(tree) is self.Node
+
             pass
 
         def _applyRuleCatalogLabels(self, tree : Node, symbolTable : dict) -> {int:Node}:
             """Takes in a node, attempts to find a label (a token not in symbolTable), returns a dictionary of position : Node"""
+            assert type(tree) is self.Node
+            assert type(symbolTable) is dict
+
             pass
 
         def parseCode(self, code : str) -> "Node":
@@ -650,6 +672,7 @@ class CPUsimulatorV2:
                     node.child = currentnode
                     currentnode.replace(node)
             '''
+            assert type(code) is str
             
             root = self.Node("root")
             currentNode = self.Node("line", None, 0, 0)
@@ -689,6 +712,7 @@ class CPUsimulatorV2:
 
     def _translateArgument(self, arg : str) -> 'tuple[str, int]':
         #FUTURE may have to take pointers of form m*r[0] IE: number in r0 points to memory index
+        assert type(arg) is str
 
         key : str = None
         index : 'int xor str' = None
