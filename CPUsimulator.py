@@ -363,6 +363,12 @@ class CPUsim:
             self.pointers = {}
 
         class Node:
+            """A data class for storing information in a tree like structure. 
+
+            Each Node also has a coupld relational links between children (nodeNext, nodePrevious, nodeParent)
+            Note: __eq__() and __ne__() are implimented to make it easier for compairsions with Node.token and other values.
+            """
+
             def __init__(self, typeStr : str = None, token : "str/int" = None, lineNum : int = None, charNum : int = None):
                 assert type(typeStr) is str or typeStr == None
                 assert type(lineNum) is int or lineNum == None
@@ -541,6 +547,26 @@ class CPUsim:
 
                 return block
                 
+            def __eq__(self, other) -> bool:
+                """A custom equals comparision. Takes in another object other, and compaires it to self.token. Returns True if equal, False otherwise"""
+                logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
+
+                #return self.token == other
+                if type(other) == self.__class__:
+                    return self.token == other.token
+                else:
+                    return self.token == other
+
+            def __ne__(self, other) -> bool:
+                """A custom not equals comparision. Takes in another object other, and compaires it to self.token. Returns True if not equal, False otherwise"""
+                logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
+
+                #return self.token != other
+                if type(other) == self.__class__:
+                    return self.token != other.token
+                else:
+                    return self.token != other
+
             #No longer needed since remove() cleans up enough recursivly for the python garbage collector to pick it up. This function might be useful for debugging purposes
             def __del__(self):
                 """Decontructor, needed because the various inter-node references may make it harder for the python garbage collector to properly delete an entire tree
