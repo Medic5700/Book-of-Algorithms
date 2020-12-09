@@ -54,7 +54,7 @@ def debugHelper(frame : "Frame Object") -> str:
 
     return line
 
-class CPUsimulatorV2:
+class CPUsim:
     """A implimentation of a generic and abstract ALU/CPU mainly geared towards illistrating algorithms
     """
 
@@ -1381,7 +1381,7 @@ if __name__ == "__main__":
     #print(multiply1(3,4)) #old working prototype
     
     #What works
-    CPU = CPUsimulatorV2(8)
+    CPU = CPUsim(8)
     CPU.ConfigAddRegister('r', 2, 16)
     CPU.ConfigAddRegister('m', 4, 8)
     CPU.postCycle() #required because program architecture bug
@@ -1397,7 +1397,7 @@ if __name__ == "__main__":
     #CPU.run()
     '''
 
-    CPU = CPUsimulatorV2(8)
+    CPU = CPUsim(8)
     parser = CPU.Parse({})
     #print(parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
     #print(parser.parseCode("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
