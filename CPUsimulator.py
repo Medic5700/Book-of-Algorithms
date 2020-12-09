@@ -233,21 +233,35 @@ class CPUsimulatorV2:
 
         self.state['flag'][name] = 0
 
-    def inject(self, target : str, value : int):
+    def inject(self, key : str, index : "int/str", value : int):
+        """Takes in a key index pair representing a specific register. Assigns int value to register.
+        
+        value >= 0
+        Does not increment the simulatition.
+        Does run self.display.runtime"""
+        assert type(key) is str
+        assert type(index) is int or type(index) is str
         assert type(value) is int
         assert value >= 0
         #TODO handle negative value
 
-        t1, t2 = self._translateArgument(target)
+        t1 = key.lower()
+        t2 = index.lower() if key.lower() == "flag" else index
+
+        #t1, t2 = self._translateArgument(target)
         self.state[t1][t2] = value & (2**self.config[t1]['bitlength']-1)
 
         self.display.runtime(self.lastState, self.state, self.config)
 
-    def extract(self, target : str) -> int:
-        """Takes in a target of format 'register[index]', and returns an int representing the value stored"""
-        assert type(target) is str
+    def extract(self, key : str, index : "int/str") -> int:
+        """Takes in a key index pair representing a specific register. Returns an int representing the value stored in that register"""
+        assert type(key) is str
+        assert type(index) is int or type(index) is str
 
-        t1, t2 = self._translateArgument(target)
+        t1 = key.lower()
+        t2 = index.lower() if key.lower() == "flag" else index
+
+        #t1, t2 = self._translateArgument(target)
         return self.state[t1][t2]
 
     def decode(self, code: str): #TODO MVP
@@ -1354,8 +1368,9 @@ if __name__ == "__main__":
     CPU.ConfigAddRegister('r', 2, 16)
     CPU.ConfigAddRegister('m', 8, 8)
     CPU.postCycle() #required because program architecture bug
-    CPU.inject('r[0]', 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
-    CPU.inject('m[0]', 8)
+    CPU.inject('r', 1, 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
+    CPU.inject('m', 2, 8)
+    CPU.inject('flag', 'carry', 1)
     '''
     #testing/implementing
     #CPU.lazy('nop #test test test') #comments get ignored
