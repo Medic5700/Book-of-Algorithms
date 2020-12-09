@@ -159,9 +159,6 @@ class CPUsimulatorV2:
         self.ConfigAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
         self.state['flag'] : dict = {} #overrides default array of numbers
 
-        self.ConfigAddFlag('carry')
-        self.ConfigAddFlag('overflow')
-        
         #adds special registers that are required
         self.ConfigAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
         self.ConfigAddRegister('pc', 1, bitLength) #program counter, it's a list because the parser will auto-convert references from 'pc' to 'pc[0]'
@@ -203,10 +200,14 @@ class CPUsimulatorV2:
         self.ConfigAddRegister('r', 8, bitLength) #standard registers
         self.ConfigAddRegister('m', 32, bitLength) #standard memory
 
+        self.ConfigAddFlag('carry')
+        self.ConfigAddFlag('overflow')
+
         self._refresh()
 
     def _computeNamespace(self):
         """computes the namespace of instructions, registers, etc for the CPU. Returns a dictionary of string:pointer pairs"""
+
         names = {}
         keys = self.state.keys()
         for i in keys:
@@ -218,11 +219,11 @@ class CPUsimulatorV2:
     def ConfigAddRegister(self, name : str, amount : int, bitlength : int):
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
         assert type(name) is str
-        assert bitlength > 0
-        assert amount >= 0
+        assert type(bitlength) is int and bitlength > 0
+        assert type(amount) is int and amount >= 0
         
-        self.state[name] = [0 for i in range(amount)]
-        self.config[name] = {}
+        self.state[name.lower()] = [0 for i in range(amount)]
+        self.config[name.lower()] = {}
 
         self.config[name]['bitlength'] = bitlength
 
@@ -231,7 +232,7 @@ class CPUsimulatorV2:
         assert type(name) is str
         assert 'flag' in self.state.keys()
 
-        self.state['flag'][name] = 0
+        self.state['flag'][name.lower()] = 0
 
     def inject(self, key : str, index : "int/str", value : int):
         """Takes in a key index pair representing a specific register. Assigns int value to register.
@@ -265,11 +266,13 @@ class CPUsimulatorV2:
         return self.state[t1][t2]
 
     def decode(self, code: str): #TODO MVP
-        """takes in a string of assembly instructions, and compiles/loads it into memory"""
+        """NotImplimented
+        takes in a string of assembly instructions, and compiles/loads it into memory"""
         pass
 
     def run(self, cycleLimit=None): #TODO MVP
-        """starts execution of instructions"""
+        """NotImplimented
+        starts execution of instructions"""
         pass
 
     #==================================================================================================================
@@ -280,6 +283,7 @@ class CPUsimulatorV2:
         Displays all registers, memory, and flags after every execution cycle. Displays some postrun stats.
         Uses ANSI for some colouring
         """
+        #TODO impliment a 'static' function for use when just showing the current CPU status between updates?
 
         def __init__(self, animationDelay : float = 0.5):
             assert type(animationDelay) is float or type(animationDelay) is int
@@ -460,6 +464,12 @@ class CPUsimulatorV2:
                 for i in range(len(removeNode.child) - 1, -1, -1):
                     removeNode.remove(removeNode.child[i])
 
+            def refreshLinks(self, recurse : bool = False):
+                """NotImplimented
+                Refreshes/remakes the links between children nodes. recurse = True to recursivly refreshLinks on entire node tree"""
+                pass
+
+
             def remove(self, node : "Node"):
                 """Takes in a node that is a child of self, removes node. raises exception if node is not a child
                 
@@ -586,7 +596,8 @@ class CPUsimulatorV2:
             return tokenList
 
         def _applyRuleRemoveLeadingWhitespace(self, tree : Node) -> Node:
-            """Takes in a node, removes all white space tokens between a new line token and the next token; does not recurse. Returns a node
+            """NotImplimented
+            Takes in a node, removes all white space tokens between a new line token and the next token; does not recurse. Returns a node
             
             Example: "test test \ntest\n  \ttest\t\n     \n" -> "test test \ntest\ntest\t\n\n"
             node
@@ -624,7 +635,8 @@ class CPUsimulatorV2:
             pass
 
         def _applyRuleFilterComments(self, tree : Node) -> Node:
-            """Takes in a node, removes any tokens between a "#" token and a new line token; does not recuse. Returns a node
+            """NotImplimented
+            Takes in a node, removes any tokens between a "#" token and a new line token; does not recuse. Returns a node
             
             Example: "test #test\n #test\n\t\#test" -> "test \n \n\t\#test" ->
             node
@@ -642,7 +654,8 @@ class CPUsimulatorV2:
             pass
 
         def _applyRuleContainer(self, tree : Node) -> Node:
-            """Takes in a node, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers, Returns a node
+            """NotImplimented
+            Takes in a node, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers, Returns a node
             
             Example: "test[test(test)]" ->
             node
@@ -657,14 +670,16 @@ class CPUsimulatorV2:
             pass
 
         def _applyRuleCatalogLabels(self, tree : Node, symbolTable : dict) -> {int:Node}:
-            """Takes in a node, attempts to find a label (a token not in symbolTable), returns a dictionary of position : Node"""
+            """NotImplimented
+            Takes in a node, attempts to find a label (a token not in symbolTable), returns a dictionary of position : Node"""
             assert type(tree) is self.Node
             assert type(symbolTable) is dict
 
             pass
 
-        def parseCode(self, code : str) -> "Node":
-            """Takes a string of code, returns a parsed execution tree?"""
+        def parseCode(self, code : str) -> "(Node, list[int])":
+            """NotImplimented
+            Takes a string of code, returns a parsed execution tree?"""
             '''assembles the tree as it goes
 
             starts with a root node, "line"
@@ -700,13 +715,14 @@ class CPUsimulatorV2:
 
             #root = self._applyRuleStringSimple(root)
 
-            return root
+            return (root, [])
 
         
     #==================================================================================================================
 
     def lazy(self, code : str): #TODO MVP
-        """decodes and executes a single instruction line"""
+        """NotImplimented
+        decodes and executes a single instruction line"""
         pass
 
     def _refresh(self):
@@ -721,10 +737,11 @@ class CPUsimulatorV2:
         self.state['i'] = []
 
     def _postEngineCycle(self):
-        """runs at the end of each execution cycle, meant to handle engine level stuff"""
+        """NotImplimented
+        runs at the end of each execution cycle, meant to handle engine level stuff"""
         pass
 
-    def _translateArgument(self, arg : str) -> 'tuple[str, int]':
+    def _translateArgument(self, arg : str) -> 'tuple[str, int]': #TODO this is outdated and should be replaced
         #FUTURE may have to take pointers of form m*r[0] IE: number in r0 points to memory index
         assert type(arg) is str
 
@@ -1359,14 +1376,14 @@ def multiply2(a, b, bitlength=8):
 if __name__ == "__main__":
     #set up debugging
     logging.basicConfig(level = logging.DEBUG)
-    debugHighlight = lambda x : 322 <= x <= 565
+    debugHighlight = lambda x : 500 <= x <= 650
 
     #print(multiply1(3,4)) #old working prototype
     
-    #some testing
+    #What works
     CPU = CPUsimulatorV2(8)
     CPU.ConfigAddRegister('r', 2, 16)
-    CPU.ConfigAddRegister('m', 8, 8)
+    CPU.ConfigAddRegister('m', 4, 8)
     CPU.postCycle() #required because program architecture bug
     CPU.inject('r', 1, 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
     CPU.inject('m', 2, 8)
