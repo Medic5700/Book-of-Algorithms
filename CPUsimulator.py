@@ -387,7 +387,7 @@ class CPUsim:
                 self.lineNum : int = lineNum 
                 self.charNum : int = charNum
 
-            def addChild(self, node : "Node"): #TODO should change name to 'append()'
+            def append(self, node : "Node"): #TODO should change name to 'append()'
                 """Adds a new node object to self as a child (at end of list)"""
                 assert type(node) == self.__class__
 
@@ -418,7 +418,7 @@ class CPUsim:
                         self.child)))
 
                 for i in range(len(self.child)):
-                    newNode.addChild(self.child[i].copyDeep())
+                    newNode.append(self.child[i].copyDeep())
                 return newNode
 
             def replace(self, oldNode : "Node", newNode : "Node"):
@@ -731,10 +731,10 @@ class CPUsim:
             
             root = self.Node("root")
             currentNode = self.Node("line", None, 0, 0)
-            root.addChild(currentNode)
+            root.append(currentNode)
 
             for i in self._tokenize(code):
-                currentNode.addChild(self.Node("token", i[0], i[1], i[2]))
+                currentNode.append(self.Node("token", i[0], i[1], i[2]))
 
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(code))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
