@@ -621,9 +621,8 @@ class CPUsim:
 
             return tokenList
 
-        def _applyRuleRemoveLeadingWhitespace(self, tree : Node) -> Node:
-            """NotImplimented
-            Takes in a node, removes all white space tokens between a new line token and the next token; does not recurse. Returns a node
+        def _applyRuleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : "list[str]" = [" ", "\t"]) -> Node:
+            """Takes in a node, removes all white space tokens between a new line token and the next token; does not recurse. Returns a node
             
             Example: "test test \ntest\n  \ttest\t\n     \n" -> "test test \ntest\ntest\t\n\n"
             node
@@ -640,31 +639,119 @@ class CPUsim:
                 '\n'
             """
             assert type(tree) is self.Node
+            assert all([True if len(i) == 1 else False for i in whiteSpace])
 
-            pass
+            root : self.Node = tree.copyInfo()
+
+            stack = "\n"
+
+            ''' Finite State Machine
+            State 0: at beginning of line
+            State 1: after first token
+            Edge: 0 -> 0: found whitespace, not copying
+            Edge: 0 -> 1: found token, copying
+            Edge: 1 -> 0: found newline
+            Edge: 1 -> 1: did not find newline, copy token
+            '''
+            for i in tree.child:
+                if stack != None: #State 0: at beginning of line
+                    if i.token in whiteSpace: #Edge: 0 -> 0: found whitespace, not copying
+                        pass
+                    else: #Edge: 0 -> 1: found token, copying
+                        root.append(i.copyDeep())
+                        stack = None
+                else: #State 1: after first token
+                    if i == "\n": #Edge: 1 -> 0: found newline
+                        stack = "\n"
+                        root.append(i.copyDeep())
+                    else: #Edge: 1 -> 1: did not find newline, copy token
+                        root.append(i.copyDeep())
+
+            return root
 
         def _applyRuleStringSimple(self, tree : Node) -> Node:
-            """Takes in a node, combines all the tokens that are contained by quote tokens into a string node; does not recurse. Returns a node
+            """Takes in a node, combines all the tokens that are contained by quote tokens into a string node. Returns a node
+            #TODO allow for arbitrary definition of list of 'quote like characters'
+
+            does not recurse
+            operates on entire string block
             
-            Example: "test 'test'" ->
-            node
+            Case: "test 'test'" ->
+            Node
                 'test'
                 ' '
                 "test"
-            Example: "'test\n\'test\''\ntest" ->
-            node
-                "test\n\'test\'"
+            Case: "\'test\n\\\'test\\\''\ntest" ->
+            Node
+                "test\n\\\'test\\\'"
                 '\n'
                 'test'
+            Case: "\'test\n\'test\'\'\ntest" ->
+            Node
+                "test\n"
+                "test"
+                ""
+                "\n"
+                "test"
+            Case: "test1\"abc\'123\'abc\"test2" ->
+                "test1"
+                "abc\'123\'abc"
+                "test2"
+            Case: "" ->
+                None
             """
-            current = tree.child[0]
-            pass
+            assert type(tree) is self.Node
 
-        def _applyRuleFilterComments(self, tree : Node) -> Node:
-            """NotImplimented
-            Takes in a node, removes any tokens between a "#" token and a new line token; does not recuse. Returns a node
+            root : self.Node = tree.copyInfo()
+            string = ""
+
+            stack = None
+            lineNum = None
+            charNum = None
+
+            '''Finite State Machine
+            State 0 #Looking for an opening quote
+            State 1 #Looking for a closing quote
+            Edge 0 -> 0 iff token != quote: append node to root
+            Edge 0 -> 1 iff token == quote: setup looking for closing quote
+            Edge 1 -> 1 iff token != quote: append string with token
+            Edge 1 -> 0 iff token == quote: copy string to node, append to root
+            '''
+            for i in tree.child:
+                if stack == None: #the 'looking for an opening quote' State 0
+                    if i != "\"" and i != "\'": #Edge 0 -> 0
+                        root.append(i.copyDeep())
+                    if i == "\"" or i == "\'":
+                        if i.nodePrevious != "\\": #Edge 0 -> 1
+                            stack = i.token
+                            lineNum = i.lineNum
+                            charNum = i.charNum
+                        elif i.nodePrevious == "\\": #Edge 0 -> 0
+                            root.append(i.copyDeep())
+                elif stack != None: #the 'in a quote' State 1
+                    if i != stack: #Edge 1 -> 1
+                        string += str(i.token)
+                    if i == stack:
+                        if i.nodePrevious != "\\": #Edge 1 -> 0
+                            temp = self.Node("String", string, lineNum, charNum)
+                            root.append(temp)
+
+                            stack = None
+                            lineNum = None
+                            charNum = None
+                            string = ""
+                        elif i.nodePrevious == "\\": #Edge 1 -> 1
+                            string += str(i.token)
+
+            if stack != None: #TODO handle mis-matched quotes
+                raise Exception
+
+            return root
+
+        def _applyRuleFilterComments(self, tree : Node, character : str = "#") -> Node:
+            """Takes in a node, removes any tokens between a "#" token and a new line token; does not recuse. Returns a node
             
-            Example: "test #test\n #test\n\t\#test" -> "test \n \n\t\#test" ->
+            Case: "test #test\n #test\n\t\#test" -> "test \n \n\t\#test" ->
             node
                 'test'
                 ' '
@@ -672,12 +759,60 @@ class CPUsim:
                 ' '
                 '\n'
                 '\t'
-                '\#'
+                '\\
+                '#'
+                'test'
+            Case: "test test \# test #abc abc abc \\n abc \n test test" ->
+                'test'
+                ' '
+                'test'
+                ' '
+                '\\'
+                '#'
+                ' '
+                'test'
+                ' '
+                '\n'
+                ' '
+                'test'
+                ' '
                 'test'
             """
             assert type(tree) is self.Node
+            assert type(character) is str and len(character) == 1
 
-            pass
+            root : self.Node = tree.copyInfo()
+
+            stack = None
+
+            '''Finite State Machine
+            State 0: Looking for comment begin
+            State 1: Looking for comment end
+            0 -> 0 iff token != # : append token to root
+            0 -> 1 iff token == # : setup looking for \n
+            1 -> 1 iff token != \n : do nothing
+            1 -> 0 iff token == \n : append \n to root
+            '''
+            for i in tree.child:
+                if stack == None:
+                    if i != character:
+                        root.append(i.copyDeep())
+                    elif i == character:
+                        if i.nodePrevious != "\\":
+                            stack = character
+                        elif i.nodePrevious == "\\":
+                            root.append(i.copyDeep())
+                elif stack != None:
+                    if i != "\n":
+                        pass
+                    elif i == "\n":
+                        if i.nodePrevious != "\\":
+                            stack = None
+                            root.append(i.copyDeep())
+                        elif i.nodePrevious == "\\":
+                            pass
+
+            return root
 
         def _applyRuleContainer(self, tree : Node) -> Node:
             """NotImplimented
