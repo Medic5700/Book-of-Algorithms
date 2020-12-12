@@ -838,30 +838,10 @@ class CPUsim:
 
             pass
 
-        def parseCode(self, code : str) -> "(Node, list[int])":
+        def parseCode(self, code : str) -> Node:
             """NotImplimented
-            Takes a string of code, returns a parsed execution tree?"""
-            '''assembles the tree as it goes
+            Takes a string of code, returns a parsed instruction tree"""
 
-            starts with a root node, "line"
-            currentnode = root
-
-            goes through character by charcter
-                if word:
-                    create node
-                    currentnode.child = node
-                    currentnode = node
-                if bracket:
-                    create node
-                    currentnode.child = node
-                    currentnode = node
-                if ',':
-                    currentnode = currentnode.parent
-                if operator +-*/:
-                    create node for operator
-                    node.child = currentnode
-                    currentnode.replace(node)
-            '''
             assert type(code) is str
             
             root = self.Node("root")
@@ -902,6 +882,7 @@ class CPUsim:
         runs at the end of each execution cycle, meant to handle engine level stuff"""
         pass
 
+    '''
     def _translateArgument(self, arg : str) -> 'tuple[str, int]': #TODO this is outdated and should be replaced
         #FUTURE may have to take pointers of form m*r[0] IE: number in r0 points to memory index
         assert type(arg) is str
@@ -947,6 +928,7 @@ class CPUsim:
         test = self.state[key][index] #test if key index pair is accessable
 
         return (key, index)
+    '''
 
     #==================================================================================================================
     def _testNop(self):
@@ -1492,7 +1474,7 @@ def multiply2(a, b, bitlength=8):
     assert 0 <= a < 2**bitlength
     assert 0 <= b < 2**bitlength
 
-    ALU = CPUsimulatorV2(bitlength) #bitlength
+    ALU = CPUsim(bitlength) #bitlength
     ALU.ConfigAddRegister('r', 2, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults
     ALU.ConfigAddRegister('m', 0, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults, in this case, erasing it
     ALU.ConfigAddRegister('t', 2, bitlength * 2) #bitlength, register amount, namespace symbol
@@ -1511,10 +1493,10 @@ def multiply2(a, b, bitlength=8):
                             jump    (loop)
                 end:    halt
                 ''')
-    ALU.inject('t[0]', a)
-    ALU.inject('r[0]', b)
+    ALU.inject('t', 0, a)
+    ALU.inject('r', 0, b)
     ALU.run()
-    resultALU = ALU.extract('t[1]')
+    resultALU = ALU.extract('t', 1)
     
     t[0] = a
     r[0] = b
@@ -1546,11 +1528,10 @@ if __name__ == "__main__":
     CPU.ConfigAddRegister('r', 2, 16)
     CPU.ConfigAddRegister('m', 4, 8)
     CPU.postCycle() #required because program architecture bug
-    CPU.inject('r', 1, 1) #pattern matches 'r0' changes it to 'r[0]', then parses it
+    CPU.inject('r', 1, 1)
     CPU.inject('m', 2, 8)
     CPU.inject('flag', 'carry', 1)
-    '''
-    #testing/implementing
+    ''' #testing/implementing
     #CPU.lazy('nop #test test test') #comments get ignored
     #CPU.lazy('copy(5, r[0])') #an actual instruction
     #CPU.lazy('copy(1, r[1]), copy(2, r[2])') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
