@@ -359,8 +359,8 @@ class CPUsim:
     #==================================================================================================================
     class Parse:
         def __init__(self, namespace : dict):
-            self.namespace = namespace
-            self.pointers = {}
+            self.nameSpace : dict = namespace
+            self.labels : dict = None
 
         class Node:
             """A data class for storing information in a tree like structure. 
@@ -535,9 +535,11 @@ class CPUsim:
                     line += "    "
                 line += repr(self.token)
                 line = line.ljust(40, " ")
-                line += ":" + str(self.type)
-                #line += "\t" + str(self.lineNum) + "\t" + str(self.charNum)
+                line += ":" + str(self.type).capitalize().ljust(8)
                 line += "\t" + str(depth)
+
+                line += "\t" + "lineNum=" + str(self.lineNum) + "\t" + "charNum=" + str(self.charNum)
+
                 line += "\n"
 
                 childLines = [i.__repr__(depth+1) for i in self.child]
@@ -621,6 +623,100 @@ class CPUsim:
 
             return tokenList
 
+        def _applyRuleCastInts(self, tree: Node) -> Node:
+            """Takes in a node tree, casts all children that are integers to integers (with labels). Returns a node tree
+
+            Does not recurse
+
+            Example "123 456 789" ->
+            node
+                123
+                ' '
+                456
+                ' '
+                789
+            """
+            assert type(tree) is self.Node
+
+            root : self.Node = tree.copyInfo()
+
+            for i in tree.child:
+                if i.token.isdigit():
+                    temp = i.copyDeep()
+                    temp.token = int(i.token)
+                    temp.type = "int"
+                    root.append(temp)
+                else:
+                    root.append(i.copyDeep())
+
+            return root
+
+        def _applyRuleCastHex(self, tree: Node) -> Node:
+            """Takes in a node tree, casts all children that are in hex format to integers (with labels). Returns a node tree
+
+            Does not recurse
+
+            Example "0x0 0x000A 0xff" ->
+            node
+                0
+                ' '
+                10
+                ' '
+                255
+            """
+            assert type(tree) is self.Node
+
+            root : self.Node = tree.copyInfo()
+
+            for i in tree.child:
+                if type(i.token) == str:
+                    if i.token.startswith("0x") or i.token.startswith("0X"):
+                        temp = i.copyDeep()
+                        temp.token = int(i.token, 16)
+                        temp.type = "int"
+                        root.append(temp)
+                    else:
+                        root.append(i.copyDeep())
+                else:
+                    root.append(i.copyDeep())
+
+            return root
+
+        def _applyRuleRemoveEmptyLines(self, tree : Node) -> Node:
+            """Notimplimented
+            Takes in a node tree, removes all empty lines. Returns a node
+
+            Example "test\ntest\n\n\ntest\n" ->
+            node
+                'test'
+                '\n'
+                'test'
+                '\n'
+                'test'
+                '\n'
+            """
+            assert type(tree) is self.Node
+
+            root : self.Node = tree.copyInfo()
+
+            stack = "\n"
+
+            ''' #the unoptimized, but easy to understand, way
+            for i in tree.child:
+                if i == "\n" and stack == "\n":
+                    pass
+                else:
+                    root.append(i.copyDeep())
+                    stack = i.token
+            '''
+            for i in tree.child:
+                if i != "\n" or stack != "\n":
+                    root.append(i.copyDeep())
+                    stack = i.token
+
+            return root
+
+
         def _applyRuleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : "list[str]" = [" ", "\t"]) -> Node:
             """Takes in a node, removes all white space tokens between a new line token and the next token; does not recurse. Returns a node
             
@@ -643,7 +739,10 @@ class CPUsim:
 
             root : self.Node = tree.copyInfo()
 
-            stack = "\n"
+            stack = "\n" #initialize to State 0
+            if len(tree.child) != 0:
+                if tree.child[0] == "\n":
+                    stack = None #initialize to State 1
 
             ''' Finite State Machine
             State 0: at beginning of line
@@ -654,17 +753,22 @@ class CPUsim:
             Edge: 1 -> 1: did not find newline, copy token
             '''
             for i in tree.child:
+                logging.debug(debugHelper(inspect.currentframe()) + repr(i.token))
                 if stack != None: #State 0: at beginning of line
                     if i.token in whiteSpace: #Edge: 0 -> 0: found whitespace, not copying
+                        logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 0 -> 0")
                         pass
                     else: #Edge: 0 -> 1: found token, copying
+                        logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 0 -> 1")
                         root.append(i.copyDeep())
                         stack = None
                 else: #State 1: after first token
                     if i == "\n": #Edge: 1 -> 0: found newline
+                        logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 1 -> 0")
                         stack = "\n"
                         root.append(i.copyDeep())
                     else: #Edge: 1 -> 1: did not find newline, copy token
+                        logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 1 -> 1")
                         root.append(i.copyDeep())
 
             return root
@@ -733,7 +837,7 @@ class CPUsim:
                         string += str(i.token)
                     if i == stack:
                         if i.nodePrevious != "\\": #Edge 1 -> 0
-                            temp = self.Node("String", string, lineNum, charNum)
+                            temp = self.Node("string", string, lineNum, charNum)
                             root.append(temp)
 
                             stack = None
@@ -830,18 +934,65 @@ class CPUsim:
 
             pass
 
-        def _applyRuleCatalogLabels(self, tree : Node, symbolTable : dict) -> {int:Node}:
+        def _applyRuleFindLabels(self, tree : Node, symbolTable : dict) -> (Node, dict):
             """NotImplimented
-            Takes in a node, attempts to find a label (a token not in symbolTable), returns a dictionary of position : Node"""
+            Takes in a node, attempts to find a label (a token not in symbolTable) that is immidiatly followed by a ":", returns a Node Tree, and a dictionary of labels"""
             assert type(tree) is self.Node
             assert type(symbolTable) is dict
 
-            pass
+            root : self.Node = tree.copyInfo()
+            previous : str = "\n"
+            skipToken : bool = False
+
+            labels : dict = {}
+
+            for i in tree.child:
+                if i.nodePrevious == previous and i.nodeNext == ":":
+                    temp = i.copyDeep()
+                    temp.type = "label"
+                    root.append(temp)
+
+                    labels[i.token] = temp.copyDeep()
+
+                    previous = i.token
+                    skipToken = True
+                elif skipToken == True:
+                    skipToken = False
+                else:
+                    root.append(i.copyDeep())
+                    previous = i.token
+
+            return (root, labels)
+
+        def _applyRuleLabelNamespace(self, tree : Node, nameSpace : dict) -> Node:
+            """Takes in a node tree, and a nameSpace. Labels all nodes that are in nameSpace as 'NameSpace'. Returns Node Tree
+            
+            #TODO find a better/less confusing name (conflicts with _applyRuleFindLabels)?"""
+            assert type(tree) is self.Node
+            assert type(nameSpace) is dict
+
+            root : self.Node = tree.copyInfo()
+            keys = [i.lower() for i in nameSpace.keys()]
+
+            for i in tree.child:
+                if type(i.token) == str:
+                    if i.token.lower() in keys:
+                        temp = i.copyDeep()
+                        temp.type = "namespace"
+                        root.append(temp)
+                    else:
+                        root.append(i.copyDeep())
+                else:
+                    root.append(i.copyDeep())
+
+            return root
+        
+        
+
 
         def parseCode(self, code : str) -> Node:
             """NotImplimented
             Takes a string of code, returns a parsed instruction tree"""
-
             assert type(code) is str
             
             root = self.Node("root")
@@ -854,9 +1005,35 @@ class CPUsim:
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(code))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
 
-            #root = self._applyRuleStringSimple(root)
+            #root.replace(root.child[0], self._applyRuleStringSimple(root.child[0]))
+            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleStringSimple: " + "\n" + str(root))
 
-            return (root, [])
+            #root.replace(root.child[0], self._applyRuleFilterComments(root.child[0]))
+            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleFilterComments: " + "\n" + str(root))
+
+            #root.replace(root.child[0], self._applyRuleRemoveLeadingWhitespace(root.child[0]))
+            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleRemoveLeadingWhitespace: " + "\n" + str(root))
+
+            #root.replace(root.child[0], self._applyRuleRemoveEmptyLines(root.child[0]))
+            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleRemoveEmptyLines: " + "\n" + str(root))
+
+            #temp = self._applyRuleFindLabels(root.child[0], self.nameSpace)
+            #self.labels = temp[1]
+            #root.replace(root.child[0], temp[0])
+            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleFindLabels: " + "\n" + str(root))
+
+            #root.replace(root.child[0], self._applyRuleLabelNamespace(root.child[0], self.nameSpace))
+            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleLabelNamespace: " + "\n" + str(root))
+
+            #root.replace(root.child[0], self._applyRuleCastInts(root.child[0]))
+            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleCastInt: " + "\n" + str(root))
+
+            #root.replace(root.child[0], self._applyRuleCastHex(root.child[0]))
+            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleCastHex: " + "\n" + str(root))
+
+            
+
+            return root
 
         
     #==================================================================================================================
@@ -1540,6 +1717,6 @@ if __name__ == "__main__":
     '''
 
     CPU = CPUsim(8)
-    parser = CPU.Parse({})
+    parser = CPU.Parse(CPU.namespace)
     #print(parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
     #print(parser.parseCode("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
