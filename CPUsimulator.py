@@ -66,12 +66,6 @@ class CPUsim:
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
         Instruction functions should be more functional (IE: they take in as arguments/pointers self.state, self.oldstate, self.config, etc) so as to make coding for it easier?
-        using ConfigAddRegister() followed by Inject() will cause an unhandled display exception because Inject() calls self.display.runtime() which glitches out, display can't handle self.state and self.lastState having different sized stuff
-            Mitigated by doing ConfigAddRegister(); self.postCycle(); Inject() will not cause an exception (because the new register modified self.state is now copied to self.lastState)
-            Either:
-                self.postCycle() will need to be called after every ConfigAddRegister() to manually 'increment' the simulation
-                self.display will need to be able to handle registers dropping into and out of existance at any time
-                ConfigAddRegister() will need to call self.postCycle() BUT since it's used to add CPU Flags, that CPU Flag initialization will need to be reworked, and made messier
         Data to keep track of:
             engine:
                 original source code
@@ -150,7 +144,7 @@ class CPUsim:
         
         self.bitLength : int = bitLength #the length of the registers in bits
         self.state : dict = {}
-        self.lastState : dict = None
+        self.lastState : dict = {}
         self.config : dict = {}
         #self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
         #self.engine : dict = {} #FUTURE used to keep track of CPU engine information?, should it be merged with self.stats?
@@ -158,6 +152,7 @@ class CPUsim:
         #configure CPU flags
         self.ConfigAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
         self.state['flag'] : dict = {} #overrides default array of numbers
+        self.lastState['flag'] : dict = {}
 
         #adds special registers that are required
         self.ConfigAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
@@ -191,7 +186,7 @@ class CPUsim:
             is called when the CPU HALTS execution
         '''
 
-        self.postCycle = self._refresh
+        self.postCycleUser = self._postCycleUserDefault
         '''This is a user swappable function call executed after every execution cycle.        
         explicidly copies the self.state to self.lastState, resets CPU flags, etc
         '''
@@ -203,7 +198,8 @@ class CPUsim:
         self.ConfigAddFlag('carry')
         self.ConfigAddFlag('overflow')
 
-        self._refresh()
+        self.postCycleUser()
+        self._postCycleEngine()
 
     def _computeNamespace(self):
         """computes the namespace of instructions, registers, etc for the CPU. Returns a dictionary of string:pointer pairs"""
@@ -223,6 +219,7 @@ class CPUsim:
         assert type(amount) is int and amount >= 0
         
         self.state[name.lower()] = [0 for i in range(amount)]
+        self.lastState[name.lower()] = [0 for i in range(amount)]
         self.config[name.lower()] = {}
 
         self.config[name]['bitlength'] = bitlength
@@ -233,6 +230,7 @@ class CPUsim:
         assert 'flag' in self.state.keys()
 
         self.state['flag'][name.lower()] = 0
+        self.lastState['flag'][name.lower()] = 0
 
     def inject(self, key : str, index : "int/str", value : int):
         """Takes in a key index pair representing a specific register. Assigns int value to register.
@@ -254,6 +252,8 @@ class CPUsim:
 
         self.display.runtime(self.lastState, self.state, self.config)
 
+        self._postCycleEngine()
+
     def extract(self, key : str, index : "int/str") -> int:
         """Takes in a key index pair representing a specific register. Returns an int representing the value stored in that register"""
         assert type(key) is str
@@ -262,7 +262,8 @@ class CPUsim:
         t1 = key.lower()
         t2 = index.lower() if key.lower() == "flag" else index
 
-        #t1, t2 = self._translateArgument(target)
+        self._postCycleEngine()
+
         return self.state[t1][t2]
 
     def decode(self, code: str): #TODO MVP
@@ -1043,7 +1044,7 @@ class CPUsim:
         decodes and executes a single instruction line"""
         pass
 
-    def _refresh(self):
+    def _postCycleUserDefault(self):
         """resets all required registers and flags between instructions, copies current state into lastState
 
         note: can be omited in some cases, such as micro-code that sets flags for the calling procedure"""
@@ -1054,7 +1055,7 @@ class CPUsim:
             self.state['flag'][i] = 0
         self.state['i'] = []
 
-    def _postEngineCycle(self):
+    def _postCycleEngine(self):
         """NotImplimented
         runs at the end of each execution cycle, meant to handle engine level stuff"""
         pass
@@ -1109,7 +1110,6 @@ class CPUsim:
 
     #==================================================================================================================
     def _testNop(self):
-        self._refresh()
         
         self.state['pc'][0] = self.lastState['pc'][0] + 1
 
@@ -1123,7 +1123,6 @@ class CPUsim:
     _testNop.bitLengthOK = lambda x: True #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
 
     def _testAdd(self, a, b, c):
-        #self._refresh()
         #argsParsed = self._parseArguments(args)
         a1, a2 = a
         b1, b2 = b
@@ -1147,7 +1146,6 @@ class CPUsim:
     _testAdd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
 
     def _testAnd(self, a : 'tuple[str, int]', b : 'tuple[str, int]', c : 'tuple[str, int]') -> 'tuple[list, list]':  #a different instruction with a different backend, to test out different styles
-        #self._refresh() is done by the calling function
         #self._parseArguments(args) is done by the calling function, the arguments for this function are tuples
 
         #arguments are (str, int) pairs, representing the memory type and index
@@ -1704,7 +1702,6 @@ if __name__ == "__main__":
     CPU = CPUsim(8)
     CPU.ConfigAddRegister('r', 2, 16)
     CPU.ConfigAddRegister('m', 4, 8)
-    CPU.postCycle() #required because program architecture bug
     CPU.inject('r', 1, 1)
     CPU.inject('m', 2, 8)
     CPU.inject('flag', 'carry', 1)
