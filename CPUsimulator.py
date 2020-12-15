@@ -625,7 +625,7 @@ class CPUsim:
 
             return tokenList
 
-        def _applyRuleCastInts(self, tree: Node) -> Node:
+        def ruleCastInts(self, tree: Node) -> Node:
             """Takes in a node tree, casts all children that are integers to integers (with labels). Returns a node tree
 
             Does not recurse
@@ -653,7 +653,7 @@ class CPUsim:
 
             return root
 
-        def _applyRuleCastHex(self, tree: Node) -> Node:
+        def ruleCastHex(self, tree: Node) -> Node:
             """Takes in a node tree, casts all children that are in hex format to integers (with labels). Returns a node tree
 
             Does not recurse
@@ -684,7 +684,7 @@ class CPUsim:
 
             return root
 
-        def _applyRuleRemoveEmptyLines(self, tree : Node) -> Node:
+        def ruleRemoveEmptyLines(self, tree : Node) -> Node:
             """Notimplimented
             Takes in a node tree, removes all empty lines. Returns a node
 
@@ -719,7 +719,7 @@ class CPUsim:
             return root
 
 
-        def _applyRuleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : "list[str]" = [" ", "\t"]) -> Node:
+        def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : "list[str]" = [" ", "\t"]) -> Node:
             """Takes in a node, removes all white space tokens between a new line token and the next token; does not recurse. Returns a node
             
             Example: "test test \ntest\n  \ttest\t\n     \n" -> "test test \ntest\ntest\t\n\n"
@@ -775,7 +775,7 @@ class CPUsim:
 
             return root
 
-        def _applyRuleStringSimple(self, tree : Node) -> Node:
+        def ruleStringSimple(self, tree : Node) -> Node:
             """Takes in a node, combines all the tokens that are contained by quote tokens into a string node. Returns a node
             #TODO allow for arbitrary definition of list of 'quote like characters'
 
@@ -854,9 +854,9 @@ class CPUsim:
 
             return root
 
-        def _applyRuleFilterComments(self, tree : Node, character : str = "#") -> Node:
-            """Takes in a node, removes any tokens between a "#" token and a new line token; does not recuse. Returns a node
-            
+        def ruleFilterLineComments(self, tree : Node, character : str = "#") -> Node:
+            """Takes in a node, removes any tokens between a "#" token and a new line token; does not recuse. Returns a node tree
+
             Case: "test #test\n #test\n\t\#test" -> "test \n \n\t\#test" ->
             node
                 'test'
@@ -920,23 +920,91 @@ class CPUsim:
 
             return root
 
-        def _applyRuleContainer(self, tree : Node) -> Node:
+        def _applyRuleFilterBlockComments(self, tree : Node, character : str = "#") -> Node:
+            pass
+
+        def ruleContainer(self, tree : Node, containers : dict = {"(":")", "[":"]", "{":"}"}) -> Node:
             """NotImplimented
-            Takes in a node, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers, Returns a node
+            Takes in a node, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers, Returns a node tree
+
+            containers are of the form {"opening bracket": "closing bracket", ...}
+            does not copy closing brackets
             
-            Example: "test[test(test)]" ->
+            Case: "test[test(test)]" ->
             node
                 'test'
                 '['
                     'test'
                     '('
                         'test'
+
+            Case: "test[abc abc{123 123}{123 123}](abc)" ->
+            node
+                'test'
+                '['
+                    'abc'
+                    ' '
+                    'abc'
+                    '{'
+                        '123'
+                        ' '
+                        '123'
+                    '{'
+                        '123'
+                        ' '
+                        '123'
+                '('
+                    'abc'
             """
             assert type(tree) is self.Node
+            assert type(containers) is dict
+            assert len(containers) >= 1
+            assert all([True if type(i) is str else False for i in containers.keys()])
+            assert all([True if type(containers[i]) is str else False for i in containers.keys()])
+            assert all([True if len(i) == 1 else False for i in containers.keys()])
+            assert all([True if len(containers[i]) == 1 else False for i in containers.keys()])
+            assert all([True if containers[i] != i else False for i in containers.keys()]) #asserts that the 'matching bracket' isn't the same characters
 
-            pass
+            root : self.Node = tree.copyInfo()
+            stack : list[(str, self.Node)] = []
 
-        def _applyRuleFindLabels(self, tree : Node, symbolTable : dict) -> (Node, dict):
+            for i in tree.child:
+                '''
+                if openbracket
+                    append to stack
+                if closing bracket
+                    pop from stack
+                    append to root
+                else
+                    if len(stack) == 0
+                        append to root
+                    else
+                        append to last element in stack
+                '''
+                if i.token in list(containers.keys()): #if open bracket
+                    #append to stack
+                    temp = i.copyDeep()
+                    temp.type = "container"
+                    stack.append((i.token, temp))
+                elif len(stack) != 0:
+                    if containers[stack[-1][0]] == i.token: #if closing bracket
+                        temp = stack.pop()[1] #pop from stack
+
+                        if len(stack) != 0: #append to last element in stack, otherwise append to root
+                            stack[-1][1].append(temp)
+                        else:
+                            root.append(temp)
+                    else: #not container, append to last element in stack
+                        stack[-1][1].append(i.copyDeep())
+                else: #not container, append to last element in stack, otherwise append to root
+                    if len(stack) == 0:
+                        root.append(i.copyDeep())
+                    else:
+                        stack[-1][1].append(i.copyDeep())
+
+            return root
+
+        def ruleFindLabels(self, tree : Node, symbolTable : dict) -> (Node, dict):
             """NotImplimented
             Takes in a node, attempts to find a label (a token not in symbolTable) that is immidiatly followed by a ":", returns a Node Tree, and a dictionary of labels"""
             assert type(tree) is self.Node
@@ -966,10 +1034,10 @@ class CPUsim:
 
             return (root, labels)
 
-        def _applyRuleLabelNamespace(self, tree : Node, nameSpace : dict) -> Node:
+        def ruleLabelNamespace(self, tree : Node, nameSpace : dict) -> Node:
             """Takes in a node tree, and a nameSpace. Labels all nodes that are in nameSpace as 'NameSpace'. Returns Node Tree
             
-            #TODO find a better/less confusing name (conflicts with _applyRuleFindLabels)?"""
+            #TODO find a better/less confusing name (conflicts with ruleFindLabels)?"""
             assert type(tree) is self.Node
             assert type(nameSpace) is dict
 
@@ -989,7 +1057,37 @@ class CPUsim:
 
             return root
         
+        def ruleRemoveToken(self, tree : Node, token : str) -> Node:
+            """Takes in a node tree, and a token. Removes all instances of token in tree.child. Returns a Node Tree
+            
+            does not recurse"""
+            assert type(tree) is self.Node
+            
+            root : self.Node = tree.copyInfo()
+
+            for i in tree.child:
+                if i != token:
+                    root.append(i.copyDeep())
+
+            return root
         
+        def ruleSplitLines(self, tree : Node) -> [Node]:
+            """Takes in a node tree. Returns a list of Nodes, split by '\n'"""
+            assert type(tree) is self.Node
+
+            result = []
+            current = self.Node("line", None, 0, 0)
+
+            for i in tree.child:
+                if i == "\n":
+                    result.append(current)
+                    current = self.Node("line", None, i.lineNum, i.charNum)
+                else:
+                    current.append(i.copyDeep())
+
+            result.append(current)
+
+            return result
 
 
         def parseCode(self, code : str) -> Node:
@@ -1007,33 +1105,45 @@ class CPUsim:
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(code))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
 
-            #root.replace(root.child[0], self._applyRuleStringSimple(root.child[0]))
-            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleStringSimple: " + "\n" + str(root))
+            root.replace(root.child[0], self.ruleStringSimple(root.child[0]))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
-            #root.replace(root.child[0], self._applyRuleFilterComments(root.child[0]))
-            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleFilterComments: " + "\n" + str(root))
+            root.replace(root.child[0], self.ruleFilterLineComments(root.child[0]))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
 
-            #root.replace(root.child[0], self._applyRuleRemoveLeadingWhitespace(root.child[0]))
-            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleRemoveLeadingWhitespace: " + "\n" + str(root))
+            root.replace(root.child[0], self.ruleRemoveLeadingWhitespace(root.child[0]))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveLeadingWhitespace: " + "\n" + str(root))
 
-            #root.replace(root.child[0], self._applyRuleRemoveEmptyLines(root.child[0]))
-            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleRemoveEmptyLines: " + "\n" + str(root))
+            root.replace(root.child[0], self.ruleRemoveEmptyLines(root.child[0]))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveEmptyLines: " + "\n" + str(root))
 
-            #temp = self._applyRuleFindLabels(root.child[0], self.nameSpace)
-            #self.labels = temp[1]
-            #root.replace(root.child[0], temp[0])
-            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleFindLabels: " + "\n" + str(root))
+            temp = self.ruleFindLabels(root.child[0], self.nameSpace)
+            self.labels = temp[1]
+            root.replace(root.child[0], temp[0])
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root))
 
-            #root.replace(root.child[0], self._applyRuleLabelNamespace(root.child[0], self.nameSpace))
-            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleLabelNamespace: " + "\n" + str(root))
+            root.replace(root.child[0], self.ruleLabelNamespace(root.child[0], self.nameSpace))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleLabelNamespace: " + "\n" + str(root))
 
-            #root.replace(root.child[0], self._applyRuleCastInts(root.child[0]))
-            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleCastInt: " + "\n" + str(root))
+            root.replace(root.child[0], self.ruleRemoveToken(root.child[0], " "))
+            root.replace(root.child[0], self.ruleRemoveToken(root.child[0], "\t"))
+            root.replace(root.child[0], self.ruleRemoveToken(root.child[0], ","))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveToken: " + "\n" + str(root))
 
-            #root.replace(root.child[0], self._applyRuleCastHex(root.child[0]))
-            #logging.debug(debugHelper(inspect.currentframe()) + "_applyRuleCastHex: " + "\n" + str(root))
+            root.replace(root.child[0], self.ruleCastInts(root.child[0]))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleCastInts: " + "\n" + str(root))
 
-            
+            root.replace(root.child[0], self.ruleCastHex(root.child[0]))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleCastHex: " + "\n" + str(root))
+
+            root.replace(root.child[0], self.ruleContainer(root.child[0]))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
+
+            temp : list = self.ruleSplitLines(root.child[0])
+            root = self.Node("root")
+            for i in temp:
+                root.append(i)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
 
             return root
 
