@@ -63,9 +63,10 @@ class CPUsim:
     Issues/TODO:
         Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
         Instruction functions should be in their own class, for better modularity
+            Instruction functions should be more functional (IE: they take in as arguments/pointers self.state, self.oldstate, self.config, etc) so as to make coding for it easier
+            How exacly should a 'halt' instruction be implimented? Should all instructions be given access to engine information?
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
-        Instruction functions should be more functional (IE: they take in as arguments/pointers self.state, self.oldstate, self.config, etc) so as to make coding for it easier?
         Data to keep track of:
             engine:
                 original source code
@@ -74,7 +75,7 @@ class CPUsim:
                 number of times a line is executed
                 energy use per line
                 cycles used for execution
-        Instruction functions on execution should return a dictionary of info on function stats (IE: energy used, latency, instruction unit used, etc?)
+        ? Instruction functions on execution should return a dictionary of info on function stats (IE: energy used, latency, instruction unit used, etc?)
             Makes instruction set composition easier (since lambda functions don't also need to copy a bunch of function properties)
             Makes instruction manipulation harder (IE: you can't know how long an instruction will take to execute ahead of time, or which execution unit it will use, or how to profile it)
             
@@ -1179,6 +1180,55 @@ class CPUsim:
     #_directiveInt.inputs = 2
     #_directiveInt.outputs = 0
     _directiveInt.bitLengthOK = lambda x : x > 0
+
+    class InstructionSetDefault:
+        """A non-functional mockup of what an instructionset definition could look like"""
+
+        def __init__(self):
+            self.instructionSet : dict = {
+                "add"   : self.opAdd,
+                "and"   : self.opAnd,
+                "jumpeq": (lambda z1, z2, z3, pointer, a, b     : self.opJump(z1, z2, z3, "eq", pointer, a, b)),
+                "jumpne": (lambda z1, z2, z3, pointer, a, b     : self.opJump(z1, z2, z3, "ne", pointer, a, b)),
+                "jump"  : (lambda z1, z2, z3, pointer           : self.opJump(z1, z2, z3, "goto", pointer))
+            }
+
+            #needs to include metainformation about each instruction
+
+            self.directives : dict = {
+                
+            }
+
+        def redirect(self, redirection, register, index) -> (str, int):
+            return (redirection, register[index])
+
+        def opAdd(self, oldState, newState, config, a, b, c):
+            a1, a2 = a
+            b1, b2 = b
+            c1, c2 = c
+
+            newState[c1][c2] = oldState[a1][a2] + oldState[b1][b2]
+            if newState[c1][c2] >= 2**config[c1]['bitlength']:
+                newState['flag']['carry'] = 1
+            
+            newState[c1][c2] = newState[c1][c2] & (2**config[c1]['bitlength'] - 1)
+
+            newState['pc'][0] = oldState['pc'][0] + 1
+            
+        def opAnd(self, oldState, newState, config, a, b, c):
+            a1, a2 = a
+            b1, b2 = b
+            c1, c2 = c
+
+            newState[c1][c2] = oldState[a1][a2] & oldState[b1][b2] #performs the bitwise and operation
+
+            newState[c1][c2] = newState[c1][c2] & (2**config[c1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+
+            newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
+
+        def opJump(self, oldState, newState, config, condition : str, goto, a = None, b = None):
+            pass
+
 
 class DumbALUv1:
     """A prototype implimentation of an ALU for illistratuve purposes
