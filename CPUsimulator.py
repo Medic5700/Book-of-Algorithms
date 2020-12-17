@@ -384,7 +384,7 @@ class CPUsim:
             print("CPU Halted")
 
     #==================================================================================================================
-    class Parse:
+    class ParseDefault:
         def __init__(self, namespace : dict):
             self.nameSpace : dict = namespace
             self.labels : dict = None
@@ -1958,7 +1958,7 @@ if __name__ == "__main__":
     CPU.inject('flag', 'carry', 1)
     print("".rjust(80, "="))
 
-    parser = CPU.Parse(CPU.namespace)
+    parser = CPU.ParseDefault(CPU.namespace)
     root = parser.parseCode('''
                         nop
                 loop:   jumpEQ  (r[0], 0, end)
