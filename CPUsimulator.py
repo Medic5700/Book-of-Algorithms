@@ -171,6 +171,12 @@ class CPUsim:
         self.userInstructionSet : __class__ = None
         self._instructionSet : dict = {}
         self._directives : dict = {}
+        #self.configSetParser
+        self.userPraser : __class__ = None
+        self._parseCode : "function" = lambda x : None
+        self._updateNameSpace : "function" = lambda x : None
+
+        self._namespace : dict = {}
 
         #configure CPU flags
         self.configAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
@@ -201,9 +207,10 @@ class CPUsim:
 
         self.configSetDisplay(self.DisplaySimpleAndClean())
         self.configSetInstructionSet(self.InstructionSetDefault())
+        self.configSetParser(self.ParseDefault({}))
 
         #engine stuff?
-        self.namespace : dict = self._computeNamespace()
+        #self._namespace : dict = self._computeNamespace()
         self.postCycleUser()
         self._postCycleEngine()
 
@@ -216,7 +223,8 @@ class CPUsim:
             names[str(i)] = self.state[i]
         names.update(self._instructionSet)
         names.update(self._directives)
-        return names
+        self._namespace = names
+        self._updateNameSpace(names)
 
     def configSetDisplay(self, displayInstance):
         assert displayInstance.runtime
@@ -234,6 +242,15 @@ class CPUsim:
         self._instructionSet : dict = instructionSetInstance.instructionSet
         self._directives : dict = instructionSetInstance.directives
 
+    def configSetParser(self, parserInstance):
+        assert parserInstance.parseCode
+        assert type(parserInstance.nameSpace) is dict
+        assert parserInstance.updateNameSpace
+
+        self.userParser = parserInstance
+        self._parseCode = parserInstance.parseCode
+        self._updateNameSpace = parserInstance.updateNameSpace
+
     def configAddRegister(self, name : str, amount : int, bitlength : int):
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
         assert type(name) is str
@@ -246,7 +263,7 @@ class CPUsim:
 
         self.config[name]['bitlength'] = bitlength
 
-        self.namespace = self._computeNamespace()
+        self._computeNamespace()
 
     def configAddFlag(self, name : str):
         """Takes in a name for a CPU flag to add, Adds it to self.state"""
@@ -256,7 +273,7 @@ class CPUsim:
         self.state['flag'][name.lower()] = 0
         self.lastState['flag'][name.lower()] = 0
 
-        self.namespace = self._computeNamespace()
+        self._computeNamespace()
 
     def inject(self, key : str, index : "int/str", value : int):
         """Takes in a key index pair representing a specific register. Assigns int value to register.
@@ -388,6 +405,11 @@ class CPUsim:
         def __init__(self, namespace : dict):
             self.nameSpace : dict = namespace
             self.labels : dict = None
+
+        def updateNameSpace(self, nameSpace : dict):
+            assert type(nameSpace) is dict
+
+            self.nameSpace = nameSpace
 
         class Node:
             """A data class for storing information in a tree like structure. 
@@ -1958,8 +1980,7 @@ if __name__ == "__main__":
     CPU.inject('flag', 'carry', 1)
     print("".rjust(80, "="))
 
-    parser = CPU.ParseDefault(CPU.namespace)
-    root = parser.parseCode('''
+    root = CPU._parseCode('''
                         nop
                 loop:   jumpEQ  (r[0], 0, end)
                             and     (r[0], 1, r[1])
