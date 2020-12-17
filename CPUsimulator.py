@@ -1322,11 +1322,15 @@ class CPUsim:
 
         def __init__(self):
             self.instructionSet : dict = {
+                "nop"   : self.opNop,
                 "add"   : self.opAdd,
                 "and"   : self.opAnd,
-                "jumpeq": (lambda z1, z2, z3, pointer, a, b     : self.opJump(z1, z2, z3, "eq", pointer, a, b)),
-                "jumpne": (lambda z1, z2, z3, pointer, a, b     : self.opJump(z1, z2, z3, "ne", pointer, a, b)),
-                "jump"  : (lambda z1, z2, z3, pointer           : self.opJump(z1, z2, z3, "goto", pointer))
+                "jumpeq": (lambda z1, z2, z3, z4,   pointer, a, b     : self.opJump(z1, z2, z3, z4,       "==", pointer, a, b)),
+                "jumpne": (lambda z1, z2, z3, z4,   pointer, a, b     : self.opJump(z1, z2, z3, z4,       "!=", pointer, a, b)),
+                "jump"  : (lambda z1, z2, z3, z4,   pointer           : self.opJump(z1, z2, z3, z4,       "goto", pointer)),
+                "shiftl": (lambda z1, z2, z3, z4,   a, b              : self.opShiftL(z1, z2, z3, z4,     a, b, 1)),
+                "shiftr": (lambda z1, z2, z3, z4,   a, b              : self.opShiftR(z1, z2, z3, z4,     a, b, 1)),
+                "halt"  : self.opHalt
             }
 
             #needs to include meta-information about each instruction
@@ -1337,6 +1341,8 @@ class CPUsim:
             return (redirection, register[index])
 
         def opNop(self, oldState, newState, config, engine):
+            newState['pc'][0] = oldState['pc'][0] + 1
+
         def opAdd(self, oldState, newState, config, engine, a, b, c):
             a1, a2 = a
             b1, b2 = b
@@ -1362,6 +1368,60 @@ class CPUsim:
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
         def opJump(self, oldState, newState, config, engine, mode : str, gotoIndex, a = None, b = None):
+            assert (mode == "goto" and a == None and b == None) ^ (mode != "goto" and a != None and b != None)
+
+            if mode == "goto":
+                newState['pc'][0] = gotoIndex
+            else:
+                a1, a2 = a
+                b1, b2 = b
+
+                if mode == "<" and oldState[a1][a2] < oldState[b1][b2]:
+                    newState['pc'][0] = gotoIndex
+                elif mode == "<=" and oldState[a1][a2] <= oldState[b1][b2]:
+                    newState['pc'][0] = gotoIndex
+                elif mode == ">" and oldState[a1][a2] > oldState[b1][b2]:
+                    newState['pc'][0] = gotoIndex
+                elif mode == ">=" and oldState[a1][a2] >= oldState[b1][b2]:
+                    newState['pc'][0] = gotoIndex
+                elif mode == "==" and oldState[a1][a2] == oldState[b1][b2]:
+                    newState['pc'][0] = gotoIndex
+                elif mode == "!=" and oldState[a1][a2] != oldState[b1][b2]:
+                    newState['pc'][0] = gotoIndex
+                else:
+                    newState['pc'][0] = oldState['pc'][0] + 1
+
+        def opShiftL(self, oldState, newState, config, engine, a, b, c = 1):
+            a1, a2 = a
+            b1, b2 = b
+
+            if type(c) is int:
+                amount = c
+            elif type(c) is tuple:
+                amount = oldState[c[0]][c[1]]
+
+            newState[b1][b2] = oldState[a1][a2] << amount
+
+            newState[b1][b2] = newState[b1][b2] & (2**config[b1]['bitlength'] - 1)
+
+            newState['pc'][0] = oldState['pc'][0] + 1
+
+        def opShiftR(self, oldState, newState, config, engine, a, b, c = 1):
+            a1, a2 = a
+            b1, b2 = b
+
+            if type(c) is int:
+                amount = c
+            elif type(c) is tuple:
+                amount = oldState[c[0]][c[1]]
+
+            newState[b1][b2] = oldState[a1][a2] >> amount
+
+            newState[b1][b2] = newState[b1][b2] & (2**config[b1]['bitlength'] - 1)
+
+            newState['pc'][0] = oldState['pc'][0] + 1
+
+        def opHalt(self, oldState, newState, config, engine):
             pass
 
 
