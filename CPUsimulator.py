@@ -70,7 +70,9 @@ class CPUsim:
         Data to keep track of:
             engine:
                 original source code
-                current cycle number
+                current cycle number (not program counter)
+                current transaction number (an array, for every instruction executed across multiple execution units)
+                current instruction being executing (an array of instructions)
             stats:
                 number of times a line is executed
                 energy use per line
@@ -79,7 +81,7 @@ class CPUsim:
             Makes instruction set composition easier (since lambda functions don't also need to copy a bunch of function properties)
             Makes instruction manipulation harder (IE: you can't know how long an instruction will take to execute ahead of time, or which execution unit it will use, or how to profile it)
         Parser:
-            needs a rule to split based on commas ","
+            split line rule needs to be able to recurse, and take different characters to split with
             needs a rule to label containers as function arguments, array indices, other?
             Parser currently assumes all source code to process is perfect with no errors/typos, and thus is super fragile
             Parser 'rules' need more functionality for each function, to make it more modular
@@ -150,11 +152,13 @@ class CPUsim:
     def __init__(self, bitLength : int = 16):
         
         self.bitLength : int = bitLength #the length of the registers in bits
+
         self.state : dict = {}
         self.lastState : dict = {}
         self.config : dict = {}
-        #self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
-        #self.engine : dict = {} #FUTURE used to keep track of CPU engine information?, should it be merged with self.stats?
+        self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
+        self.engine : dict = {} #FUTURE used to keep track of CPU engine information?, should it be merged with self.stats?
+
         '''a bunch of variables that are required for proper functioning, but are reqired to be configured by config functions
         defined here for a full listing of all these variables
         defined here in a failsafe state such that they can be used without crashing (or at least a lower likelyhood of crashing)
@@ -177,11 +181,7 @@ class CPUsim:
         self.configAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
         self.configAddRegister('pc', 1, bitLength) #program counter, it's a list because the parser will auto-convert references from 'pc' to 'pc[0]'
 
-        #this should not be stored in self.state
-        #self.state['instruction'] : "list[str]" = [None for i in range(memoryAmount)] #stores the instructions
         #instruction words are assumed to be one memory unit big for simplicity
-
-        #self.instructionArray = self.state['instruction'] #TODO impliment #this sets which array of memory/registers/etc the 'instructions' are 'located' in
         
         #self.state['sp'] = [0] #stack pointer #FUTURE
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
@@ -1244,6 +1244,7 @@ class CPUsim:
     '''
 
     #==================================================================================================================
+    '''
     def _testNop(self):
         
         self.state['pc'][0] = self.lastState['pc'][0] + 1
@@ -1314,6 +1315,7 @@ class CPUsim:
     #_directiveInt.inputs = 2
     #_directiveInt.outputs = 0
     _directiveInt.bitLengthOK = lambda x : x > 0
+    '''
 
     class InstructionSetDefault:
         """A non-functional mockup of what an instructionset definition could look like"""
@@ -1327,16 +1329,15 @@ class CPUsim:
                 "jump"  : (lambda z1, z2, z3, pointer           : self.opJump(z1, z2, z3, "goto", pointer))
             }
 
-            #needs to include metainformation about each instruction
+            #needs to include meta-information about each instruction
 
-            self.directives : dict = {
-                
-            }
+            self.directives : dict = {}
 
         def redirect(self, redirection, register, index) -> (str, int):
             return (redirection, register[index])
 
-        def opAdd(self, oldState, newState, config, a, b, c):
+        def opNop(self, oldState, newState, config, engine):
+        def opAdd(self, oldState, newState, config, engine, a, b, c):
             a1, a2 = a
             b1, b2 = b
             c1, c2 = c
@@ -1349,7 +1350,7 @@ class CPUsim:
 
             newState['pc'][0] = oldState['pc'][0] + 1
             
-        def opAnd(self, oldState, newState, config, a, b, c):
+        def opAnd(self, oldState, newState, config, engine, a, b, c):
             a1, a2 = a
             b1, b2 = b
             c1, c2 = c
@@ -1360,8 +1361,9 @@ class CPUsim:
 
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
-        def opJump(self, oldState, newState, config, condition : str, goto, a = None, b = None):
+        def opJump(self, oldState, newState, config, engine, mode : str, gotoIndex, a = None, b = None):
             pass
+
 
 
 class DumbALUv1:
@@ -1877,14 +1879,15 @@ def multiply2(a, b, bitlength=8):
 
 if __name__ == "__main__":
     #set up debugging
-    logging.basicConfig(level = logging.DEBUG)
-    debugHighlight = lambda x : 500 <= x <= 650
+    logging.basicConfig(level = logging.INFO)
+    debugHighlight = lambda x : 750 <= x <= 800
 
     #print(multiply1(3,4)) #old working prototype
     
     #What works
     CPU = CPUsim(8)
     CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
+    print("".rjust(80, "="))
 
     CPU.configAddRegister('r', 2, 16)
     CPU.configAddRegister('m', 4, 8)
@@ -1893,15 +1896,26 @@ if __name__ == "__main__":
     CPU.inject('r', 1, 1)
     CPU.inject('m', 2, 8)
     CPU.inject('flag', 'carry', 1)
+    print("".rjust(80, "="))
+
+    parser = CPU.Parse(CPU.namespace)
+    root = parser.parseCode('''
+                        nop
+                loop:   jumpEQ  (r[0], 0, end)
+                            and     (r[0], 1, r[1])
+                            jumpNEQ (r[1], 1, zero)
+                                add     (t[0], t[1], t[1])
+                zero:       shiftL  (t[0], 1, t[0])
+                            shiftR  (r[0], 1, r[0])
+                            jump    (loop)
+                end:    halt
+                ''')
+    print(root)
+    print("".rjust(80, "="))
+
     ''' #testing/implementing
     #CPU.lazy('nop #test test test') #comments get ignored
     #CPU.lazy('copy(5, r[0])') #an actual instruction
-    #CPU.lazy('copy(1, r[1]), copy(2, r[2])') #a VLIW, these execute at the same time, for now no checks are in place for conflicting instructions
     #CPU._display()
     #CPU.run()
     '''
-
-    CPU = CPUsim(8)
-    parser = CPU.Parse(CPU.namespace)
-    #print(parser._tokenize("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
-    #print(parser.parseCode("abc, 123, test \n\t\toh look a test\t\t   #of the mighty\n\n\n"))
