@@ -155,6 +155,18 @@ class CPUsim:
         self.config : dict = {}
         #self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
         #self.engine : dict = {} #FUTURE used to keep track of CPU engine information?, should it be merged with self.stats?
+        '''a bunch of variables that are required for proper functioning, but are reqired to be configured by config functions
+        defined here for a full listing of all these variables
+        defined here in a failsafe state such that they can be used without crashing (or at least a lower likelyhood of crashing)
+        '''
+        #self.configSetDisplay
+        self.userDisplay : __class__ = None
+        self._displayRuntime : "function" = lambda : None
+        self._displayPostRun : "function" = lambda : None
+        #self.configSetInstructionSet
+        self.userInstructionSet : __class__ = None
+        self._instructionSet : dict = {}
+        self._directives : dict = {}
 
         #configure CPU flags
         self.ConfigAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
@@ -175,24 +187,6 @@ class CPUsim:
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
         #the entire state information for registers, program pointers, etc, is stored as one memory unit for simplicity
 
-        #FUTURE the instructions table should be able to be overloaded (IE: add could have an array of funtions) where one is chosen (based on bitlength, etc) to be included 
-        instructionSetTest = {'add'     : self._testAdd,
-                              'and'     : self._testAnd,
-                              'nop'     : self._testNop,
-                              '.int'    : self._directiveInt
-                              }
-        self.instructionSet : dict = instructionSetTest #used by the decoder to parse instructions
-
-        self.namespace : dict = self._computeNamespace()
-
-        self.display = self.DisplaySimpleAndClean()
-        '''This is a user swappable class function call for displaying runtime information on the screen during runtime about runtime operations
-        display.runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None)
-            is called after every execution cycle
-        display.postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None)
-            is called when the CPU HALTS execution
-        '''
-
         self.postCycleUser = self._postCycleUserDefault
         '''This is a user swappable function call executed after every execution cycle.        
         explicidly copies the self.state to self.lastState, resets CPU flags, etc
@@ -204,7 +198,11 @@ class CPUsim:
 
         self.ConfigAddFlag('carry')
         self.ConfigAddFlag('overflow')
+        self.configSetDisplay(self.DisplaySimpleAndClean())
+        self.configSetInstructionSet(self.InstructionSetDefault())
 
+        #engine stuff?
+        self.namespace : dict = self._computeNamespace()
         self.postCycleUser()
         self._postCycleEngine()
 
@@ -214,12 +212,28 @@ class CPUsim:
         names = {}
         keys = self.state.keys()
         for i in keys:
-            if i != "instruction":
-                names[str(i)] = self.state[i]
-        names.update(self.instructionSet)
+            names[str(i)] = self.state[i]
+        names.update(self._instructionSet)
+        names.update(self._directives)
         return names
 
     def ConfigAddRegister(self, name : str, amount : int, bitlength : int):
+    def configSetDisplay(self, displayInstance):
+        assert displayInstance.runtime
+        assert displayInstance.postrun
+
+        self.userDisplay : __class__ = displayInstance
+        self._displayRuntime = lambda : displayInstance.runtime(self.lastState, self.state, self.config, self.stats, self.engine)
+        self._displayPostRun = lambda : displayInstance.postrun(self.lastState, self.state, self.config, self.stats, self.engine)
+
+    def configSetInstructionSet(self, instructionSetInstance):
+        assert type(instructionSetInstance.instructionSet) is dict
+        assert type(instructionSetInstance.directives) is dict
+
+        self.userInstructionSet : __class__ = instructionSetInstance
+        self._instructionSet : dict = instructionSetInstance.instructionSet
+        self._directives : dict = instructionSetInstance.directives
+
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
         assert type(name) is str
         assert type(bitlength) is int and bitlength > 0
@@ -239,6 +253,8 @@ class CPUsim:
         self.state['flag'][name.lower()] = 0
         self.lastState['flag'][name.lower()] = 0
 
+        self.namespace = self._computeNamespace()
+
     def inject(self, key : str, index : "int/str", value : int):
         """Takes in a key index pair representing a specific register. Assigns int value to register.
         
@@ -257,7 +273,7 @@ class CPUsim:
         #t1, t2 = self._translateArgument(target)
         self.state[t1][t2] = value & (2**self.config[t1]['bitlength']-1)
 
-        self.display.runtime(self.lastState, self.state, self.config)
+        self._displayRuntime()
 
         self._postCycleEngine()
 
@@ -1867,6 +1883,7 @@ if __name__ == "__main__":
     CPU = CPUsim(8)
     CPU.ConfigAddRegister('r', 2, 16)
     CPU.ConfigAddRegister('m', 4, 8)
+    CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
     CPU.inject('r', 1, 1)
     CPU.inject('m', 2, 8)
     CPU.inject('flag', 'carry', 1)
