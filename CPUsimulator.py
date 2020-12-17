@@ -17,7 +17,7 @@ version = sys.version_info
 assert version[0] == 3 and version[1] >= 8 #asserts python version 3.8 or greater
 
 import copy #copy.deepcopy() required because state['flag'] contains a dictionary which needs to be copied
-import re #Regex, used in CPUsimualtorV2._translateArgument()
+#import re #Regex, used in CPUsimualtorV2._translateArgument()
 
 #debugging and logging stuff
 import logging
@@ -162,6 +162,7 @@ class CPUsim:
         '''a bunch of variables that are required for proper functioning, but are reqired to be configured by config functions
         defined here for a full listing of all these variables
         defined here in a failsafe state such that they can be used without crashing (or at least a lower likelyhood of crashing)
+        may result in a more difficult time debugging
         '''
         #self.configSetDisplay
         self.userDisplay : __class__ = None
@@ -191,7 +192,7 @@ class CPUsim:
         
         #self.state['sp'] = [0] #stack pointer #FUTURE
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
-        #the entire state information for registers, program pointers, etc, is stored as one memory unit for simplicity
+        #the entire state information for registers, program pointers, etc, should be stored as one memory unit for simplicity
 
         self.postCycleUser = self._postCycleUserDefault
         '''This is a user swappable function call executed after every execution cycle.        
@@ -401,9 +402,42 @@ class CPUsim:
             print("CPU Halted")
 
     #==================================================================================================================
+
     class ParseDefault:
-        def __init__(self, namespace : dict):
-            self.nameSpace : dict = namespace
+        """Parses strings into an (almost) execution tree.
+        ParseDefault.Node is the dataclass for storing tokens in a Node Tree.
+
+        ParseDefault.parseCode("source code") is called which returns a Node Tree representing the "source code"
+
+            ParseDefault.parseCode() calls ParseDefault._tokenize() to do the initial tokenization of the "source code"
+            root -> Node
+                    |- Token "test"
+                    |- Token " "
+                    |- Token "123"
+                    |- ...
+
+            "rule functions" are called to apply various rules to the Node Tree
+            all "rule functions" are functional, and return a COPY of Nodes
+            Note: most do not recurse
+            by combining "rule functions" in different ways in ParseDefault.parseCode(), different syntaxes can be proccessed
+            root = self.ruleRemoveToken(root, " ")
+            root -> Node
+                    |- Token "test"
+                    |- Token "123"
+                    |- ...
+            root = ruleCastInts(root)
+            root -> Node
+                    |- Token "test"
+                    |- Token 123
+                    |- ...
+
+            return root
+        """
+
+        def __init__(self, nameSpace : dict = {}):
+            assert type(nameSpace) is dict
+
+            self.nameSpace : dict = nameSpace
             self.labels : dict = None
 
         def updateNameSpace(self, nameSpace : dict):
@@ -691,11 +725,14 @@ class CPUsim:
             root : self.Node = tree.copyInfo()
 
             for i in tree.child:
-                if i.token.isdigit():
-                    temp = i.copyDeep()
-                    temp.token = int(i.token)
-                    temp.type = "int"
-                    root.append(temp)
+                if type(i.token) is str:
+                    if i.token.isdigit():
+                        temp = i.copyDeep()
+                        temp.token = int(i.token)
+                        temp.type = "int"
+                        root.append(temp)
+                    else:
+                        root.append(i.copyDeep())
                 else:
                     root.append(i.copyDeep())
 
@@ -765,7 +802,6 @@ class CPUsim:
                     stack = i.token
 
             return root
-
 
         def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : "list[str]" = [" ", "\t"]) -> Node:
             """Takes in a node, removes all white space tokens between a new line token and the next token; does not recurse. Returns a node
@@ -933,7 +969,8 @@ class CPUsim:
                 'test'
             """
             assert type(tree) is self.Node
-            assert type(character) is str and len(character) == 1
+            assert type(character) is str 
+            assert len(character) == 1
 
             root : self.Node = tree.copyInfo()
 
@@ -971,7 +1008,7 @@ class CPUsim:
         def _applyRuleFilterBlockComments(self, tree : Node, character : str = "#") -> Node:
             pass
 
-        def ruleContainer(self, tree : Node, containers : dict = {"(":")", "[":"]", "{":"}"}) -> Node:
+        def ruleContainer(self, tree : Node, containers : dict = {"(":")", "[":"]", "{":"}"}, nodeType = "container") -> Node:
             """NotImplimented
             Takes in a node, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers, Returns a node tree
 
@@ -1012,6 +1049,7 @@ class CPUsim:
             assert all([True if len(i) == 1 else False for i in containers.keys()])
             assert all([True if len(containers[i]) == 1 else False for i in containers.keys()])
             assert all([True if containers[i] != i else False for i in containers.keys()]) #asserts that the 'matching bracket' isn't the same characters
+            assert type(nodeType) is str
 
             root : self.Node = tree.copyInfo()
             stack : "list[(str, self.Node)]" = []
@@ -1032,7 +1070,7 @@ class CPUsim:
                 if i.token in list(containers.keys()): #if open bracket
                     #append to stack
                     temp = i.copyDeep()
-                    temp.type = "container"
+                    temp.type = nodeType
                     stack.append((i.token, temp))
                 elif len(stack) != 0:
                     if containers[stack[-1][0]] == i.token: #if closing bracket
@@ -1082,21 +1120,22 @@ class CPUsim:
 
             return (root, labels)
 
-        def ruleLabelNamespace(self, tree : Node, nameSpace : dict) -> Node:
+        def ruleLabelNamespace(self, tree : Node, nameSpace : dict, tokenType : str = "namespace") -> Node:
             """Takes in a node tree, and a nameSpace. Labels all nodes that are in nameSpace as 'NameSpace'. Returns Node Tree
             
             #TODO find a better/less confusing name (conflicts with ruleFindLabels)?"""
             assert type(tree) is self.Node
             assert type(nameSpace) is dict
+            assert type(tokenType) is str
 
             root : self.Node = tree.copyInfo()
             keys = [i.lower() for i in nameSpace.keys()]
 
             for i in tree.child:
-                if type(i.token) == str:
+                if type(i.token) is str:
                     if i.token.lower() in keys:
                         temp = i.copyDeep()
-                        temp.type = "namespace"
+                        temp.type = tokenType
                         root.append(temp)
                     else:
                         root.append(i.copyDeep())
@@ -1119,53 +1158,54 @@ class CPUsim:
 
             return root
         
-        def ruleSplitLines(self, tree : Node) -> [Node]:
+        def ruleSplitLines(self, tree : Node, tokenType : str = "line", splitChar : str = "\n") -> [Node]:
             """Takes in a node tree. Returns a list of Nodes, split by '\n'"""
             assert type(tree) is self.Node
+            assert type(tokenType) is str
+            assert type(splitChar) is str
 
             result = []
-            current = self.Node("line", None, 0, 0)
+            current = self.Node(tokenType, None, 0, 0)
 
             for i in tree.child:
-                if i == "\n":
+                if i == splitChar:
                     result.append(current)
-                    current = self.Node("line", None, i.lineNum + 1, i.charNum)
+                    current = self.Node(tokenType, None, i.lineNum + 1, i.charNum)
                 else:
                     current.append(i.copyDeep())
 
-            result.append(current)
+            if len(current.child) >= 1:
+                result.append(current)
 
             return result
 
-
-        def parseCode(self, code : str) -> Node:
+        def parseCode(self, sourceCode : str) -> Node:
             """NotImplimented
             Takes a string of code, returns a parsed instruction tree"""
-            assert type(code) is str
+            assert type(sourceCode) is str
             
+            #tokenizes sourceCode, and turns it into a Node Tree
             root = self.Node("root")
-
-            for i in self._tokenize(code):
+            for i in self._tokenize(sourceCode):
                 root.append(self.Node("token", i[0], i[1], i[2]))
 
-            logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(code))
+            logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
 
+            #does operations on the Node Tree, but the depth of the Node Tree remains 2
             root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
-            root = self.ruleFilterLineComments(root)
+            root = self.ruleFilterLineComments(root, "#")
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
 
-            root = self.ruleRemoveLeadingWhitespace(root)
+            root = self.ruleRemoveLeadingWhitespace(root, [" ", "\t"])
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveLeadingWhitespace: " + "\n" + str(root))
 
             root = self.ruleRemoveEmptyLines(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveEmptyLines: " + "\n" + str(root))
 
-            temp = self.ruleFindLabels(root, self.nameSpace)
-            self.labels = temp[1]
-            root = temp[0]
+            root, self.labels = self.ruleFindLabels(root, self.nameSpace)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root))
 
             root = self.ruleLabelNamespace(root, self.nameSpace)
@@ -1173,7 +1213,7 @@ class CPUsim:
 
             root = self.ruleRemoveToken(root, " ")
             root = self.ruleRemoveToken(root, "\t")
-            #root = self.ruleRemoveToken(root, ",")
+            root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveToken: " + "\n" + str(root))
 
             root = self.ruleCastInts(root)
@@ -1182,7 +1222,8 @@ class CPUsim:
             root = self.ruleCastHex(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleCastHex: " + "\n" + str(root))
 
-            root = self.ruleContainer(root)
+            #This is where the Node Tree is allowed to go to a depth > 2
+            root = self.ruleContainer(root, {"(":")", "[":"]"})
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
             temp : list = self.ruleSplitLines(root)
@@ -1193,7 +1234,6 @@ class CPUsim:
 
             return root
 
-        
     #==================================================================================================================
 
     def lazy(self, code : str): #TODO MVP
@@ -1216,54 +1256,6 @@ class CPUsim:
         """NotImplimented
         runs at the end of each execution cycle, meant to handle engine level stuff"""
         pass
-
-    '''
-    def _translateArgument(self, arg : str) -> 'tuple[str, int]': #TODO this is outdated and should be replaced
-        #FUTURE may have to take pointers of form m*r[0] IE: number in r0 points to memory index
-        assert type(arg) is str
-
-        key : str = None
-        index : 'int xor str' = None
-
-        word = arg.strip().lower()
-
-        #matches if the arg IS a key
-        if arg in self.state.keys():
-            key = arg
-            index = 0
-        #matches a postive or negative integer
-        elif re.match("^[-]{0,1}[\d]*$", arg) != None:
-            key = 'i'
-            self.state['i'].append(int(arg))
-            index = len(self.state['i']) - 1
-        #matchs an integer in hex notation
-        elif re.match("^0x[0-9a-fA-F]*$", arg) != None:
-            key = 'i'
-            self.state['i'].append(int(arg, 16))
-            index = len(self.state['i']) - 1
-        #matches a register index of form 'r0', 'r25', etc
-        if key == None: #this skips maching if key index was already found
-            for i in self.state.keys():
-                if re.match("^" + str(i) + "[\d]*$", arg) != None:
-                    key = i
-                    temp = arg.replace(i, '')
-                    index = int(temp)
-                    break
-        #matches a register index of form 'r[0]', 'r[25]', etc
-        if key == None: #this skips maching if key index was already found
-            for i in self.state.keys():
-                if re.match("^" + str(i) + "\[[\d]*\]$", arg) != None:
-                    key = i
-                    temp = arg.replace(i, '')
-                    temp = temp.replace('[', '')
-                    temp = temp.replace(']', '')
-                    index = int(temp)
-                    break
-        
-        test = self.state[key][index] #test if key index pair is accessable
-
-        return (key, index)
-    '''
 
     #==================================================================================================================
     '''
@@ -1445,8 +1437,6 @@ class CPUsim:
 
         def opHalt(self, oldState, newState, config, engine):
             pass
-
-
 
 class DumbALUv1:
     """A prototype implimentation of an ALU for illistratuve purposes
