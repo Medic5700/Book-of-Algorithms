@@ -86,6 +86,7 @@ class CPUsim:
             Parser currently assumes all source code to process is perfect with no errors/typos, and thus is super fragile
             Parser 'rules' need more functionality for each function, to make it more modular
             All 'rules' need a documentation overhaul
+            Impliment Parsing exception
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -179,16 +180,14 @@ class CPUsim:
 
         self._namespace : dict = {}
 
-        #configure CPU flags
+        #initialize CPU flag datastructure
         self.configAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
         self.state['flag'] : dict = {} #overrides default array of numbers
         self.lastState['flag'] : dict = {}
 
         #adds special registers that are required
-        self.configAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
-        self.configAddRegister('pc', 1, bitLength) #program counter, it's a list because the parser will auto-convert references from 'pc' to 'pc[0]'
-
-        #instruction words are assumed to be one memory unit big for simplicity
+        self.configAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
+        self.configAddRegister('pc', 1, bitLength) #program counter, it's a list for better consistancy with the other registers
         
         #self.state['sp'] = [0] #stack pointer #FUTURE
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
@@ -216,7 +215,7 @@ class CPUsim:
         self._postCycleEngine()
 
     def _computeNamespace(self):
-        """computes the namespace of instructions, registers, etc for the CPU. Returns a dictionary of string:pointer pairs"""
+        """computes the namespace of instructions, registers, etc for the CPU. Updates self._updateNameSpace : dict"""
 
         names = {}
         keys = self.state.keys()
@@ -228,6 +227,14 @@ class CPUsim:
         self._updateNameSpace(names)
 
     def configSetDisplay(self, displayInstance):
+        """Takes in an display class
+
+        class must have:
+            runtime(lastState, state, config, stats, engine) - runs after every execution cycle
+            postrun(lastState, state, config, stats, engine) - runs after the CPU halts
+
+        Note: runtime() must be able to handle the 'i' register having a variying sized array, since it's size changes based on what the currect instruction needs
+        """
         assert displayInstance.runtime
         assert displayInstance.postrun
 
@@ -236,6 +243,12 @@ class CPUsim:
         self._displayPostRun = lambda : displayInstance.postrun(self.lastState, self.state, self.config, self.stats, self.engine)
 
     def configSetInstructionSet(self, instructionSetInstance):
+        """Takes in a class representing the instruction set
+
+        class must have:
+            instructionSet : {str: function} - contains a dictionary of operation names with instruction functions
+            directives : {str: function} - contains a dictionary of assembler directives with directive functions
+        """
         assert type(instructionSetInstance.instructionSet) is dict
         assert type(instructionSetInstance.directives) is dict
 
@@ -243,7 +256,15 @@ class CPUsim:
         self._instructionSet : dict = instructionSetInstance.instructionSet
         self._directives : dict = instructionSetInstance.directives
 
+        self._computeNamespace()
+
     def configSetParser(self, parserInstance):
+        """Takes in a class representing a source code parser
+
+        class must have:
+            parseCode(sourceCode : str) - a function that takes in a string, and returns an execution tree
+            updateNameSpace(nameSpace : dict) - a function which takes in a nameSpace dictionary representing the CPUs registers, flags, instructions, etc
+        """
         assert parserInstance.parseCode
         assert type(parserInstance.nameSpace) is dict
         assert parserInstance.updateNameSpace
@@ -280,18 +301,16 @@ class CPUsim:
         """Takes in a key index pair representing a specific register. Assigns int value to register.
         
         value >= 0
-        Does not increment the simulatition.
-        Does run self.display.runtime"""
+        Does not increment the simulatition
+        Does run self._displayRuntime)_"""
         assert type(key) is str
         assert type(index) is int or type(index) is str
         assert type(value) is int
         assert value >= 0
-        #TODO handle negative value
 
         t1 = key.lower()
         t2 = index.lower() if key.lower() == "flag" else index
 
-        #t1, t2 = self._translateArgument(target)
         self.state[t1][t2] = value & (2**self.config[t1]['bitlength']-1)
 
         self._displayRuntime()
@@ -328,13 +347,12 @@ class CPUsim:
         Displays all registers, memory, and flags after every execution cycle. Displays some postrun stats.
         Uses ANSI for some colouring
         """
-        #TODO impliment a 'static' function for use when just showing the current CPU status between updates?
 
         def __init__(self, animationDelay : float = 0.5):
             assert type(animationDelay) is float or type(animationDelay) is int
 
-            import time #this is imported for the specific class because this class is supposed to able to be 'swapped out' and may not be neccassary if another display class doesn't need the 'time' module
-            self.sleep : 'function' = time.sleep
+            import time #this is imported for this specific class because this class is supposed to able to be 'swapped out' and may not be neccassary if another display class doesn't need the 'time' module
+            self.sleep : "function" = time.sleep
 
             self.animationDelay : int = animationDelay
 
@@ -377,9 +395,12 @@ class CPUsim:
 
             #get keys, but exclude the 'special' keys
             keys : "list[str]" = list(oldState.keys())
-            keys.remove("flag")
-            keys.remove("pc")
-            keys.remove("i")
+            if "flag" in keys:
+                keys.remove("flag")
+            if "pc" in keys:
+                keys.remove("pc")
+            if "i" in keys:
+                keys.remove("i")
 
             for i in keys:
                 for j in range(len(oldState[i])):
@@ -441,6 +462,7 @@ class CPUsim:
             self.labels : dict = None
 
         def updateNameSpace(self, nameSpace : dict):
+            """Takes in nameSpace a dictionary whose keys represent the CPU flags, registers, instructions, etc"""
             assert type(nameSpace) is dict
 
             self.nameSpace = nameSpace
@@ -470,7 +492,7 @@ class CPUsim:
                 self.lineNum : int = lineNum 
                 self.charNum : int = charNum
 
-            def append(self, node : "Node"): #TODO should change name to 'append()'
+            def append(self, node : "Node"):
                 """Adds a new node object to self as a child (at end of list)"""
                 assert type(node) == self.__class__
 
@@ -488,7 +510,7 @@ class CPUsim:
 
                 return self.__class__(self.type, self.token, self.lineNum, self.charNum) #TODO This feels wrong, but I don't know why it's wrong
 
-            def copyDeep(self) -> "Node": #TODO should change name to 'deepCopy()'
+            def copyDeep(self) -> "Node": #name is copyDeep instead of deepCopy to avoid accedentally calling copy.copyDeep()
                 """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree."""
                 
                 newNode = self.__class__(self.type, self.token, self.lineNum, self.charNum)
@@ -566,7 +588,7 @@ class CPUsim:
                 This is to make it easier to the python garbage collecter to destroy it, because cyclic references"""
                 assert type(node) == self.__class__
 
-                index = None
+                index : int = None
                 for i in range(len(self.child)):
                     if self.child[i] is node:
                         index = i
@@ -574,7 +596,7 @@ class CPUsim:
                 if index == None:
                     raise Exception
 
-                removeNode = self.child[index]
+                removeNode : self.__class__ = self.child[index]
 
                 logging.debug(debugHelper(inspect.currentframe()) + "attempting to remove node"+ "\n" + str((
                         self.type,
@@ -589,15 +611,18 @@ class CPUsim:
                     pass
                 elif index == 0: #case where removeNode is first child in the list, but not the only child in the list
                     logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
-                    if type(removeNode.nodeNext) is self.__class__: #TODO figure out why this is neccissary to avoid a specific error. (and if this protection should be in place everywhere?)
+                    if type(removeNode.nodeNext) is self.__class__: #TODO figure out why this is neccissary to avoid a specific error.
                         removeNode.nodeNext.nodePrevious = None
                 elif index == len(self.child) - 1: #case where removeNode is the last child in the list, but not the only child in the list
                     logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
-                    removeNode.nodePrevious.nodeNext = None
+                    if type(removeNode.nodePrevious) is self.__class__:
+                        removeNode.nodePrevious.nodeNext = None
                 elif 0 < index < len(self.child) -1: #case where removeNode is between two other nodes
                     logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
-                    removeNode.nodePrevious.nodeNext = removeNode.nodeNext
-                    removeNode.nodeNext.nodePrevious = removeNode.nodePrevious
+                    if type(removeNode.nodePrevious) is self.__class__:
+                        removeNode.nodePrevious.nodeNext = removeNode.nodeNext
+                    if type(removeNode.nodeNext) is self.__class__:
+                        removeNode.nodeNext.nodePrevious = removeNode.nodePrevious
                 
                 removeNode.parent = None
                 removeNode.nodeNext = None
@@ -673,19 +698,19 @@ class CPUsim:
                 while len(self.child) != 0:
                     self.remove(self.child[0])
 
-        def _tokenize(self, code : str) -> "list[tuple(str, int, int)]" :
-            """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). No characters are filtered out"""
+        def _tokenize(self, code : str) -> [(str, int, int), ... ] :
+            """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). 
+            
+            No characters are filtered out"""
             assert type(code) is str
 
             #done like this to easily add extra characters
-            _isName = lambda x : x.isalnum() or x in "_"
+            _isName : "function" = lambda x : x.isalnum() or x in "_" #returns True is character can be in a name, False otherwise
 
-            #TODO do not filter out newline characters
-
-            tokenList = []
-            token = ""
-            lineNum = 0
-            characterNum = 0
+            tokenList : list = []
+            token : str = ""
+            lineNum : int = 0
+            characterNum : int = 0
             for j in code:
                 if _isName(j): #creates tokens from everything that could be a variable name
                     token += j
@@ -707,13 +732,13 @@ class CPUsim:
 
             return tokenList
 
-        def ruleCastInts(self, tree: Node) -> Node:
+        def ruleCastInts(self, tree : Node) -> Node:
             """Takes in a node tree, casts all children that are integers to integers (with labels). Returns a node tree
 
             Does not recurse
 
-            Example "123 456 789" ->
-            node
+            Case: "123 456 789" ->
+            Node
                 123
                 ' '
                 456
@@ -738,12 +763,12 @@ class CPUsim:
 
             return root
 
-        def ruleCastHex(self, tree: Node) -> Node:
+        def ruleCastHex(self, tree : Node) -> Node:
             """Takes in a node tree, casts all children that are in hex format to integers (with labels). Returns a node tree
 
             Does not recurse
 
-            Example "0x0 0x000A 0xff" ->
+            Case: "0x0 0x000A 0xff" ->
             node
                 0
                 ' '
@@ -770,11 +795,12 @@ class CPUsim:
             return root
 
         def ruleRemoveEmptyLines(self, tree : Node) -> Node:
-            """Notimplimented
-            Takes in a node tree, removes all empty lines. Returns a node
+            """Takes in a node tree, removes all empty lines. Returns a node
 
-            Example "test\ntest\n\n\ntest\n" ->
-            node
+            Does not recurse
+
+            Case: "test\ntest\n\n\ntest\n" ->
+            Node
                 'test'
                 '\n'
                 'test'
@@ -788,26 +814,21 @@ class CPUsim:
 
             stack = "\n"
 
-            ''' #the unoptimized, but easy to understand, way
             for i in tree.child:
-                if i == "\n" and stack == "\n":
-                    pass
-                else:
-                    root.append(i.copyDeep())
-                    stack = i.token
-            '''
-            for i in tree.child:
+                #if previous == "\n" and current == "\n" do nothing, else copy Node
                 if i != "\n" or stack != "\n":
                     root.append(i.copyDeep())
                     stack = i.token
 
             return root
 
-        def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : "list[str]" = [" ", "\t"]) -> Node:
-            """Takes in a node, removes all white space tokens between a new line token and the next token; does not recurse. Returns a node
+        def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : [str, ...] = [" ", "\t"]) -> Node:
+            """Takes in a node, removes all white space tokens between a new line token and the next token. Returns a node
             
-            Example: "test test \ntest\n  \ttest\t\n     \n" -> "test test \ntest\ntest\t\n\n"
-            node
+            does not recurse
+
+            Case: "test test \ntest\n  \ttest\t\n     \n" -> "test test \ntest\ntest\t\n\n" ->
+            Node
                 'test'
                 ' '
                 'test'
@@ -825,7 +846,7 @@ class CPUsim:
 
             root : self.Node = tree.copyInfo()
 
-            stack = "\n" #initialize to State 0
+            stack : str = "\n" #initialize to State 0
             if len(tree.child) != 0:
                 if tree.child[0] == "\n":
                     stack = None #initialize to State 1
@@ -863,19 +884,20 @@ class CPUsim:
             """Takes in a node, combines all the tokens that are contained by quote tokens into a string node. Returns a node
             #TODO allow for arbitrary definition of list of 'quote like characters'
 
-            does not recurse
-            operates on entire string block
+            Does not recurse
             
             Case: "test 'test'" ->
             Node
                 'test'
                 ' '
                 "test"
+
             Case: "\'test\n\\\'test\\\''\ntest" ->
             Node
                 "test\n\\\'test\\\'"
                 '\n'
                 'test'
+
             Case: "\'test\n\'test\'\'\ntest" ->
             Node
                 "test\n"
@@ -883,21 +905,23 @@ class CPUsim:
                 ""
                 "\n"
                 "test"
+
             Case: "test1\"abc\'123\'abc\"test2" ->
                 "test1"
                 "abc\'123\'abc"
                 "test2"
+
             Case: "" ->
                 None
             """
             assert type(tree) is self.Node
 
             root : self.Node = tree.copyInfo()
-            string = ""
+            string : str = ""
 
-            stack = None
-            lineNum = None
-            charNum = None
+            stack : str = None
+            lineNum : int = None
+            charNum : int = None
 
             '''Finite State Machine
             State 0 #Looking for an opening quote
@@ -939,10 +963,12 @@ class CPUsim:
             return root
 
         def ruleFilterLineComments(self, tree : Node, character : str = "#") -> Node:
-            """Takes in a node, removes any tokens between a "#" token and a new line token; does not recuse. Returns a node tree
+            """Takes in a node, removes any tokens between a "#" token and a new line token. Returns a Node Tree
+
+            Does not recurse
 
             Case: "test #test\n #test\n\t\#test" -> "test \n \n\t\#test" ->
-            node
+            Node
                 'test'
                 ' '
                 '\n'
@@ -952,7 +978,9 @@ class CPUsim:
                 '\\
                 '#'
                 'test'
+            
             Case: "test test \# test #abc abc abc \\n abc \n test test" ->
+            Node
                 'test'
                 ' '
                 'test'
@@ -974,7 +1002,7 @@ class CPUsim:
 
             root : self.Node = tree.copyInfo()
 
-            stack = None
+            stack : str = None
 
             '''Finite State Machine
             State 0: Looking for comment begin
@@ -1008,15 +1036,16 @@ class CPUsim:
         def _applyRuleFilterBlockComments(self, tree : Node, character : str = "#") -> Node:
             pass
 
-        def ruleContainer(self, tree : Node, containers : dict = {"(":")", "[":"]", "{":"}"}, nodeType = "container") -> Node:
-            """NotImplimented
-            Takes in a node, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers, Returns a node tree
+        def ruleContainer(self, tree : Node, containers : dict = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> Node:
+            """Takes in a Node Tree, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers. Returns a node tree
 
-            containers are of the form {"opening bracket": "closing bracket", ...}
-            does not copy closing brackets
+            Containers are of the form {"opening bracket": "closing bracket", ...}
+            Does not copy closing brackets
+            Does not recurse
+            #TODO raise error for mismatched brackets
             
             Case: "test[test(test)]" ->
-            node
+            Node
                 'test'
                 '['
                     'test'
@@ -1024,7 +1053,7 @@ class CPUsim:
                         'test'
 
             Case: "test[abc abc{123 123}{123 123}](abc)" ->
-            node
+            Node
                 'test'
                 '['
                     'abc'
@@ -1052,7 +1081,7 @@ class CPUsim:
             assert type(nodeType) is str
 
             root : self.Node = tree.copyInfo()
-            stack : "list[(str, self.Node)]" = []
+            stack : [(str, self.Node), ...] = []
 
             for i in tree.child:
                 '''
@@ -1069,12 +1098,12 @@ class CPUsim:
                 '''
                 if i.token in list(containers.keys()): #if open bracket
                     #append to stack
-                    temp = i.copyDeep()
+                    temp : self.Node = i.copyDeep()
                     temp.type = nodeType
                     stack.append((i.token, temp))
                 elif len(stack) != 0:
                     if containers[stack[-1][0]] == i.token: #if closing bracket
-                        temp = stack.pop()[1] #pop from stack
+                        temp : self.Node = stack.pop()[1] #pop from stack
 
                         if len(stack) != 0: #append to last element in stack, otherwise append to root
                             stack[-1][1].append(temp)
@@ -1091,8 +1120,9 @@ class CPUsim:
             return root
 
         def ruleFindLabels(self, tree : Node, symbolTable : dict) -> (Node, dict):
-            """NotImplimented
-            Takes in a node, attempts to find a label (a token not in symbolTable) that is immidiatly followed by a ":", returns a Node Tree, and a dictionary of labels"""
+            """Takes in a node, attempts to find a label (a token not in symbolTable) that is immidiatly followed by a ":", returns a Node Tree, and a dictionary of labels
+            
+            Does not recurse"""
             assert type(tree) is self.Node
             assert type(symbolTable) is dict
 
@@ -1104,11 +1134,11 @@ class CPUsim:
 
             for i in tree.child:
                 if i.nodePrevious == previous and i.nodeNext == ":":
-                    temp = i.copyDeep()
+                    temp : self.Node = i.copyDeep()
                     temp.type = "label"
                     root.append(temp)
 
-                    labels[i.token] = temp.copyDeep()
+                    labels[i.token] = temp.copyInfo()
 
                     previous = i.token
                     skipToken = True
@@ -1123,13 +1153,14 @@ class CPUsim:
         def ruleLabelNamespace(self, tree : Node, nameSpace : dict, tokenType : str = "namespace") -> Node:
             """Takes in a node tree, and a nameSpace. Labels all nodes that are in nameSpace as 'NameSpace'. Returns Node Tree
             
+            Does not recurse
             #TODO find a better/less confusing name (conflicts with ruleFindLabels)?"""
             assert type(tree) is self.Node
             assert type(nameSpace) is dict
             assert type(tokenType) is str
 
             root : self.Node = tree.copyInfo()
-            keys = [i.lower() for i in nameSpace.keys()]
+            keys : [str, ...]= [i.lower() for i in nameSpace.keys()]
 
             for i in tree.child:
                 if type(i.token) is str:
@@ -1145,9 +1176,9 @@ class CPUsim:
             return root
         
         def ruleRemoveToken(self, tree : Node, token : str) -> Node:
-            """Takes in a node tree, and a token. Removes all instances of token in tree.child. Returns a Node Tree
+            """Takes in a Node Tree, and a token. Removes all instances of token in tree.child. Returns a Node Tree
             
-            does not recurse"""
+            Does not recurse"""
             assert type(tree) is self.Node
             
             root : self.Node = tree.copyInfo()
@@ -1159,13 +1190,16 @@ class CPUsim:
             return root
         
         def ruleSplitLines(self, tree : Node, tokenType : str = "line", splitChar : str = "\n") -> [Node]:
-            """Takes in a node tree. Returns a list of Nodes, split by '\n'"""
+            """Takes in a node tree. Returns a list of Nodes, split by '\n'
+            
+            #TODO should be able to recurse
+            """
             assert type(tree) is self.Node
             assert type(tokenType) is str
             assert type(splitChar) is str
 
-            result = []
-            current = self.Node(tokenType, None, 0, 0)
+            result : [self.Node, ...] = []
+            current : self.Node = self.Node(tokenType, None, 0, 0)
 
             for i in tree.child:
                 if i == splitChar:
@@ -1180,8 +1214,7 @@ class CPUsim:
             return result
 
         def parseCode(self, sourceCode : str) -> Node:
-            """NotImplimented
-            Takes a string of code, returns a parsed instruction tree"""
+            """Takes a string of code, returns a parsed instruction tree"""
             assert type(sourceCode) is str
             
             #tokenizes sourceCode, and turns it into a Node Tree
@@ -1347,17 +1380,19 @@ class CPUsim:
                 "halt"  : self.opHalt
             }
 
-            #needs to include meta-information about each instruction
+            self.stats : dict = {}
 
             self.directives : dict = {}
 
-        def redirect(self, redirection, register, index) -> (str, int):
+        def redirect(self, redirection : str, register : str, index : "str/int") -> (str, int):
+            """Takes in redirection as a pointer to the memory array to access, and a register index pair. Returns a key index pair corrispoding to redirection as key, index as value stored in register[index]"""
             return (redirection, register[index])
 
         def opNop(self, oldState, newState, config, engine):
             newState['pc'][0] = oldState['pc'][0] + 1
 
         def opAdd(self, oldState, newState, config, engine, a, b, c):
+            """adds registers a and b, stores result in c"""
             a1, a2 = a
             b1, b2 = b
             c1, c2 = c
@@ -1371,6 +1406,7 @@ class CPUsim:
             newState['pc'][0] = oldState['pc'][0] + 1
             
         def opAnd(self, oldState, newState, config, engine, a, b, c):
+            """performs operation AND between registers a and b, stores result in c"""
             a1, a2 = a
             b1, b2 = b
             c1, c2 = c
@@ -1382,6 +1418,17 @@ class CPUsim:
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
         def opJump(self, oldState, newState, config, engine, mode : str, gotoIndex, a = None, b = None):
+            """Conditional jump to gotoIndex, conditional on mode, and optional registers a and b
+
+            mode:
+                goto    - a simple jump without any condition testing, a and b must be set to None
+                <       - less than
+                <=      - less than or equal to
+                >       - greater than
+                >=      - greater than or equal to
+                ==      - equal
+                !=      - not equal
+            """
             assert (mode == "goto" and a == None and b == None) ^ (mode != "goto" and a != None and b != None)
 
             if mode == "goto":
@@ -1406,6 +1453,7 @@ class CPUsim:
                     newState['pc'][0] = oldState['pc'][0] + 1
 
         def opShiftL(self, oldState, newState, config, engine, a, b, c = 1):
+            """Takes register a, shifts it left by c (key index pair, or int) bits. Stores result in b"""
             a1, a2 = a
             b1, b2 = b
 
@@ -1421,6 +1469,9 @@ class CPUsim:
             newState['pc'][0] = oldState['pc'][0] + 1
 
         def opShiftR(self, oldState, newState, config, engine, a, b, c = 1):
+            """Takes register a, shifts it right by c (key index pair, or int) bits. Stores result in b
+            
+            #TODO handle a twos compliment left shift"""
             a1, a2 = a
             b1, b2 = b
 
