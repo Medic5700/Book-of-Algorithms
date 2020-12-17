@@ -78,6 +78,12 @@ class CPUsim:
         ? Instruction functions on execution should return a dictionary of info on function stats (IE: energy used, latency, instruction unit used, etc?)
             Makes instruction set composition easier (since lambda functions don't also need to copy a bunch of function properties)
             Makes instruction manipulation harder (IE: you can't know how long an instruction will take to execute ahead of time, or which execution unit it will use, or how to profile it)
+        Parser:
+            needs a rule to split based on commas ","
+            needs a rule to label containers as function arguments, array indices, other?
+            Parser currently assumes all source code to process is perfect with no errors/typos, and thus is super fragile
+            Parser 'rules' need more functionality for each function, to make it more modular
+            All 'rules' need a documentation overhaul
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -508,7 +514,8 @@ class CPUsim:
                     pass
                 elif index == 0: #case where removeNode is first child in the list, but not the only child in the list
                     logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
-                    removeNode.nodeNext.nodePrevious = None
+                    if type(removeNode.nodeNext) is self.__class__: #TODO figure out why this is neccissary to avoid a specific error. (and if this protection should be in place everywhere?)
+                        removeNode.nodeNext.nodePrevious = None
                 elif index == len(self.child) - 1: #case where removeNode is the last child in the list, but not the only child in the list
                     logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
                     removeNode.nodePrevious.nodeNext = None
@@ -966,7 +973,7 @@ class CPUsim:
             assert all([True if containers[i] != i else False for i in containers.keys()]) #asserts that the 'matching bracket' isn't the same characters
 
             root : self.Node = tree.copyInfo()
-            stack : list[(str, self.Node)] = []
+            stack : "list[(str, self.Node)]" = []
 
             for i in tree.child:
                 '''
@@ -1081,7 +1088,7 @@ class CPUsim:
             for i in tree.child:
                 if i == "\n":
                     result.append(current)
-                    current = self.Node("line", None, i.lineNum, i.charNum)
+                    current = self.Node("line", None, i.lineNum + 1, i.charNum)
                 else:
                     current.append(i.copyDeep())
 
@@ -1096,50 +1103,48 @@ class CPUsim:
             assert type(code) is str
             
             root = self.Node("root")
-            currentNode = self.Node("line", None, 0, 0)
-            root.append(currentNode)
 
             for i in self._tokenize(code):
-                currentNode.append(self.Node("token", i[0], i[1], i[2]))
+                root.append(self.Node("token", i[0], i[1], i[2]))
 
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(code))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
 
-            root.replace(root.child[0], self.ruleStringSimple(root.child[0]))
+            root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
-            root.replace(root.child[0], self.ruleFilterLineComments(root.child[0]))
+            root = self.ruleFilterLineComments(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
 
-            root.replace(root.child[0], self.ruleRemoveLeadingWhitespace(root.child[0]))
+            root = self.ruleRemoveLeadingWhitespace(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveLeadingWhitespace: " + "\n" + str(root))
 
-            root.replace(root.child[0], self.ruleRemoveEmptyLines(root.child[0]))
+            root = self.ruleRemoveEmptyLines(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveEmptyLines: " + "\n" + str(root))
 
-            temp = self.ruleFindLabels(root.child[0], self.nameSpace)
+            temp = self.ruleFindLabels(root, self.nameSpace)
             self.labels = temp[1]
-            root.replace(root.child[0], temp[0])
+            root = temp[0]
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root))
 
-            root.replace(root.child[0], self.ruleLabelNamespace(root.child[0], self.nameSpace))
+            root = self.ruleLabelNamespace(root, self.nameSpace)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleLabelNamespace: " + "\n" + str(root))
 
-            root.replace(root.child[0], self.ruleRemoveToken(root.child[0], " "))
-            root.replace(root.child[0], self.ruleRemoveToken(root.child[0], "\t"))
-            root.replace(root.child[0], self.ruleRemoveToken(root.child[0], ","))
+            root = self.ruleRemoveToken(root, " ")
+            root = self.ruleRemoveToken(root, "\t")
+            #root = self.ruleRemoveToken(root, ",")
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveToken: " + "\n" + str(root))
 
-            root.replace(root.child[0], self.ruleCastInts(root.child[0]))
+            root = self.ruleCastInts(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleCastInts: " + "\n" + str(root))
 
-            root.replace(root.child[0], self.ruleCastHex(root.child[0]))
+            root = self.ruleCastHex(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleCastHex: " + "\n" + str(root))
 
-            root.replace(root.child[0], self.ruleContainer(root.child[0]))
+            root = self.ruleContainer(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
-            temp : list = self.ruleSplitLines(root.child[0])
+            temp : list = self.ruleSplitLines(root)
             root = self.Node("root")
             for i in temp:
                 root.append(i)
