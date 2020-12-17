@@ -169,13 +169,13 @@ class CPUsim:
         self._directives : dict = {}
 
         #configure CPU flags
-        self.ConfigAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
+        self.configAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
         self.state['flag'] : dict = {} #overrides default array of numbers
         self.lastState['flag'] : dict = {}
 
         #adds special registers that are required
-        self.ConfigAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
-        self.ConfigAddRegister('pc', 1, bitLength) #program counter, it's a list because the parser will auto-convert references from 'pc' to 'pc[0]'
+        self.configAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 1,r0->r1", the '1' is stored in the instruction
+        self.configAddRegister('pc', 1, bitLength) #program counter, it's a list because the parser will auto-convert references from 'pc' to 'pc[0]'
 
         #this should not be stored in self.state
         #self.state['instruction'] : "list[str]" = [None for i in range(memoryAmount)] #stores the instructions
@@ -193,11 +193,12 @@ class CPUsim:
         '''
 
         #convinence added stuff for 'works out of the box' functionality
-        self.ConfigAddRegister('r', 8, bitLength) #standard registers
-        self.ConfigAddRegister('m', 32, bitLength) #standard memory
+        self.configAddRegister('r', 8, bitLength) #standard registers
+        self.configAddRegister('m', 32, bitLength) #standard memory
 
-        self.ConfigAddFlag('carry')
-        self.ConfigAddFlag('overflow')
+        self.configAddFlag('carry')
+        self.configAddFlag('overflow')
+
         self.configSetDisplay(self.DisplaySimpleAndClean())
         self.configSetInstructionSet(self.InstructionSetDefault())
 
@@ -217,7 +218,6 @@ class CPUsim:
         names.update(self._directives)
         return names
 
-    def ConfigAddRegister(self, name : str, amount : int, bitlength : int):
     def configSetDisplay(self, displayInstance):
         assert displayInstance.runtime
         assert displayInstance.postrun
@@ -234,6 +234,7 @@ class CPUsim:
         self._instructionSet : dict = instructionSetInstance.instructionSet
         self._directives : dict = instructionSetInstance.directives
 
+    def configAddRegister(self, name : str, amount : int, bitlength : int):
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
         assert type(name) is str
         assert type(bitlength) is int and bitlength > 0
@@ -245,7 +246,9 @@ class CPUsim:
 
         self.config[name]['bitlength'] = bitlength
 
-    def ConfigAddFlag(self, name : str):
+        self.namespace = self._computeNamespace()
+
+    def configAddFlag(self, name : str):
         """Takes in a name for a CPU flag to add, Adds it to self.state"""
         assert type(name) is str
         assert 'flag' in self.state.keys()
@@ -1831,9 +1834,9 @@ def multiply2(a, b, bitlength=8):
     assert 0 <= b < 2**bitlength
 
     ALU = CPUsim(bitlength) #bitlength
-    ALU.ConfigAddRegister('r', 2, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults
-    ALU.ConfigAddRegister('m', 0, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults, in this case, erasing it
-    ALU.ConfigAddRegister('t', 2, bitlength * 2) #bitlength, register amount, namespace symbol
+    ALU.configAddRegister('r', 2, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults
+    ALU.configAddRegister('m', 0, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults, in this case, erasing it
+    ALU.configAddRegister('t', 2, bitlength * 2) #bitlength, register amount, namespace symbol
 
     t = [0 for j in range(2)]
     r = [0 for i in range(2)]
@@ -1881,9 +1884,12 @@ if __name__ == "__main__":
     
     #What works
     CPU = CPUsim(8)
-    CPU.ConfigAddRegister('r', 2, 16)
-    CPU.ConfigAddRegister('m', 4, 8)
     CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
+
+    CPU.configAddRegister('r', 2, 16)
+    CPU.configAddRegister('m', 4, 8)
+    CPU.configAddRegister('t', 2, 16)
+    CPU.configAddFlag("random")
     CPU.inject('r', 1, 1)
     CPU.inject('m', 2, 8)
     CPU.inject('flag', 'carry', 1)
