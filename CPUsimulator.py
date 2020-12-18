@@ -422,6 +422,18 @@ class CPUsim:
             """When CPU execution HALTS, displays information about execution stats, etc"""
             print("CPU Halted")
 
+    class DisplaySilent:
+        """An intentionally empty definition, that will display nothing to the screen"""
+
+        def __init__(self):
+            pass
+
+        def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
+            pass
+
+        def postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
+            pass
+
     #==================================================================================================================
 
     class ParseDefault:
