@@ -1492,10 +1492,21 @@ class CPUsim:
             elif type(c) is tuple:
                 amount = oldState[c[0]][c[1]]
 
-            newState[b1][b2] = oldState[a1][a2] >> amount
+            result = oldState[a1][a2]
+            for i in range(amount):
+                t1 = 0
+                if arithmetic:
+                    t1 = 2 ** (config[a1]['bitlength'] - 1)
+                    t1 = t1 & result
+                result = result >> 1
+                result = result | t1
 
-            newState[b1][b2] = newState[b1][b2] & (2**config[b1]['bitlength'] - 1)
+            result = result & (2**config[b1]['bitlength'] - 1)
 
+            #newState[b1][b2] = oldState[a1][a2] >> amount
+            #newState[b1][b2] = newState[b1][b2] & (2**config[b1]['bitlength'] - 1)
+
+            newState[b1][b2] = result
             newState['pc'][0] = oldState['pc'][0] + 1
 
         def opHalt(self, oldState, newState, config, engine):
