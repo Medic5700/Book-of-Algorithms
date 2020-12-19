@@ -177,6 +177,8 @@ class CPUsim:
         self.userPraser : __class__ = None
         self._parseCode : "function" = lambda x : None
         self._updateNameSpace : "function" = lambda x : None
+        #self.configSetPostCycleFunction
+        self.userPostCycle : "function" = lambda x : None
 
         self._namespace : dict = {}
 
@@ -193,11 +195,6 @@ class CPUsim:
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
         #the entire state information for registers, program pointers, etc, should be stored as one memory unit for simplicity
 
-        self.postCycleUser = self._postCycleUserDefault
-        '''This is a user swappable function call executed after every execution cycle.        
-        explicidly copies the self.state to self.lastState, resets CPU flags, etc
-        '''
-
         #convinence added stuff for 'works out of the box' functionality
         self.configAddRegister('r', 8, bitLength) #standard registers
         self.configAddRegister('m', 32, bitLength) #standard memory
@@ -209,10 +206,13 @@ class CPUsim:
         self.configSetInstructionSet(self.InstructionSetDefault())
         self.configSetParser(self.ParseDefault({}))
 
+        self.configSetPostCycleFunction(self._postCycleUserDefault)
+
         #engine stuff?
-        #self._namespace : dict = self._computeNamespace()
-        self.postCycleUser()
+        self.userPostCycle()
         self._postCycleEngine()
+
+        
 
     def _computeNamespace(self):
         """computes the namespace of instructions, registers, etc for the CPU. Updates self._updateNameSpace : dict"""
@@ -272,6 +272,15 @@ class CPUsim:
         self.userParser = parserInstance
         self._parseCode = parserInstance.parseCode
         self._updateNameSpace = parserInstance.updateNameSpace
+
+    def configSetPostCycleFunction(self, postCycle : "function"):
+        """Takes in a function that is executed after every execution cycle
+
+        explicifly copies the self.state to self.lastState, resets CPU flags, etc
+        Note: must take in self as an argument
+        #TODO it doesn't seem right that the uninstantiated function needs to take in self... research required
+        """
+        self.userPostCycle = postCycle
 
     def configAddRegister(self, name : str, amount : int, bitlength : int):
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
