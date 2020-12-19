@@ -63,8 +63,8 @@ class CPUsim:
     Issues/TODO:
         Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
         Instruction functions should be in their own class, for better modularity
-            Instruction functions should be more functional (IE: they take in as arguments/pointers self.state, self.oldstate, self.config, etc) so as to make coding for it easier
             How exacly should a 'halt' instruction be implimented? Should all instructions be given access to engine information?
+            configSetInstructionSet() should autofill stats datastructer for any unfilled in data. (but should also show a warning)
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
         Data to keep track of:
@@ -154,6 +154,7 @@ class CPUsim:
         
         self.bitLength : int = bitLength #the length of the registers in bits
 
+        '''core engine variables, used by a number of different functions, classes, etc. It's assumed that these variables always exist'''
         self.state : dict = {}
         self.lastState : dict = {}
         self.config : dict = {}
@@ -200,7 +201,7 @@ class CPUsim:
         self.configAddRegister('m', 32, bitLength) #standard memory
 
         self.configAddFlag('carry')
-        self.configAddFlag('overflow')
+        #self.configAddFlag('overflow')
 
         self.configSetDisplay(self.DisplaySimpleAndClean())
         self.configSetInstructionSet(self.InstructionSetDefault())
@@ -984,11 +985,11 @@ class CPUsim:
             return root
 
         def ruleFilterLineComments(self, tree : Node, character : str = "#") -> Node:
-            """Takes in a node, removes any tokens between a "#" token and a new line token. Returns a Node Tree
+            """Takes in a Node Tree, removes any tokens between a "#" token and a new line token. Returns a Node Tree.
 
             Does not recurse
 
-            Case: "test #test\n #test\n\t\#test" -> "test \n \n\t\#test" ->
+            Case: "test #test\n #test\n\t\\#test" -> "test \n \n\t\\#test" ->
             Node
                 'test'
                 ' '
@@ -1000,7 +1001,7 @@ class CPUsim:
                 '#'
                 'test'
             
-            Case: "test test \# test #abc abc abc \\n abc \n test test" ->
+            Case: "test test \\# test #abc abc abc \\n abc \n test test" ->
             Node
                 'test'
                 ' '
@@ -1276,7 +1277,7 @@ class CPUsim:
             root = self.ruleCastHex(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleCastHex: " + "\n" + str(root))
 
-            #This is where the Node Tree is allowed to go to a depth > 2
+            #This is where the Node Tree is allowed to go to depth > 2
             root = self.ruleContainer(root, {"(":")", "[":"]"})
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
@@ -1386,7 +1387,11 @@ class CPUsim:
     '''
 
     class InstructionSetDefault:
-        """A non-functional mockup of what an instructionset definition could look like"""
+        """A non-functional mockup of what an instructionset definition could look like
+        
+        Note: uses 'carry' flag, but doesn't need that flag to run. IE: will use 'carry' flag if present
+
+        """
 
         def __init__(self):
             self.instructionSet : dict = {
@@ -2042,6 +2047,7 @@ if __name__ == "__main__":
     #What works
     CPU = CPUsim(8)
     CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
+    #CPU.configSetDisplay(CPU.DisplaySilent())
     print("".rjust(80, "="))
 
     CPU.configAddRegister('r', 2, 16)
