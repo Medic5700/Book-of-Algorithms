@@ -1558,6 +1558,306 @@ class CPUsim:
         def opHalt(self, oldState, newState, config, engine):
             pass
 
+class RiscV:
+    """A non-functional mockup of what a rudimentry Risc-V implimentation could look like. IE: this is what I'm aiming for, but nowhere near implimenting it, dispite half implimenting it
+
+    useful for spotting architectual flaws, figuring out what to keep track of, etc.
+    Specific implimentation attempts RV32I version 2.1 as per https://riscv.org/technical/specifications/ -> riscv-spec-20191213.pdf -> Volume 1, Unprivileged Spec v. 20191213
+
+    Reference:
+        https://riscv.org/technical/specifications/ -> riscv-spec-20191213.pdf -> Volume 1, Unprivileged Spec v. 20191213
+            The technical specification for the RISC-V instruction set, and all it's modules
+        https://www.cl.cam.ac.uk/teaching/1617/ECAD+Arch/files/docs/RISCVGreenCardv8-20151013.pdf 
+            A cheat sheet of some of RISC-Vs instructions, instruction byte layout, etc
+        https://metalcode.eu/2019-12-06-rv32i.html
+            Another cheat sheet of some RISC-V instructions, register layout, etc
+            #Why that font?... why?
+        https://smist08.wordpress.com/2019/09/07/risc-v-assembly-language-hello-world/
+            Hello World example
+        https://github.com/andrescv/Jupiter
+            A RISC-V simulator/assembler as a standalone program
+        http://venus.cs61c.org/
+            A RISC-V simulator/assembler as a webpage
+            https://github.com/ThaumicMekanism/venus
+            https://github.com/ThaumicMekanism/venusbackend
+        https://www.cs.cornell.edu/courses/cs3410/2019sp/riscv/interpreter/
+            A RISC-V simulator as a webpage
+            surprisingly simple and easy to use (at least for basic and simple instructions/programs)
+        https://github.com/riscv/riscv-gnu-toolchain
+            The RISC-V toolchain, used to compile C/C++ into RISC-V binaries, etc?
+    """
+    
+    def __init__(self):
+        #when initalizing this class making an instance of this class, initalizing this class should return a CPUsim() object
+
+        CPU = CPUsim(32)
+        CPU.configAddRegister("x", 32, 32)
+        CPU.configAddRegister("m", 2**16, 8)
+        
+        #not implimented: after tokenization, should replace the token arg1 with (arg2 tokonized again). NOT A STRING FIND AND REPLACE
+        #configAddAlias() should be for simple token replacement AND NOTHING MORE
+        CPU.configAddAlias("zero", "x[0]") #always zero
+        CPU.configAddAlias("ra", "x[1]") #call return address
+        CPU.configAddAlias("sp", "x[2]") #stack pointer
+        CPU.configAddAlias("gp", "x[3]") #global pointer
+        CPU.configAddAlias("tp", "x[4]") #thread pointer
+        CPU.configAddAlias("t0", "x[5]") #temporary registers
+        CPU.configAddAlias("t1", "x[6]")
+        CPU.configAddAlias("t2", "x[7]")
+        CPU.configAddAlias("s0", "x[8]") #saved registers
+        CPU.configAddAlias("fp", "x[8]") #note the two different mappings
+        CPU.configAddAlias("s1", "x[9]")
+        CPU.configAddAlias("a0", "x[10]") #function arguments
+        CPU.configAddAlias("a1", "x[11]")
+        CPU.configAddAlias("a2", "x[12]")
+        CPU.configAddAlias("a3", "x[13]")
+        CPU.configAddAlias("a4", "x[14]")
+        CPU.configAddAlias("a5", "x[15]")
+        CPU.configAddAlias("a6", "x[16]")
+        CPU.configAddAlias("a7", "x[17]")
+        CPU.configAddAlias("s2", "x[18]")
+        CPU.configAddAlias("s3", "x[19]")
+        CPU.configAddAlias("s4", "x[20]")
+        CPU.configAddAlias("s5", "x[21]")
+        CPU.configAddAlias("s6", "x[22]")
+        CPU.configAddAlias("s7", "x[23]")
+        CPU.configAddAlias("s8", "x[24]")
+        CPU.configAddAlias("s9", "x[25]")
+        CPU.configAddAlias("s10", "x[26]")
+        CPU.configAddAlias("s11", "x[27]")
+        CPU.configAddAlias("t3", "x[28]")
+        CPU.configAddAlias("t4", "x[29]")
+        CPU.configAddAlias("t5", "x[30]")
+        CPU.configAddAlias("t6", "x[31]")
+
+        CPU.configSetPostCycleFunction(self.postCycle)
+        CPU.configSetInstructionSet(self.RiscVISA())
+        CPU.configSetParser(self.RiscVParser())
+
+        self.CPU = CPU
+
+    def postCycle(self, notSelf): #which argument exactly is going to be getting the CPU state information?
+        notSelf.lastState = copy.deepcopy(notSelf.state)
+        
+        notSelf.lastState["x"][0] = 0 #resets x0 to zero
+
+        for i in notSelf.state['flag'].keys():
+            notSelf.state['flag'][i] = 0
+        notSelf.state['i'] = []
+
+    class RiscVISA(CPUsim.InstructionSetDefault):
+        def __init__(self):
+            self.instructionSet : dict = {
+                #arithmetic (add, add immidiate, subtract, load upper immediate, add upper immediate to PC)
+                "add"   : (lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z1, z2, z3, z4,        des, a, b)),
+                "addi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAdd(z1, z2, z3, z4,        des, a, imm)), #note: no enforcement of imm being an immediate value
+                "sub"   : None,
+                "lui"   : None,
+                "auipc" : None,
+
+                #logical
+                "xor"   : (lambda z1, z2, z3, z4,   des, a, b       : self.opXOR(z1, z2, z3, z4,        des, a, b)),
+                "xori"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opXOR(z1, z2, z3, z4,        des, a, imm)),
+                "or"    : (lambda z1, z2, z3, z4,   des, a, b       : self.opOR(z1, z2, z3, z4,         des, a, b)),
+                "ori"   : (lambda z1, z2, z3, z4,   des, a, imm     : self.opOR(z1, z2, z3, z4,         des, a, imm)),
+                "and"   : (lambda z1, z2, z3, z4,   des, a, b       : self.opAND(z1, z2, z3, z4,        des, a, b)),
+                "andi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAND(z1, z2, z3, z4,        des, a, imm)),
+
+                #branch (equal, not equal, less than, greater or equal, less then unsigned, greater or equal unsigned)
+                "beq"   : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "==", pointer, a, b)), 
+                "bne"   : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "!=", pointer, a, b)), 
+                "blt"   : None, #opJump doesn't handle signed compairisons
+                "bge"   : None,  
+                "bltu"  : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "<", pointer, a, b)), 
+                "bgeu"  : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       ">=", pointer, a, b)), 
+
+                #shifts (shift left, shilf left immediate, shift right, shift right immediate, shift right arithmetic, shift right arithmetic immediate)
+                "sll"   : (lambda z1, z2, z3, z4,   des, a, n       : self.opShiftL(z1, z2, z3, z4,     des, a, n)),
+                "slli"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftL(z1, z2, z3, z4,     des, a, imm)),
+                "srl"   : (lambda z1, z2, z3, z4,   des, a, n       : self.opShiftR(z1, z2, z3, z4,     des, a, n)),
+                "srli"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftR(z1, z2, z3, z4,     des, a, imm)),
+                "sra"   : (lambda z1, z2, z3, z4,   des, a, n       : self.opShiftR(z1, z2, z3, z4,     des, a, n, True)),
+                "srai"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftR(z1, z2, z3, z4,     des, a, imm, True)),
+
+                #compare (set less than, set less than immediate, set less that unsigned, set less that immediate unsigned)
+                "slt"   : None, #signed compairsons for opSetLessThen is not implimented
+                "slti"  : None,
+                "sltu"  : (lambda z1, z2, z3, z4,   des, a, b       : self.opSetLessThan(z1, z2, z3, z4,     des, a, b, False)),
+                "sltiu" : (lambda z1, z2, z3, z4,   des, a, imm     : self.opSetLessThan(z1, z2, z3, z4,     des, a, imm, False)),
+
+                #jump and link
+                "jal"   : None,
+                "jalr"  : None,
+
+                #load
+                "lb"    : None,
+                "lh"    : None,
+                "lw"    : None,
+                "lbu"   : None,
+                "lhu"   : None,
+
+                #store
+                "sb"    : None,
+                "sh"    : None,
+                "sw"    : None
+            }
+
+            '''instructions missing according to riscv-spec-20191213.pdf -> page 90 (108 of 238) -> RV32I Base Integer Instruction Set
+            #Store, these instructions show up in https://metalcode.eu/2019-12-06-rv32i.html, but not in riscv-spec-20191213.pdf
+            "sbu"   - Store byte unsigned
+            "shu"   - Store half unsigned
+
+            #fence
+            "fence"
+            "fence.i"
+
+            "ecall"
+            "ebreak"
+            "csrrw"
+            "csrrs"
+            "csrrc"
+            "csrrwi"
+            "csrrsi"
+            "csrrci"
+            '''
+
+            #for energy and latency, 1 is normalized to 1-ish logic gate-ish
+            #length is unused, but is for the assembler to compute how much memory it takes, 1 is 1 byte (don't know all the edge cases that could break a simple assignment like this)
+            self.stats : dict = {
+                #arithmetic (add, add immidiate, subtract, load upper immediate, add upper immediate to PC)
+                "add"   : {"energy"         : 5 * 32,   "latency"       : 3 * 32,   "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"},
+                "addi"  : {"energy"         : 5 * 32,   "latency"       : 3 * 32,   "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"},
+                "sub"   : {"energy"         : 5 * 32,   "latency"       : 3 * 32,   "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"}, #a guess for energy and latency
+                "lui"   : None,
+                "auipc" : None,
+
+                #logical
+                "xor"   : {"energy"         : 32,       "latency"       : 1,        "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"},
+                "xori"  : {"energy"         : 32,       "latency"       : 1,        "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"},
+                "or"    : {"energy"         : 32,       "latency"       : 1,        "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"},
+                "ori"   : {"energy"         : 32,       "latency"       : 1,        "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"},
+                "and"   : {"energy"         : 32,       "latency"       : 1,        "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"},
+                "andi"  : {"energy"         : 32,       "latency"       : 1,        "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"},
+
+                #branch (equal, not equal, less than, greater or equal, less then unsigned, greater or equal unsigned)
+                "beq"   : None,
+                "bne"   : None,
+                "blt"   : None,
+                "bge"   : None,
+                "bltu"  : None,
+                "bgeu"  : None,
+
+                #shifts (shift left, shilf left immediate, shift right, shift right immediate, shift right arithmetic, shift right arithmetic immediate)
+                "sll"   : None,
+                "slli"  : None,
+                "srl"   : None,
+                "srli"  : None,
+                "sra"   : None,
+                "srai"  : None,
+
+                #compare (set less than, set less than immediate, set less that unsigned, set less that immediate unsigned)
+                "slt"   : None,
+                "slti"  : None,
+                "sltu"  : None,
+                "sltiu" : None,
+
+                #jump and link
+                "jal"   : None,
+                "jalr"  : None,
+
+                #load
+                "lb"    : None,
+                "lh"    : None,
+                "lw"    : None,
+                "lbu"   : None,
+                "lhu"   : None,
+
+                #store
+                "sb"    : None,
+                "sh"    : None,
+                "sw"    : None
+            }
+
+            self.directives : dict = {}
+
+        def opSetLessThan(self, oldState, newState, config, engine, destination, a, b, signed = False):
+            a1, a2 = a
+            b1, b2 = b
+            des1, des2 = destination
+
+            if oldState[a1][a2] < oldState[b1][b2]:
+                newState[des1][des2] = 1
+            else:
+                newState[des1][des2] = 1
+        
+            newState['pc'][0] = oldState['pc'][0] + 1
+
+    class RiscVParser(CPUsim.ParseDefault):
+        
+        def parseCode(self, sourceCode : str) -> "Node":
+            """Takes a string of code, returns a parsed instruction tree"""
+            assert type(sourceCode) is str
+            
+            #tokenizes sourceCode, and turns it into a Node Tree
+            root = self.Node("root")
+            for i in self._tokenize(sourceCode, (lambda x : x.isalnum() or x in "_.")):
+                root.append(self.Node("token", i[0], i[1], i[2]))
+
+            logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
+            logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
+
+            root = self.ruleApplyAlias(root)                                    #<=============================================================
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
+
+            #does operations on the Node Tree, but the depth of the Node Tree remains 2
+            root = self.ruleStringSimple(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
+
+            root = self.ruleFilterLineComments(root, "#")
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
+
+            root = self.ruleRemoveLeadingWhitespace(root, [" ", "\t"])
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveLeadingWhitespace: " + "\n" + str(root))
+
+            root = self.ruleRemoveEmptyLines(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveEmptyLines: " + "\n" + str(root))
+
+            root, self.labels = self.ruleFindLabels(root, self.nameSpace)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root))
+
+            root = self.ruleLabelNamespace(root, self.nameSpace)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleLabelNamespace: " + "\n" + str(root))
+
+            root = self.ruleRemoveToken(root, " ")
+            root = self.ruleRemoveToken(root, "\t")
+            #root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveToken: " + "\n" + str(root))
+
+            root = self.ruleCastInts(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleCastInts: " + "\n" + str(root))
+
+            root = self.ruleCastHex(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleCastHex: " + "\n" + str(root))
+
+            #This is where the Node Tree is allowed to go to depth > 2
+            root = self.ruleContainer(root, {"(":")", "[":"]"})
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
+
+            root = self.ruleContainerTokensFollowingInstruction(root)                               #<=================================================
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleContainerTokensFollowingInstruction: " + "\n" + str(root))
+
+            temp : list = self.ruleSplitLines(root)
+            root = self.Node("root")
+            for i in temp:
+                root.append(i)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
+
+            return root
+
+        def ruleContainerTokensFollowingInstruction(self, root : "Node") -> "Node":
+            pass
+
+
 class DumbALUv1:
     """A prototype implimentation of an ALU for illistratuve purposes
 
