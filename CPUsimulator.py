@@ -1397,12 +1397,16 @@ class CPUsim:
             self.instructionSet : dict = {
                 "nop"   : self.opNop,
                 "add"   : self.opAdd,
-                "and"   : self.opAnd,
+                "and"   : self.opAND,
                 "jumpeq": (lambda z1, z2, z3, z4,   pointer, a, b     : self.opJump(z1, z2, z3, z4,       "==", pointer, a, b)),
                 "jumpne": (lambda z1, z2, z3, z4,   pointer, a, b     : self.opJump(z1, z2, z3, z4,       "!=", pointer, a, b)),
                 "jump"  : (lambda z1, z2, z3, z4,   pointer           : self.opJump(z1, z2, z3, z4,       "goto", pointer)),
-                "shiftl": (lambda z1, z2, z3, z4,   a, b              : self.opShiftL(z1, z2, z3, z4,     a, b, 1)),
-                "shiftr": (lambda z1, z2, z3, z4,   a, b              : self.opShiftR(z1, z2, z3, z4,     a, b, 1)),
+                "shiftl": (lambda z1, z2, z3, z4,   des, a            : self.opShiftL(z1, z2, z3, z4,     des, a, 1)),
+                "shiftr": (lambda z1, z2, z3, z4,   des, a            : self.opShiftR(z1, z2, z3, z4,     des, a, 1)),
+
+                "or"    : self.opOR,
+                "xor"   : self.opXOR,
+
                 "halt"  : self.opHalt
             }
 
@@ -1417,34 +1421,62 @@ class CPUsim:
         def opNop(self, oldState, newState, config, engine):
             newState['pc'][0] = oldState['pc'][0] + 1
 
-        def opAdd(self, oldState, newState, config, engine, a, b, c):
-            """adds registers a and b, stores result in c"""
+        def opAdd(self, oldState, newState, config, engine, des, a, b):
+            """adds registers a and b, stores result in des"""
             a1, a2 = a
             b1, b2 = b
-            c1, c2 = c
+            des1, des2 = des
 
-            newState[c1][c2] = oldState[a1][a2] + oldState[b1][b2]
-            if newState[c1][c2] >= 2**config[c1]['bitlength']:
-                newState['flag']['carry'] = 1
+            newState[des1][des2] = oldState[a1][a2] + oldState[b1][b2]
+
+            if 'carry' in newState['flag']:
+                if newState[des1][des2] >= 2**config[des1]['bitlength']:
+                    newState['flag']['carry'] = 1
             
-            newState[c1][c2] = newState[c1][c2] & (2**config[c1]['bitlength'] - 1)
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1)
 
             newState['pc'][0] = oldState['pc'][0] + 1
             
-        def opAnd(self, oldState, newState, config, engine, a, b, c):
-            """performs operation AND between registers a and b, stores result in c"""
+        def opAND(self, oldState, newState, config, engine, des, a, b):
+            """performs operation AND between registers a and b, stores result in des"""
             a1, a2 = a
             b1, b2 = b
-            c1, c2 = c
+            des1, des2 = des
 
-            newState[c1][c2] = oldState[a1][a2] & oldState[b1][b2] #performs the bitwise and operation
+            newState[des1][des2] = oldState[a1][a2] & oldState[b1][b2] #performs the bitwise and operation
 
-            newState[c1][c2] = newState[c1][c2] & (2**config[c1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+
+            newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
+
+        def opOR(self, oldState, newState, config, engine, des, a, b):
+            """performs operation OR between registers a and b, stores result in des"""
+            a1, a2 = a
+            b1, b2 = b
+            des1, des2 = des
+
+            newState[des1][des2] = oldState[a1][a2] | oldState[b1][b2] #performs the bitwise and operation
+
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+
+            newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
+
+        def opXOR(self, oldState, newState, config, engine, des, a, b):
+            """performs operation XOR between registers a and b, stores result in des"""
+            a1, a2 = a
+            b1, b2 = b
+            des1, des2 = des
+
+            newState[des1][des2] = oldState[a1][a2] ^ oldState[b1][b2] #performs the bitwise and operation
+
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
         def opJump(self, oldState, newState, config, engine, mode : str, gotoIndex, a = None, b = None):
             """Conditional jump to gotoIndex, conditional on mode, and optional registers a and b
+
+            #TODO needs to handle signed and unsigned ints
 
             mode:
                 goto    - a simple jump without any condition testing, a and b must be set to None
@@ -1478,33 +1510,33 @@ class CPUsim:
                 else:
                     newState['pc'][0] = oldState['pc'][0] + 1
 
-        def opShiftL(self, oldState, newState, config, engine, a, b, c = 1):
-            """Takes register a, shifts it left by c (key index pair, or int) bits. Stores result in b"""
+        def opShiftL(self, oldState, newState, config, engine, des, a, n = 1):
+            """Takes register a, shifts it left by n (key index pair, or int) bits. Stores result in des"""
             a1, a2 = a
-            b1, b2 = b
+            des1, des2 = des
 
-            if type(c) is int:
-                amount = c
-            elif type(c) is tuple:
-                amount = oldState[c[0]][c[1]]
+            if type(n) is int:
+                amount = n
+            elif type(n) is tuple:
+                amount = oldState[n[0]][n[1]]
 
-            newState[b1][b2] = oldState[a1][a2] << amount
+            newState[des1][des2] = oldState[a1][a2] << amount
 
-            newState[b1][b2] = newState[b1][b2] & (2**config[b1]['bitlength'] - 1)
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1)
 
             newState['pc'][0] = oldState['pc'][0] + 1
 
-        def opShiftR(self, oldState, newState, config, engine, a, b, c = 1):
-            """Takes register a, shifts it right by c (key index pair, or int) bits. Stores result in b
+        def opShiftR(self, oldState, newState, config, engine, des, a, n = 1, arithmetic = False):
+            """Takes register a, shifts it right by n (key index pair, or int) bits. Stores result in des
             
-            #TODO handle a twos compliment left shift"""
+            #TODO test arithmetic shiftt"""
             a1, a2 = a
-            b1, b2 = b
+            des1, des2 = des
 
-            if type(c) is int:
-                amount = c
-            elif type(c) is tuple:
-                amount = oldState[c[0]][c[1]]
+            if type(n) is int:
+                amount = n
+            elif type(n) is tuple:
+                amount = oldState[n[0]][n[1]]
 
             result = oldState[a1][a2]
             for i in range(amount):
@@ -1515,12 +1547,12 @@ class CPUsim:
                 result = result >> 1
                 result = result | t1
 
-            result = result & (2**config[b1]['bitlength'] - 1)
+            result = result & (2**config[des1]['bitlength'] - 1)
 
             #newState[b1][b2] = oldState[a1][a2] >> amount
             #newState[b1][b2] = newState[b1][b2] & (2**config[b1]['bitlength'] - 1)
 
-            newState[b1][b2] = result
+            newState[des1][des2] = result
             newState['pc'][0] = oldState['pc'][0] + 1
 
         def opHalt(self, oldState, newState, config, engine):
