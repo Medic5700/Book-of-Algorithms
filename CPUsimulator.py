@@ -349,16 +349,6 @@ class CPUsim:
 
         return self.state[t1][t2]
 
-    def decode(self, code: str): #TODO MVP
-        """NotImplimented
-        takes in a string of assembly instructions, and compiles/loads it into memory"""
-        pass
-
-    def run(self, cycleLimit=None): #TODO MVP
-        """NotImplimented
-        starts execution of instructions"""
-        pass
-
     #==================================================================================================================
 
     class DisplaySimpleAndClean:
@@ -1311,6 +1301,42 @@ class CPUsim:
 
     #==================================================================================================================
 
+    def decode(self, code: str): #TODO MVP
+        """NotImplimented
+        takes in a string of assembly instructions, and compiles/loads it into memory"""
+        pass
+
+    def run(self, cycleLimit=None): #TODO MVP
+        """NotImplimented
+        starts execution of instructions"""
+
+        '''
+            do a depth first search on the execution tree
+            apply 'rule functions' based on what the token is
+            recursivly evaluate
+            pop and append to a stack
+        '''
+        pass
+
+    class compileDefault:
+
+        def __init__(self, instructionset, directives):
+            pass
+
+        def compile(self, oldState, config, executionTree):
+            #assumes the instruction array is register array "m"
+            newState = copy.deepcopy(oldState)
+            instructionArray = [None for i in range(len(oldState["m"]))]
+
+            for i in executionTree.child:
+                instructionArray.append(i.copyDeep())
+
+            
+
+            return instructionArray, copy.deepcopy(newState["m"])
+            
+    #==================================================================================================================
+
     def lazy(self, code : str): #TODO MVP
         """NotImplimented
         decodes and executes a single instruction line"""
@@ -1333,78 +1359,6 @@ class CPUsim:
         pass
 
     #==================================================================================================================
-    '''
-    def _testNop(self):
-        
-        self.state['pc'][0] = self.lastState['pc'][0] + 1
-
-        return
-    _testNop.type = 'test' #the instruction type, CISC, RISC, VLIW
-    #_testNop.inputs = 0 #the number of acceptable input args
-    #_testNop.outputs = 0 #the number of acceptable output args
-    #_testNop.executionUnit = [] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
-    #_testNop.energyCost = lambda x : 0
-    #_testNop.propagationDelay = lambda x : 0
-    _testNop.bitLengthOK = lambda x: True #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
-
-    def _testAdd(self, a, b, c):
-        #argsParsed = self._parseArguments(args)
-        a1, a2 = a
-        b1, b2 = b
-        c1, c2 = c
-
-        self.state[c1][c2] = self.lastState[a1][a2] + self.lastState[b1][b2]
-        if self.state[c1][c2] >= 2**self.config[c1]['bitlength']:
-            self.state['flag']['carry'] = 1
-            
-        self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1]['bitlength'] - 1)
-
-        self.state['pc'][0] = self.lastState['pc'][0] + 1
-
-        return
-    # https://www.servethehome.com/intel-xeon-scalable-processor-family-microarchitecture-overview/
-    _testAdd.type = 'test' #the instruction type, CISC, RISC, VLIW
-    #_testAdd.inputs = 2 #the number of acceptable input args
-    #_testAdd.executionUnit = ['integer'] #the execution unit this instruction would be mapped to (IE: add, integer, multiply, floiting point, memory management, etc)
-    #_testAdd.energyCost = lambda x : x #IE: the bitlength multiplied by how complex the operation is
-    #_testAdd.propagationDelay = lambda x : x #IE: the distance a bit change can propograte
-    _testAdd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength (IE: a 64-bit floating point operation needs registers that are 64-bits)
-
-    def _testAnd(self, a : 'tuple[str, int]', b : 'tuple[str, int]', c : 'tuple[str, int]') -> 'tuple[list, list]':  #a different instruction with a different backend, to test out different styles
-        #self._parseArguments(args) is done by the calling function, the arguments for this function are tuples
-
-        #arguments are (str, int) pairs, representing the memory type and index
-        a1, a2 = a
-        b1, b2 = b
-        c1, c2 = c
-
-        #a check that the registers that are being accessed are of a compatible bitlength
-        assert self.config[a1]['bitlength'] > 0
-        assert self.config[b1]['bitlength'] > 0
-        assert self.config[c1]['bitlength'] > 0
-
-        self.state[c1][c2] = self.lastState[a1][a2] & self.lastState[b1][b2] #performs the bitwise and operation
-
-        self.state[c1][c2] = self.state[c1][c2] & (2**self.config[c1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
-
-        self.state['pc'][0] = self.lastState['pc'][0] + 1 #incriments the program counter
-
-        return
-    _testAnd.type : str = 'test' #what type of function/instruction is it ('test', 'risc', 'cisc', 'directive')
-    #_testAnd.executionUnit : 'list[str]' = ['logic'] #what execution unit this instruction corrisponds to ('integer, multiply, floiting point, memory management')
-    #_testAnd.energyCost = lambda x : 1
-    #_testAnd.propagationDelay = lambda x : 1
-    _testAnd.bitLengthOK = lambda x : x > 0 #a function that takes in a bitLength and returns True if the function can handle that bitlength, used at modual initialization 
-        #(IE: a 64-bit floating point operation needs registers that are 64-bits)
-    #function should perform own check on inputs and output registers to determin if individual registers are compatible with the operation at run time
-    
-    def _directiveInt(self, *args): #(self, memory pointer, value)
-        pass
-    _directiveInt.type = 'directive'
-    #_directiveInt.inputs = 2
-    #_directiveInt.outputs = 0
-    _directiveInt.bitLengthOK = lambda x : x > 0
-    '''
 
     class InstructionSetDefault:
         """A non-functional mockup of what an instructionset definition could look like
@@ -1437,6 +1391,12 @@ class CPUsim:
         def redirect(self, redirection : str, register : str, index : "str/int") -> (str, int):
             """Takes in redirection as a pointer to the memory array to access, and a register index pair. Returns a key index pair corrispoding to redirection as key, index as value stored in register[index]"""
             return (redirection, register[index])
+
+        def enforceImm(self, registerTuple : (str, int)) -> (str, int):
+            """Takes in a register key index pair. Returns a register key index pair iff key is 'i' for immediate. Raises an Exception otherwise"""
+            if registerTuple[0] != "i":
+                raise Exception
+            return registerTuple
 
         def opNop(self, oldState, newState, config, engine):
             newState['pc'][0] = oldState['pc'][0] + 1
