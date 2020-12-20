@@ -177,9 +177,11 @@ class CPUsim:
         #self.configSetParser
         self.userPraser : __class__ = None
         self._parseCode : "function" = lambda x : None
-        self._updateNameSpace : "function" = lambda x : None
+        self._updateNameSpace : "function" = lambda x, y : None
         #self.configSetPostCycleFunction
         self.userPostCycle : "function" = lambda x : None
+        #self.configAddAlias
+        self._tokenAlias : dict = {}
 
         self._namespace : dict = {}
 
@@ -224,8 +226,14 @@ class CPUsim:
             names[str(i)] = self.state[i]
         names.update(self._instructionSet)
         names.update(self._directives)
+        names.update(self._tokenAlias)
         self._namespace = names
-        self._updateNameSpace(names)
+        self._updateNameSpace(names, self._tokenAlias)
+
+    def configAddAlias(self, token : str, replacement : str):
+        self._tokenAlias[token] = replacement
+        
+        self._computeNamespace()
 
     def configSetDisplay(self, displayInstance):
         """Takes in an display class
@@ -273,6 +281,8 @@ class CPUsim:
         self.userParser = parserInstance
         self._parseCode = parserInstance.parseCode
         self._updateNameSpace = parserInstance.updateNameSpace
+
+        self._computeNamespace()
 
     def configSetPostCycleFunction(self, postCycle : "function"):
         """Takes in a function that is executed after every execution cycle
@@ -481,13 +491,16 @@ class CPUsim:
             assert type(nameSpace) is dict
 
             self.nameSpace : dict = nameSpace
+            self.alias : dict = {}
             self.labels : dict = None
 
-        def updateNameSpace(self, nameSpace : dict):
+        def updateNameSpace(self, nameSpace : dict, alias : dict):
             """Takes in nameSpace a dictionary whose keys represent the CPU flags, registers, instructions, etc"""
             assert type(nameSpace) is dict
+            assert type(alias) is dict
 
             self.nameSpace = nameSpace
+            self.alias = alias
 
         class Node:
             """A data class for storing information in a tree like structure. 
@@ -723,7 +736,8 @@ class CPUsim:
         def _tokenize(self, code : str) -> [(str, int, int), ... ] :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). 
             
-            No characters are filtered out"""
+            No characters are filtered out
+            #TODO allow _isName function to be taken as an arguement, for better modularity"""
             assert type(code) is str
 
             #done like this to easily add extra characters
@@ -1055,9 +1069,6 @@ class CPUsim:
 
             return root
 
-        def _applyRuleFilterBlockComments(self, tree : Node, character : str = "#") -> Node:
-            pass
-
         def ruleContainer(self, tree : Node, containers : dict = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> Node:
             """Takes in a Node Tree, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers. Returns a node tree
 
@@ -1234,6 +1245,15 @@ class CPUsim:
                 result.append(current)
 
             return result
+
+        def ruleApplyAlias(self, tree : Node, alias : dict) -> Node:
+            pass
+
+        def ruleFilterBlockComments(self, tree : Node, character : str = "#") -> Node:
+            pass
+
+        def ruleFindDirectives(self, tree : Node, directives : dict) -> Node:
+            pass
 
         def parseCode(self, sourceCode : str) -> Node:
             """Takes a string of code, returns a parsed instruction tree"""
@@ -1596,39 +1616,39 @@ class RiscV:
         
         #not implimented: after tokenization, should replace the token arg1 with (arg2 tokonized again). NOT A STRING FIND AND REPLACE
         #configAddAlias() should be for simple token replacement AND NOTHING MORE
-        CPU.configAddAlias("zero", "x[0]") #always zero
-        CPU.configAddAlias("ra", "x[1]") #call return address
-        CPU.configAddAlias("sp", "x[2]") #stack pointer
-        CPU.configAddAlias("gp", "x[3]") #global pointer
-        CPU.configAddAlias("tp", "x[4]") #thread pointer
-        CPU.configAddAlias("t0", "x[5]") #temporary registers
-        CPU.configAddAlias("t1", "x[6]")
-        CPU.configAddAlias("t2", "x[7]")
-        CPU.configAddAlias("s0", "x[8]") #saved registers
-        CPU.configAddAlias("fp", "x[8]") #note the two different mappings
-        CPU.configAddAlias("s1", "x[9]")
-        CPU.configAddAlias("a0", "x[10]") #function arguments
-        CPU.configAddAlias("a1", "x[11]")
-        CPU.configAddAlias("a2", "x[12]")
-        CPU.configAddAlias("a3", "x[13]")
-        CPU.configAddAlias("a4", "x[14]")
-        CPU.configAddAlias("a5", "x[15]")
-        CPU.configAddAlias("a6", "x[16]")
-        CPU.configAddAlias("a7", "x[17]")
-        CPU.configAddAlias("s2", "x[18]")
-        CPU.configAddAlias("s3", "x[19]")
-        CPU.configAddAlias("s4", "x[20]")
-        CPU.configAddAlias("s5", "x[21]")
-        CPU.configAddAlias("s6", "x[22]")
-        CPU.configAddAlias("s7", "x[23]")
-        CPU.configAddAlias("s8", "x[24]")
-        CPU.configAddAlias("s9", "x[25]")
-        CPU.configAddAlias("s10", "x[26]")
-        CPU.configAddAlias("s11", "x[27]")
-        CPU.configAddAlias("t3", "x[28]")
-        CPU.configAddAlias("t4", "x[29]")
-        CPU.configAddAlias("t5", "x[30]")
-        CPU.configAddAlias("t6", "x[31]")
+        CPU.configAddAlias("zero",  "x[00]") #always zero
+        CPU.configAddAlias("ra",    "x[01]") #call return address
+        CPU.configAddAlias("sp",    "x[02]") #stack pointer
+        CPU.configAddAlias("gp",    "x[03]") #global pointer
+        CPU.configAddAlias("tp",    "x[04]") #thread pointer
+        CPU.configAddAlias("t0",    "x[05]") #t0-t6 temporary registers
+        CPU.configAddAlias("t1",    "x[06]")
+        CPU.configAddAlias("t2",    "x[07]")
+        CPU.configAddAlias("s0",    "x[08]") #s0-s11 saved registers
+        CPU.configAddAlias("fp",    "x[08]") #note the two different mappings for x[08] = fp = s0
+        CPU.configAddAlias("s1",    "x[09]")
+        CPU.configAddAlias("a0",    "x[10]") #a0-a7 function arguments
+        CPU.configAddAlias("a1",    "x[11]")
+        CPU.configAddAlias("a2",    "x[12]")
+        CPU.configAddAlias("a3",    "x[13]")
+        CPU.configAddAlias("a4",    "x[14]")
+        CPU.configAddAlias("a5",    "x[15]")
+        CPU.configAddAlias("a6",    "x[16]")
+        CPU.configAddAlias("a7",    "x[17]")
+        CPU.configAddAlias("s2",    "x[18]")
+        CPU.configAddAlias("s3",    "x[19]")
+        CPU.configAddAlias("s4",    "x[20]")
+        CPU.configAddAlias("s5",    "x[21]")
+        CPU.configAddAlias("s6",    "x[22]")
+        CPU.configAddAlias("s7",    "x[23]")
+        CPU.configAddAlias("s8",    "x[24]")
+        CPU.configAddAlias("s9",    "x[25]")
+        CPU.configAddAlias("s10",   "x[26]")
+        CPU.configAddAlias("s11",   "x[27]")
+        CPU.configAddAlias("t3",    "x[28]")
+        CPU.configAddAlias("t4",    "x[29]")
+        CPU.configAddAlias("t5",    "x[30]")
+        CPU.configAddAlias("t6",    "x[31]")
 
         CPU.configSetPostCycleFunction(self.postCycle)
         CPU.configSetInstructionSet(self.RiscVISA())
@@ -1649,19 +1669,19 @@ class RiscV:
         def __init__(self):
             self.instructionSet : dict = {
                 #arithmetic (add, add immidiate, subtract, load upper immediate, add upper immediate to PC)
-                "add"   : (lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z1, z2, z3, z4,        des, a, b)),
-                "addi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAdd(z1, z2, z3, z4,        des, a, imm)), #note: no enforcement of imm being an immediate value
+                "add"   : self.opAdd, #(lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z1, z2, z3, z4,        des, a, b)),
+                "addi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAdd(z1, z2, z3, z4,        des, a, self.enforceImm(imm))), #note: no enforcement of imm being an immediate value
                 "sub"   : None,
                 "lui"   : None,
                 "auipc" : None,
 
                 #logical
-                "xor"   : (lambda z1, z2, z3, z4,   des, a, b       : self.opXOR(z1, z2, z3, z4,        des, a, b)),
-                "xori"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opXOR(z1, z2, z3, z4,        des, a, imm)),
-                "or"    : (lambda z1, z2, z3, z4,   des, a, b       : self.opOR(z1, z2, z3, z4,         des, a, b)),
-                "ori"   : (lambda z1, z2, z3, z4,   des, a, imm     : self.opOR(z1, z2, z3, z4,         des, a, imm)),
-                "and"   : (lambda z1, z2, z3, z4,   des, a, b       : self.opAND(z1, z2, z3, z4,        des, a, b)),
-                "andi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAND(z1, z2, z3, z4,        des, a, imm)),
+                "xor"   : self.opXOR, #(lambda z1, z2, z3, z4,   des, a, b       : self.opXOR(z1, z2, z3, z4,        des, a, b)),
+                "xori"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opXOR(z1, z2, z3, z4,        des, a, self.enforceImm(imm))),
+                "or"    : self.opOR, #(lambda z1, z2, z3, z4,   des, a, b       : self.opOR(z1, z2, z3, z4,         des, a, b)),
+                "ori"   : (lambda z1, z2, z3, z4,   des, a, imm     : self.opOR(z1, z2, z3, z4,         des, a, self.enforceImm(imm))),
+                "and"   : self.opAND, #(lambda z1, z2, z3, z4,   des, a, b       : self.opAND(z1, z2, z3, z4,        des, a, b)),
+                "andi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAND(z1, z2, z3, z4,        des, a, self.enforceImm(imm))),
 
                 #branch (equal, not equal, less than, greater or equal, less then unsigned, greater or equal unsigned)
                 "beq"   : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "==", pointer, a, b)), 
@@ -1672,18 +1692,18 @@ class RiscV:
                 "bgeu"  : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       ">=", pointer, a, b)), 
 
                 #shifts (shift left, shilf left immediate, shift right, shift right immediate, shift right arithmetic, shift right arithmetic immediate)
-                "sll"   : (lambda z1, z2, z3, z4,   des, a, n       : self.opShiftL(z1, z2, z3, z4,     des, a, n)),
-                "slli"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftL(z1, z2, z3, z4,     des, a, imm)),
-                "srl"   : (lambda z1, z2, z3, z4,   des, a, n       : self.opShiftR(z1, z2, z3, z4,     des, a, n)),
-                "srli"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftR(z1, z2, z3, z4,     des, a, imm)),
+                "sll"   : self.opShiftL, #(lambda z1, z2, z3, z4,   des, a, n       : self.opShiftL(z1, z2, z3, z4,     des, a, n)),
+                "slli"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftL(z1, z2, z3, z4,     des, a, self.enforceImm(imm))),
+                "srl"   : self.opShiftR, #(lambda z1, z2, z3, z4,   des, a, n       : self.opShiftR(z1, z2, z3, z4,     des, a, n)),
+                "srli"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftR(z1, z2, z3, z4,     des, a, self.enforceImm(imm))),
                 "sra"   : (lambda z1, z2, z3, z4,   des, a, n       : self.opShiftR(z1, z2, z3, z4,     des, a, n, True)),
-                "srai"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftR(z1, z2, z3, z4,     des, a, imm, True)),
+                "srai"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftR(z1, z2, z3, z4,     des, a, self.enforceImm(imm), True)),
 
                 #compare (set less than, set less than immediate, set less that unsigned, set less that immediate unsigned)
                 "slt"   : None, #signed compairsons for opSetLessThen is not implimented
                 "slti"  : None,
                 "sltu"  : (lambda z1, z2, z3, z4,   des, a, b       : self.opSetLessThan(z1, z2, z3, z4,     des, a, b, False)),
-                "sltiu" : (lambda z1, z2, z3, z4,   des, a, imm     : self.opSetLessThan(z1, z2, z3, z4,     des, a, imm, False)),
+                "sltiu" : (lambda z1, z2, z3, z4,   des, a, imm     : self.opSetLessThan(z1, z2, z3, z4,     des, a, self.enforceImm(imm), False)),
 
                 #jump and link
                 "jal"   : None,
@@ -1721,7 +1741,7 @@ class RiscV:
             "csrrci"
             '''
 
-            #for energy and latency, 1 is normalized to 1-ish logic gate-ish
+            #for energy and latency, 1 is normalized to 1-ish logic gates-ish
             #length is unused, but is for the assembler to compute how much memory it takes, 1 is 1 byte (don't know all the edge cases that could break a simple assignment like this)
             self.stats : dict = {
                 #arithmetic (add, add immidiate, subtract, load upper immediate, add upper immediate to PC)
@@ -1800,7 +1820,7 @@ class RiscV:
             
             #tokenizes sourceCode, and turns it into a Node Tree
             root = self.Node("root")
-            for i in self._tokenize(sourceCode, (lambda x : x.isalnum() or x in "_.")):
+            for i in self._tokenize(sourceCode):
                 root.append(self.Node("token", i[0], i[1], i[2]))
 
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
