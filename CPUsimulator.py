@@ -17,7 +17,7 @@ version = sys.version_info
 assert version[0] == 3 and version[1] >= 8 #asserts python version 3.8 or greater
 
 import copy #copy.deepcopy() required because state['flag'] contains a dictionary which needs to be copied
-#import re #Regex, used in CPUsimualtorV2._translateArgument()
+import functools #used for partial functions when executioning 'instruction operations'
 
 #debugging and logging stuff
 import logging
@@ -62,9 +62,8 @@ class CPUsim:
 
     Issues/TODO:
         Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
-        Instruction functions should be in their own class, for better modularity
-            How exacly should a 'halt' instruction be implimented? Should all instructions be given access to engine information?
-            configSetInstructionSet() should autofill stats datastructer for any unfilled in data. (but should also show a warning)
+        How exacly should a 'halt' instruction be implimented? Should all instructions be given access to engine information?
+        configSetInstructionSet() should autofill stats datastructer for any unfilled in data. (but should also show a warning)
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
         Data to keep track of:
@@ -85,8 +84,12 @@ class CPUsim:
             needs a rule to label containers as function arguments, array indices, other?
             Parser currently assumes all source code to process is perfect with no errors/typos, and thus is super fragile
             Parser 'rules' need more functionality for each function, to make it more modular
-            All 'rules' need a documentation overhaul
             Impliment Parsing exception
+            Memory aliasing into namespace (IE: letting R[0] be refered to by an alias 'z0' instead of 'r[0]')
+        System Calls
+            HALT uses self.engine["run"] as a flag for running, or stopping the simulation... there has to be a better more generic way to handle system calls
+
+        Compiler/Parser does not pick up on labels if it's in the first line/first instruction line of code?
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -110,7 +113,7 @@ class CPUsim:
             four times the L3 cache (16MB to 64MB), eight extra clock cycle access time
             AMD 64-bit int division, 19-ish cycles (down from like 90-120 cyles years ago)
 
-    Out of scope (for this itteration):
+    Out of scope (for this itteration): #it's sometimes helpful to know what not to do
         caching
         multi-threading
         instruction schedualer
@@ -127,13 +130,11 @@ class CPUsim:
         parsing
             math operorators
             indentation
-            escape characters
             allowing accessing individual bytes in a register, IE: copy the lower 8 bits of a 64-bit register
         Reverse dirty bit for register file to impliment out of order super scaler execution
             IE: an instruction is run on dummy data at runtime to see what registers are accessed, and marked dirty.
             Allowing multiple instructions to be queeued up without implimenting a complex dependency graph (a short cut)
-        _baked
-            allow instructions to override instruction annotations during runtime execution
+        ? allow instructions to override instruction annotations during runtime execution
             IE: an instruction uses a variable amount of energy dependent on the data processed. It can report the energy used during its execution
         Support for self-modifying code
         Custom register/memory objects (instead of simple arrays) for tracking access (reads/writes) + transational history + additional stats and stat tracking
@@ -141,7 +142,6 @@ class CPUsim:
             will need a simple address pointer lookup function to simulate a redirect at the instruction composting stage
                 IE: add(m[r[0]], r[1], r[4]) needs to be allowed
             can merge self.lastState and self.state into single state?
-        Memory aliasing into namespace (IE: letting R[0] be refered to by an alias 'z0' instead of 'r[0]')
         Microcode. The execution engine just isn't built out enough yet to consider this yet
             Microcode could run as a recursive CPU call, elimating the need for complex tracking of register windows, since it's run in a 'custom cpu construct' made for that instruction
             Microcode could be implimented at the instruction set composition level instead
@@ -160,6 +160,11 @@ class CPUsim:
         self.config : dict = {}
         self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
         self.engine : dict = {} #FUTURE used to keep track of CPU engine information?, should it be merged with self.stats?
+
+        self.engine["run"] = False #TODO this is a dumb shortcut until I figure out a better way
+
+        self.engine["labels"] : "{str : int}" = None
+        self.engine["instructionArray"] : ["Nodes", ...] = None
 
         '''a bunch of variables that are required for proper functioning, but are reqired to be configured by config functions
         defined here for a full listing of all these variables
@@ -669,7 +674,7 @@ class CPUsim:
                     line += "    "
                 line += repr(self.token)
                 line = line.ljust(40, " ")
-                line += ":" + str(self.type).capitalize().ljust(8)
+                line += "\t:" + str(self.type).capitalize().ljust(8)
                 line += "\t" + str(depth)
 
                 line += "\t" + "lineNum=" + str(self.lineNum) + "\t" + "charNum=" + str(self.charNum)
@@ -1355,7 +1360,7 @@ class CPUsim:
 
     def _postCycleEngine(self):
         """NotImplimented
-        runs at the end of each execution cycle, meant to handle engine level stuff"""
+        runs at the end of each execution cycle, meant to handle engine level stuff. Should also run checks to verify the integrity of self.state"""
         pass
 
     #==================================================================================================================
@@ -2319,7 +2324,7 @@ def multiply2(a, b, bitlength=8):
                         nop
                 loop:   jumpEQ  (r[0], 0, end)
                             and     (r[0], 1, r[1])
-                            jumpNEQ (r[1], 1, zero)
+                            jumpNE (r[1], 1, zero)
                                 add     (t[0], t[1], t[1])
                 zero:       shiftL  (t[0], 1, t[0])
                             shiftR  (r[0], 1, r[0])
@@ -2352,7 +2357,7 @@ def multiply2(a, b, bitlength=8):
 if __name__ == "__main__":
     #set up debugging
     logging.basicConfig(level = logging.INFO)
-    debugHighlight = lambda x : 750 <= x <= 800
+    debugHighlight = lambda x : 1350 <= x <= 1500
 
     #print(multiply1(3,4)) #old working prototype
     
@@ -2363,7 +2368,7 @@ if __name__ == "__main__":
     print("".rjust(80, "="))
 
     CPU.configAddRegister('r', 2, 16)
-    CPU.configAddRegister('m', 4, 8)
+    CPU.configAddRegister('m', 16, 8)
     CPU.configAddRegister('t', 2, 16)
     CPU.configAddFlag("random")
     CPU.inject('r', 1, 1)
@@ -2375,7 +2380,7 @@ if __name__ == "__main__":
                         nop
                 loop:   jumpEQ  (r[0], 0, end)
                             and     (r[0], 1, r[1])
-                            jumpNEQ (r[1], 1, zero)
+                            jumpNE  (r[1], 1, zero)
                                 add     (t[0], t[1], t[1])
                 zero:       shiftL  (t[0], 1, t[0])
                             shiftR  (r[0], 1, r[0])
