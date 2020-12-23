@@ -2321,12 +2321,12 @@ def multiply2(a, b, bitlength=8):
 
     ALU.decode('''
                         nop
-                loop:   jumpEQ  (r[0], 0, end)
-                            and     (r[0], 1, r[1])
-                            jumpNE (r[1], 1, zero)
-                                add     (t[0], t[1], t[1])
-                zero:       shiftL  (t[0], 1, t[0])
-                            shiftR  (r[0], 1, r[0])
+                loop:   jumpEQ  (end, r[0], 0)
+                            and     (r[1], r[0], 1)
+                            jumpNE  (zero, r[1], 1)
+                                add     (t[1], t[0], t[1])
+                zero:       shiftL  (t[0], t[0])
+                            shiftR  (r[0], r[0])
                             jump    (loop)
                 end:    halt
                 ''')
@@ -2370,24 +2370,50 @@ if __name__ == "__main__":
     CPU.configAddRegister('m', 16, 8)
     CPU.configAddRegister('t', 2, 16)
     CPU.configAddFlag("random")
-    CPU.inject('r', 1, 1)
-    CPU.inject('m', 2, 8)
+    CPU.inject('r', 0, 8)
+    CPU.inject('t', 0, 8)
     CPU.inject('flag', 'carry', 1)
     print("".rjust(80, "="))
 
     root = CPU._parseCode('''
                         nop
-                loop:   jumpEQ  (r[0], 0, end)
-                            and     (r[0], 1, r[1])
-                            jumpNE  (r[1], 1, zero)
-                                add     (t[0], t[1], t[1])
-                zero:       shiftL  (t[0], 1, t[0])
-                            shiftR  (r[0], 1, r[0])
+                loop:   jumpEQ  (end, r[0], 0)
+                            and     (r[1], r[0], 1)
+                            jumpNE  (zero, r[1], 1)
+                                add     (t[1], t[0], t[1])
+                zero:       shiftL  (t[0], t[0])
+                            shiftR  (r[0], r[0])
                             jump    (loop)
                 end:    halt
                 ''')
     print(root)
     print("".rjust(80, "="))
+
+    
+    CPU.decode('''
+                        nop
+                loop:   jumpEQ  (end, r[0], 0)
+                            and     (r[1], r[0], 1)
+                            jumpNE  (zero, r[1], 1)
+                                add     (t[1], t[0], t[1])
+                zero:       shiftL  (t[0], t[0])
+                            shiftR  (r[0], r[0])
+                            jump    (loop)
+                end:    halt
+                ''')
+    """
+    CPU.decode('''
+                start:  add(r[0], 1, 0)
+                loop:   add(r[0], r[0], r[0])
+                        jump(loop)
+    
+    ''') """
+    print("".rjust(80, "="))
+    print(CPU.engine["labels"])
+    print(CPU._namespace.keys())
+
+    print("".rjust(80, "="))
+    CPU.run()
 
     ''' #testing/implementing
     #CPU.lazy('nop #test test test') #comments get ignored
