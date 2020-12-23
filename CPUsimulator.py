@@ -165,6 +165,9 @@ class CPUsim:
 
         self.engine["labels"] : "{str : int}" = None
         self.engine["instructionArray"] : ["Nodes", ...] = None
+        self.engine["sourceCode"] : str = None
+        self.engine["sourceCodeLineNumber"] : int = None
+        self.engine["cycle"] : int = 0
 
         '''a bunch of variables that are required for proper functioning, but are reqired to be configured by config functions
         defined here for a full listing of all these variables
@@ -373,6 +376,7 @@ class CPUsim:
 
             self.textRed = "\u001b[31m" #forground red, meant for register writes
             self.textTeal = "\u001b[96m" #forground teal, meant for register reads
+            self.textGrey = "\u001b[90m" #forground grey
             self.ANSIend = "\u001b[0m" #resets ANSI colours
 
         def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
@@ -382,7 +386,15 @@ class CPUsim:
             highlight : str = ""
 
             lineOp : str = "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "\t"
-            lineOp += "Instruction #TODO" #TODO
+
+            if engine["sourceCode"] != None and engine["sourceCodeLineNumber"] != None:
+                sourceCode = engine["sourceCode"].split("\n")
+                lineOp += "[line " + str(engine["sourceCodeLineNumber"]).rjust(4, "0") + "]" + "\t"
+                lineOp += sourceCode[engine["sourceCodeLineNumber"]].lstrip()
+            else:
+                lineOp += "No Instruction Found" #TODO
+            lineOp = lineOp.ljust(68, " ")
+            lineOp += "[Cycle " + str(engine["cycle"]).rjust(4, "0") + "]"
             lineOp += "\n"
 
             lineRequired : str = ""
@@ -419,7 +431,14 @@ class CPUsim:
 
             for i in keys:
                 for j in range(len(oldState[i])):
-                    highlight = self.textRed if (oldState[i][j] != newState[i][j]) else ""
+                    highlight = ""
+
+                    ''' #this highlights the registers containing instructions with grey, but doesn't make the display more readable... should be used for another display class
+                    if engine["instructionArray"] != None and i == "m":
+                        highlight = self.textGrey if not (engine["instructionArray"][j] is None) else ""
+                    highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
+                    '''
+
                     lineRegisters += "\t" + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
                         + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + "]" \
                         + "\t" \
