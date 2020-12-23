@@ -1241,6 +1241,48 @@ class CPUsim:
 
             return result
 
+        def ruleNestContainersIntoInstructions(self, tree : Node, nameSpace : dict, recurse : bool = True) -> Node:
+            """Takes in a Node Tree, and a nameSpace dict represeting instructions, registers, etc. 
+            If a container node follows a nameSpace node, make container node a child of the nameSpace node.
+            Returns a Node Tree
+
+            Recurses by default"""
+            assert type(tree) is self.Node
+            assert type(nameSpace) is dict
+            
+            root : self.Node = tree.copyInfo()
+
+            for i in tree.child:
+                if i.type == "container":  
+                    if recurse:
+                        temp = self.ruleNestContainersIntoInstructions(i.copyDeep(), nameSpace, True)
+                    else:
+                        temp = i
+
+                    if type(i.nodePrevious) is self.Node: #IE: the node exists
+                        if i.nodePrevious.token in nameSpace:
+                            root.child[-1].append(temp.copyDeep())
+                        else:
+                            root.append(temp.copyDeep())
+                else:
+                    root.append(i.copyDeep())
+
+            return root
+
+        def ruleLowerCase(self, tree : Node) -> Node:
+            """Takes in a Node Tree. Sets all tokens in the Node Tree's children as lower case. Returns a Node Tree.
+
+            Does not recurse"""
+            assert type(tree) is self.Node
+
+            root : self.Node = tree.copyInfo()
+            for i in tree.child:
+                temp = i.copyDeep()
+                if type(temp.token) is str:
+                    temp.token = temp.token.lower()
+                root.append(temp)
+            return root
+
         def ruleApplyAlias(self, tree : Node, alias : dict) -> Node:
             pass
 
@@ -1269,6 +1311,9 @@ class CPUsim:
             root = self.ruleFilterLineComments(root, "#")
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
 
+            root = self.ruleLowerCase(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root)) #<============================
+
             root = self.ruleRemoveLeadingWhitespace(root, [" ", "\t"])
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveLeadingWhitespace: " + "\n" + str(root))
 
@@ -1295,6 +1340,9 @@ class CPUsim:
             #This is where the Node Tree is allowed to go to depth > 2
             root = self.ruleContainer(root, {"(":")", "[":"]"})
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
+
+            root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root)) #<=============
 
             temp : list = self.ruleSplitLines(root)
             root = self.Node("root")
