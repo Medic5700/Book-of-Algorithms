@@ -1391,17 +1391,46 @@ class CPUsim:
         pass
 
     class compileDefault:
+        """a working prototype, provides functions that take in an execution tree, and return a programs instruction list, memory array, etc"""
 
-        def __init__(self, instructionset, directives):
-            pass
+        def __init__(self, instructionSet, directives):
+            self.instructionSet = instructionSet
+            self.directives = directives
 
-        def compile(self, oldState, config, executionTree):
+        def compile(self, oldState, config, executionTree : "Node") -> (["Node", ...], [int, ...], {str : int}):
             #assumes the instruction array is register array "m"
-            newState = copy.deepcopy(oldState)
-            instructionArray = [None for i in range(len(oldState["m"]))]
+            
+            instructionArray : "[Node, ...]" = [None for i in range(len(oldState["m"]))]
+            memoryArray : [int, ...] = [0 for i in range(len(oldState["m"]))]
+            labels : dict = {}
 
-            for i in executionTree.child:
-                instructionArray.append(i.copyDeep())
+            #scans for labels, removes labels from execution tree
+            #TODO this should be in the parser
+            for i in range(len(executionTree.child)):
+                instructionArray[i] = executionTree.child[i].copyDeep()
+                if len(instructionArray[i].child) != 0:
+                    if instructionArray[i].child[0].type == "label":
+                        labels[instructionArray[i].child[0].token] = i
+                        instructionArray[i].remove(instructionArray[i].child[0])
+
+            #TODO scan for directives, process directives.
+
+            return instructionArray, memoryArray, labels
+
+        def compile2(self, config, executionTree : "Node", parseLabels : '{str : "Node", ...}') -> (["Node", ...], [int, ...], '{str : int, ...}'): #TODO a more functional way to do it
+            instructionArray : ["Node", ...] = []
+            memoryArray : [int, ...] = []
+            labels : '{str : int, ...}' = {}
+
+            ##reverses the key value pair with the labels dictionary, makes it easier to 
+            #temp : {"Node" : str, ...} = {}
+            #for i in parseLabels.keys():
+            #    temp[parseLabels[i]] = str(i)
+
+            for i in range(len(executionTree.child)):
+                instructionArray.append(executionTree.child[i].copyDeep())
+                memoryArray.append(0)
+                #TODO empty instructionArray indices should be filled with a function that raises an error if run? or a special value denoting an error if it is tried to be executed?
 
             
 
