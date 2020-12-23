@@ -1373,10 +1373,25 @@ class CPUsim:
 
     #==================================================================================================================
 
-    def decode(self, code: str): #TODO MVP
-        """NotImplimented
-        takes in a string of assembly instructions, and compiles/loads it into memory"""
-        pass
+    def linkAndLoad(self, code: str): #TODO MVP
+        """Takes in a string of assembly instructions, and "compiles"/loads it into memory, 'm' registerrs
+        
+        sets:
+            program counter to label __main, 0 if __main not present
+            self.engine["instructionArray"] to contain instruction Nodes
+            self.state["m"] to contain the memory of the program (but not instruction binary encodings)
+            self.engine["labels"] to contain a dictionary of accossations of labels with memory pointers
+        """
+        assert type(code) is str
+
+        self.engine["sourceCode"] : str = code
+        parseTree : "Node" = self._parseCode(code)
+
+        assemmbledObject = self.compileDefault(self._instructionSet, self._directives)
+        t1, t2, t3 = assemmbledObject.compile(self.state, self.config, parseTree)
+        #t1 is list of instruction nodes
+        #t2 is an integer array of memory elements/registers
+        #t3 is labels, a dictionary accossiating 'labels' to a specific memory addresses
 
     def run(self, cycleLimit=None): #TODO MVP
         """NotImplimented
@@ -2415,7 +2430,7 @@ def multiply2(a, b, bitlength=8):
     t = [0 for j in range(2)]
     r = [0 for i in range(2)]
 
-    ALU.decode('''
+    ALU.linkAndLoad('''
                         nop
                 loop:   jumpEQ  (end, r[0], 0)
                             and     (r[1], r[0], 1)
@@ -2486,7 +2501,7 @@ if __name__ == "__main__":
     print("".rjust(80, "="))
 
     
-    CPU.decode('''
+    CPU.linkAndLoad('''
                         nop
                 loop:   jumpEQ  (end, r[0], 0)
                             and     (r[1], r[0], 1)
@@ -2498,7 +2513,7 @@ if __name__ == "__main__":
                 end:    halt
                 ''')
     """
-    CPU.decode('''
+    CPU.linkAndLoad('''
                 start:  add(r[0], 1, 0)
                 loop:   add(r[0], r[0], r[0])
                         jump(loop)
