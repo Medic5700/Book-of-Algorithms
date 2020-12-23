@@ -1609,7 +1609,7 @@ class CPUsim:
     def _postCycleEngine(self):
         """NotImplimented
         runs at the end of each execution cycle, meant to handle engine level stuff. Should also run checks to verify the integrity of self.state"""
-        pass
+        self.engine["cycle"] += 1
 
     #==================================================================================================================
 
@@ -1749,6 +1749,7 @@ class CPUsim:
             a1, a2 = a
             des1, des2 = des
 
+            amount = 0
             if type(n) is int:
                 amount = n
             elif type(n) is tuple:
