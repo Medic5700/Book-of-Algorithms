@@ -436,8 +436,8 @@ class CPUsim:
                     ''' #this highlights the registers containing instructions with grey, but doesn't make the display more readable... should be used for another display class
                     if engine["instructionArray"] != None and i == "m":
                         highlight = self.textGrey if not (engine["instructionArray"][j] is None) else ""
-                    highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
                     '''
+                    highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
 
                     lineRegisters += "\t" + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
                         + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + "]" \
