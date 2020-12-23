@@ -1369,7 +1369,6 @@ class CPUsim:
         """A non-functional mockup of what an instructionset definition could look like
         
         Note: uses 'carry' flag, but doesn't need that flag to run. IE: will use 'carry' flag if present
-
         """
 
         def __init__(self):
@@ -1474,24 +1473,26 @@ class CPUsim:
             """
             assert (mode == "goto" and a == None and b == None) ^ (mode != "goto" and a != None and b != None)
 
+            pointer = oldState[gotoIndex[0]][gotoIndex[1]]
+
             if mode == "goto":
-                newState['pc'][0] = gotoIndex
+                newState['pc'][0] = pointer
             else:
                 a1, a2 = a
                 b1, b2 = b
 
                 if mode == "<" and oldState[a1][a2] < oldState[b1][b2]:
-                    newState['pc'][0] = gotoIndex
+                    newState['pc'][0] = pointer
                 elif mode == "<=" and oldState[a1][a2] <= oldState[b1][b2]:
-                    newState['pc'][0] = gotoIndex
+                    newState['pc'][0] = pointer
                 elif mode == ">" and oldState[a1][a2] > oldState[b1][b2]:
-                    newState['pc'][0] = gotoIndex
+                    newState['pc'][0] = pointer
                 elif mode == ">=" and oldState[a1][a2] >= oldState[b1][b2]:
-                    newState['pc'][0] = gotoIndex
+                    newState['pc'][0] = pointer
                 elif mode == "==" and oldState[a1][a2] == oldState[b1][b2]:
-                    newState['pc'][0] = gotoIndex
+                    newState['pc'][0] = pointer
                 elif mode == "!=" and oldState[a1][a2] != oldState[b1][b2]:
-                    newState['pc'][0] = gotoIndex
+                    newState['pc'][0] = pointer
                 else:
                     newState['pc'][0] = oldState['pc'][0] + 1
 
@@ -1518,6 +1519,7 @@ class CPUsim:
             a1, a2 = a
             des1, des2 = des
 
+            amount = 0
             if type(n) is int:
                 amount = n
             elif type(n) is tuple:
@@ -1534,14 +1536,11 @@ class CPUsim:
 
             result = result & (2**config[des1]['bitlength'] - 1)
 
-            #newState[b1][b2] = oldState[a1][a2] >> amount
-            #newState[b1][b2] = newState[b1][b2] & (2**config[b1]['bitlength'] - 1)
-
             newState[des1][des2] = result
             newState['pc'][0] = oldState['pc'][0] + 1
 
         def opHalt(self, oldState, newState, config, engine):
-            pass
+            engine["run"] = False
 
 class RiscV:
     """A non-functional mockup of what a rudimentry Risc-V implimentation could look like. IE: this is what I'm aiming for, but nowhere near implimenting it, dispite half implimenting it
