@@ -1642,10 +1642,17 @@ class CPUsim:
 
         def redirect(self, redirection : str, register : str, index : "str/int") -> (str, int):
             """Takes in redirection as a pointer to the memory array to access, and a register index pair. Returns a key index pair corrispoding to redirection as key, index as value stored in register[index]"""
+            assert type(redirection) is str
+            assert type(register) is str
+            assert type(index) is str or type(index) is int
+
             return (redirection, register[index])
 
         def enforceImm(self, registerTuple : (str, int)) -> (str, int):
             """Takes in a register key index pair. Returns a register key index pair iff key is 'i' for immediate. Raises an Exception otherwise"""
+            assert type(registerTuple) is tuple and len(registerTuple) == 2 
+            assert type(registerTuple[0]) is str and (type(registerTuple[0]) is int or type(registerTuple[0]) is str) 
+
             if registerTuple[0] != "i":
                 raise Exception
             return registerTuple
@@ -1655,6 +1662,13 @@ class CPUsim:
 
         def opAdd(self, oldState, newState, config, engine, des, a, b):
             """adds registers a and b, stores result in des"""
+            assert type(des) is tuple and len(des) == 2 
+            assert type(des[0]) is str and (type(des[0]) is int or type(des[0]) is str) 
+            assert type(a) is tuple and len(a) == 2 
+            assert type(a[0]) is str and (type(a[0]) is int or type(a[0]) is str) 
+            assert type(b) is tuple and len(b) == 2 
+            assert type(b[0]) is str and (type(b[0]) is int or type(b[0]) is str) 
+
             a1, a2 = a
             b1, b2 = b
             des1, des2 = des
@@ -1671,6 +1685,13 @@ class CPUsim:
             
         def opAND(self, oldState, newState, config, engine, des, a, b):
             """performs operation AND between registers a and b, stores result in des"""
+            assert type(des) is tuple and len(des) == 2 
+            assert type(des[0]) is str and (type(des[0]) is int or type(des[0]) is str) 
+            assert type(a) is tuple and len(a) == 2 
+            assert type(a[0]) is str and (type(a[0]) is int or type(a[0]) is str) 
+            assert type(b) is tuple and len(b) == 2 
+            assert type(b[0]) is str and (type(b[0]) is int or type(b[0]) is str) 
+
             a1, a2 = a
             b1, b2 = b
             des1, des2 = des
@@ -1683,6 +1704,13 @@ class CPUsim:
 
         def opOR(self, oldState, newState, config, engine, des, a, b):
             """performs operation OR between registers a and b, stores result in des"""
+            assert type(des) is tuple and len(des) == 2 
+            assert type(des[0]) is str and (type(des[0]) is int or type(des[0]) is str) 
+            assert type(a) is tuple and len(a) == 2 
+            assert type(a[0]) is str and (type(a[0]) is int or type(a[0]) is str) 
+            assert type(b) is tuple and len(b) == 2 
+            assert type(b[0]) is str and (type(b[0]) is int or type(b[0]) is str) 
+
             a1, a2 = a
             b1, b2 = b
             des1, des2 = des
@@ -1695,6 +1723,13 @@ class CPUsim:
 
         def opXOR(self, oldState, newState, config, engine, des, a, b):
             """performs operation XOR between registers a and b, stores result in des"""
+            assert type(des) is tuple and len(des) == 2 
+            assert type(des[0]) is str and (type(des[0]) is int or type(des[0]) is str) 
+            assert type(a) is tuple and len(a) == 2 
+            assert type(a[0]) is str and (type(a[0]) is int or type(a[0]) is str) 
+            assert type(b) is tuple and len(b) == 2 
+            assert type(b[0]) is str and (type(b[0]) is int or type(b[0]) is str) 
+
             a1, a2 = a
             b1, b2 = b
             des1, des2 = des
@@ -1719,7 +1754,10 @@ class CPUsim:
                 ==      - equal
                 !=      - not equal
             """
+            assert mode in ("goto", "<", "<=", ">", ">=", "==", "!=")
             assert (mode == "goto" and a == None and b == None) ^ (mode != "goto" and a != None and b != None)
+            assert type(gotoIndex) is tuple and len(gotoIndex) == 2 #assert propper formated register
+            assert type(gotoIndex[0]) is str and (type(gotoIndex[0]) is int or type(gotoIndex[0]) is str) #assert propper formated register
 
             pointer = oldState[gotoIndex[0]][gotoIndex[1]]
 
@@ -1746,6 +1784,12 @@ class CPUsim:
 
         def opShiftL(self, oldState, newState, config, engine, des, a, n = 1):
             """Takes register a, shifts it left by n (key index pair, or int) bits. Stores result in des"""
+            assert type(des) is tuple and len(des) == 2 
+            assert type(des[0]) is str and (type(des[0]) is int or type(des[0]) is str) 
+            assert type(a) is tuple and len(a) == 2 
+            assert type(a[0]) is str and (type(a[0]) is int or type(a[0]) is str) 
+            assert type(n) is int or (type(n) is tuple and type(n[0]) is str and (type(n[1]) is int or type(n[1]) is str))
+
             a1, a2 = a
             des1, des2 = des
 
@@ -1761,10 +1805,17 @@ class CPUsim:
 
             newState['pc'][0] = oldState['pc'][0] + 1
 
-        def opShiftR(self, oldState, newState, config, engine, des, a, n = 1, arithmetic = False):
+        def opShiftR(self, oldState, newState, config, engine, des, a, n = 1, arithmetic : bool = False):
             """Takes register a, shifts it right by n (key index pair, or int) bits. Stores result in des
             
             #TODO test arithmetic shiftt"""
+            assert type(des) is tuple and len(des) == 2 
+            assert type(des[0]) is str and (type(des[0]) is int or type(des[0]) is str) 
+            assert type(a) is tuple and len(a) == 2 
+            assert type(a[0]) is str and (type(a[0]) is int or type(a[0]) is str) 
+            assert type(n) is int or (type(n) is tuple and type(n[0]) is str and (type(n[1]) is int or type(n[1]) is str))
+            assert type(arithmetic) is bool
+
             a1, a2 = a
             des1, des2 = des
 
@@ -2014,6 +2065,13 @@ class RiscV:
             self.directives : dict = {}
 
         def opSetLessThan(self, oldState, newState, config, engine, destination, a, b, signed = False):
+            assert type(destination) is tuple and len(destination) == 2 
+            assert type(destination[0]) is str and (type(destination[0]) is int or type(destination[0]) is str) 
+            assert type(a) is tuple and len(a) == 2 
+            assert type(a[0]) is str and (type(a[0]) is int or type(a[0]) is str) 
+            assert type(b) is tuple and len(b) == 2 
+            assert type(b[0]) is str and (type(b[0]) is int or type(b[0]) is str) 
+
             a1, a2 = a
             b1, b2 = b
             des1, des2 = destination
