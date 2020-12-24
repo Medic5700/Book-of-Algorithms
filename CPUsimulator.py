@@ -62,16 +62,10 @@ class CPUsim:
 
     Issues/TODO:
         Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
-        How exacly should a 'halt' instruction be implimented? Should all instructions be given access to engine information?
         configSetInstructionSet() should autofill stats datastructer for any unfilled in data. (but should also show a warning)
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
         Data to keep track of:
-            engine:
-                original source code
-                current cycle number (not program counter)
-                current transaction number (an array, for every instruction executed across multiple execution units)
-                current instruction being executing (an array of instructions)
             stats:
                 number of times a line is executed
                 energy use per line
@@ -85,11 +79,10 @@ class CPUsim:
             Parser currently assumes all source code to process is perfect with no errors/typos, and thus is super fragile
             Parser 'rules' need more functionality for each function, to make it more modular
             Impliment Parsing exception
-            Memory aliasing into namespace (IE: letting R[0] be refered to by an alias 'z0' instead of 'r[0]')
         System Calls
             HALT uses self.engine["run"] as a flag for running, or stopping the simulation... there has to be a better more generic way to handle system calls
 
-        Compiler/Parser does not pick up on labels if it's in the first line/first instruction line of code?
+        BUG #TODO: Compiler/Parser does not pick up on labels if it's in the first line/first instruction line of code?
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -124,9 +117,6 @@ class CPUsim:
         CPU power states/sleep
             device drivers/interactions
         CISC recursion to simulate a context switch
-        enforcment of hardware register limitations (IE: r0 is hardwared to be zero)
-        importing instruction functions and instruction sets #need to get MVP working first
-            instruction function currying on instruction set assignment (IE: 'addInt' = curry(add, 8 bit), 'addDouble' = curry(add, 16 bit))
         parsing
             math operorators
             indentation
@@ -161,12 +151,13 @@ class CPUsim:
         self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
         self.engine : dict = {} #FUTURE used to keep track of CPU engine information?, should it be merged with self.stats?
 
-        self.engine["run"] = False #TODO this is a dumb shortcut until I figure out a better way
+        self.engine["run"] = False 
 
+        #TODO find a better structer for this
         self.engine["labels"] : "{str : int}" = None
         self.engine["instructionArray"] : ["Nodes", ...] = None
         self.engine["sourceCode"] : str = None
-        self.engine["sourceCodeLineNumber"] : int = None
+        self.engine["sourceCodeLineNumber"] : int = None #TODO this should be an array of ints, to represent multiple instructions being executed
         self.engine["cycle"] : int = 0
 
         '''a bunch of variables that are required for proper functioning, but are reqired to be configured by config functions
@@ -222,8 +213,6 @@ class CPUsim:
         #engine stuff?
         self.userPostCycle()
         self._postCycleEngine()
-
-        
 
     def _computeNamespace(self):
         """computes the namespace of instructions, registers, etc for the CPU. Updates self._updateNameSpace : dict"""
@@ -1373,7 +1362,7 @@ class CPUsim:
 
     #==================================================================================================================
 
-    def linkAndLoad(self, code: str): #TODO MVP
+    def linkAndLoad(self, code: str):
         """Takes in a string of assembly instructions, and "compiles"/loads it into memory, 'm' registerrs
         
         sets:
@@ -1405,8 +1394,8 @@ class CPUsim:
         if "__main" in self.engine["labels"]:
             self.state["pc"][0] = self.engine["labels"]["__main"]
 
-    def run(self, cycleLimit = 64): #TODO MVP
-        """NotImplimented
+    def run(self, cycleLimit = 64):
+        """Prototype
         starts execution of instructions"""
 
         '''
@@ -1443,8 +1432,8 @@ class CPUsim:
             
     class _registerObject: #TODO this is a short cut
         def __init__(self, key, index):
-            self.key = key
-            self.index = index
+            self.key : str = key
+            self.index : "str/int" = index
 
     def _evaluateNested(self, tree : "Node") -> ("Object", ...):
         #logging.info(debugHelper(inspect.currentframe()) + "Recurse\n" + str(tree))
@@ -1497,9 +1486,7 @@ class CPUsim:
             #logging.info(debugHelper(inspect.currentframe()) + "case 1 empty")
             result = None
             if tree.token in self.engine["labels"]:
-                #result = self.engine["labels"][tree.token]
                 self.lastState["i"].append(self.engine["labels"][tree.token])
-                #result = tuple(("i", self.engine["labels"][tree.token]))
                 result = self._registerObject("i", len(self.lastState["i"]) - 1)
             else:
                 result = tree.token                
@@ -1537,7 +1524,7 @@ class CPUsim:
             '''Case X
             similar to the container case, mainly just 'passes through' the result of a recursive call on children
             '''
-            
+
             #logging.info(debugHelper(inspect.currentframe()) + "case x else")
             stack = []
             for i in tree.child:
@@ -1590,7 +1577,7 @@ class CPUsim:
             
     #==================================================================================================================
 
-    def lazy(self, code : str): #TODO MVP
+    def lazy(self, code : str):
         """NotImplimented
         decodes and executes a single instruction line"""
         pass
@@ -1607,7 +1594,7 @@ class CPUsim:
         self.state['i'] = []
 
     def _postCycleEngine(self):
-        """NotImplimented
+        """Prototype
         runs at the end of each execution cycle, meant to handle engine level stuff. Should also run checks to verify the integrity of self.state"""
         self.engine["cycle"] += 1
 
@@ -2097,12 +2084,12 @@ class RiscV:
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
 
-            root = self.ruleApplyAlias(root)                                    #<=============================================================
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
-
             #does operations on the Node Tree, but the depth of the Node Tree remains 2
             root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
+
+            root = self.ruleApplyAlias(root, self.alias)                                    #<=============================================================
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
 
             root = self.ruleFilterLineComments(root, "#")
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
@@ -2627,7 +2614,9 @@ def multiply2(a, b, bitlength=8):
     r = [0 for i in range(2)]
 
     ALU.linkAndLoad('''
-                        nop
+                # Multiplies two numbers together
+                # Inputs: r[0], t[0]
+                # Output: t[1]
                 loop:   jumpEQ  (end, r[0], 0)
                             and     (r[1], r[0], 1)
                             jumpNE  (zero, r[1], 1)
@@ -2683,7 +2672,9 @@ if __name__ == "__main__":
     print("".rjust(80, "="))
 
     root = CPU._parseCode('''
-                        nop
+                # Multiplies two numbers together
+                # Inputs: r[0], t[0]
+                # Output: t[1]
                 loop:   jumpEQ  (end, r[0], 0)
                             and     (r[1], r[0], 1)
                             jumpNE  (zero, r[1], 1)
@@ -2696,9 +2687,12 @@ if __name__ == "__main__":
     print(root)
     print("".rjust(80, "="))
 
-    
+    """
     CPU.linkAndLoad('''
-                        nop
+                # Multiplies two numbers together
+                # Inputs: r[0], t[0]
+                # Output: t[1]
+                        nop #required because bug with labels
                 loop:   jumpEQ  (end, r[0], 0)
                             and     (r[1], r[0], 1)
                             jumpNE  (zero, r[1], 1)
@@ -2710,11 +2704,11 @@ if __name__ == "__main__":
                 ''')
     """
     CPU.linkAndLoad('''
-                start:  add(r[0], 1, 0)
-                loop:   add(r[0], r[0], r[0])
-                        jump(loop)
-    
-    ''') """
+                        nop     #required because bug with labels
+                loop:   add     (r[0], 1, r[0])
+                        jumpNe  (loop, r[0], 16)
+                end:    halt
+    ''') 
     print("".rjust(80, "="))
     print(CPU.engine["labels"])
     print(CPU._namespace.keys())
