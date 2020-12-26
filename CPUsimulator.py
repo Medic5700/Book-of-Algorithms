@@ -141,6 +141,8 @@ class CPUsim:
     '''
 
     def __init__(self, bitLength : int = 16):
+        assert type(bitLength) is int
+        assert bitLength >= 1
         
         self.bitLength : int = bitLength #the length of the registers in bits
 
@@ -176,7 +178,7 @@ class CPUsim:
         #self.configSetParser
         self.userPraser : __class__ = None
         self._parseCode : "function" = lambda x : None
-        self._updateNameSpace : "function" = lambda x, y : None
+        self._updateNameSpace : "function" = lambda x, y : None #TODO change name to _parseUpdate()
         #self.configSetPostCycleFunction
         self.userPostCycle : "function" = lambda x : None
         #self.configAddAlias
@@ -293,6 +295,7 @@ class CPUsim:
     def configAddRegister(self, name : str, amount : int, bitlength : int):
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
         assert type(name) is str
+        assert len(name) >= 1
         assert type(bitlength) is int and bitlength > 0
         assert type(amount) is int and amount >= 0
         
@@ -307,6 +310,7 @@ class CPUsim:
     def configAddFlag(self, name : str):
         """Takes in a name for a CPU flag to add, Adds it to self.state"""
         assert type(name) is str
+        assert len(name) >= 1
         assert 'flag' in self.state.keys()
 
         self.state['flag'][name.lower()] = 0
@@ -318,8 +322,7 @@ class CPUsim:
         """Takes in a key index pair representing a specific register. Assigns int value to register.
         
         value >= 0
-        Does not increment the simulatition
-        Does run self._displayRuntime)_"""
+        Does not increment the simulatition"""
         assert type(key) is str
         assert type(index) is int or type(index) is str
         assert type(value) is int
@@ -357,6 +360,7 @@ class CPUsim:
 
         def __init__(self, animationDelay : float = 0.5):
             assert type(animationDelay) is float or type(animationDelay) is int
+            assert animationDelay >= 0
 
             import time #this is imported for this specific class because this class is supposed to able to be 'swapped out' and may not be neccassary if another display class doesn't need the 'time' module
             self.sleep : "function" = time.sleep
@@ -514,6 +518,7 @@ class CPUsim:
 
             def __init__(self, typeStr : str = None, token : "str/int" = None, lineNum : int = None, charNum : int = None):
                 assert type(typeStr) is str or typeStr == None
+                #check for type(token) not done for better flexibility
                 assert type(lineNum) is int or lineNum == None
                 assert type(charNum) is int or charNum == None
 
@@ -675,6 +680,8 @@ class CPUsim:
                 """Recursivly composes a string representing the node hierarchy, returns a string.
                 
                 Called by print() to display the object"""
+                assert type(depth) is int
+                assert depth >= 0
 
                 block = ""
                 line = ""
@@ -739,8 +746,7 @@ class CPUsim:
         def _tokenize(self, code : str) -> [(str, int, int), ... ] :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). 
             
-            No characters are filtered out
-            #TODO allow _isName function to be taken as an arguement, for better modularity"""
+            No characters are filtered out"""
             assert type(code) is str
 
             #done like this to easily add extra characters
@@ -864,7 +870,7 @@ class CPUsim:
         def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : [str, ...] = [" ", "\t"]) -> Node:
             """Takes in a node, removes all white space tokens between a new line token and the next token. Returns a node
             
-            does not recurse
+            Does not recurse
 
             Case: "test test \ntest\n  \ttest\t\n     \n" -> "test test \ntest\ntest\t\n\n" ->
             Node
@@ -1301,7 +1307,28 @@ class CPUsim:
             pass
 
         def parseCode(self, sourceCode : str) -> Node:
-            """Takes a string of code, returns a parsed instruction tree"""
+            """Takes a string of code, returns a parsed instruction tree
+            
+            Applies following rules to sourceCode, in order:
+                tokenizes
+                finds strings
+                filter out line comments
+                lowercase everything
+                remove leading whitespace
+                remove empty lines
+                find labels and return
+                find stuff in nameSpace, change node type to reflect it
+                remove spaces
+                remove tabs
+                remove commas #TODO this should actually be a split line
+                cast ints
+                cast hex
+                process containers ([{brackets}])
+
+                set containers as children of previous token iff previous token is in namespace
+
+                split lines
+            """
             assert type(sourceCode) is str
             
             #tokenizes sourceCode, and turns it into a Node Tree
@@ -1320,7 +1347,7 @@ class CPUsim:
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
 
             root = self.ruleLowerCase(root)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root)) #<============================
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root))
 
             root = self.ruleRemoveLeadingWhitespace(root, [" ", "\t"])
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveLeadingWhitespace: " + "\n" + str(root))
@@ -1350,7 +1377,7 @@ class CPUsim:
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
             root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root)) #<=============
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
 
             temp : list = self.ruleSplitLines(root)
             root = self.Node("root")
@@ -1468,7 +1495,7 @@ class CPUsim:
             #logging.info(debugHelper(inspect.currentframe()) + "instruction immidiate processing: " + str(newArguments))
 
             instruction : "function" = self._instructionSet[tree.token]
-            instruction = functools.partial(instruction, self.lastState, self.state, self.config, self.engine)
+            instruction = functools.partial(instruction, copy.deepcopy(self.lastState), self.state, copy.deepcopy(self.config), self.engine)
 
             for i in newArguments:
                 instruction = functools.partial(instruction, i)
@@ -1827,7 +1854,11 @@ class CPUsim:
             newState['pc'][0] = oldState['pc'][0] + 1
 
         def opHalt(self, oldState, newState, config, engine):
+            #TODO
             engine["run"] = False
+
+        def dirString(self, config) -> [int, ...]:
+            pass
 
 class RiscV:
     """A non-functional mockup of what a rudimentry Risc-V implimentation could look like. IE: this is what I'm aiming for, but nowhere near implimenting it, dispite half implimenting it
@@ -1856,6 +1887,11 @@ class RiscV:
             surprisingly simple and easy to use (at least for basic and simple instructions/programs)
         https://github.com/riscv/riscv-gnu-toolchain
             The RISC-V toolchain, used to compile C/C++ into RISC-V binaries, etc?
+        https://github.com/d0iasm/rvemu
+            The most complete RISC-V emulator I've seen so far, and you can run it in a web browser.
+            https://rvemu.app/                          #The webapp
+            https://github.com/d0iasm/rvemu-for-book
+            https://book.rvemu.app/index.html           #A book about writing a RISC-V emulator
     """
     
     def __init__(self):
@@ -2685,6 +2721,7 @@ if __name__ == "__main__":
                 end:    halt
                 ''')
     print(root)
+    print(CPU.userParser.labels)
     print("".rjust(80, "="))
 
     """
@@ -2703,12 +2740,14 @@ if __name__ == "__main__":
                 end:    halt
                 ''')
     """
+    #"""
     CPU.linkAndLoad('''
-                        nop     #required because bug with labels
+                test:   nop     #required because bug with labels
                 loop:   add     (r[0], 1, r[0])
                         jumpNe  (loop, r[0], 16)
                 end:    halt
     ''') 
+    #"""
     print("".rjust(80, "="))
     print(CPU.engine["labels"])
     print(CPU._namespace.keys())
@@ -2722,3 +2761,10 @@ if __name__ == "__main__":
     #CPU._display()
     #CPU.run()
     '''
+    """
+    CPU = RiscV().CPU
+    CPU.linkAndLoad('''
+                        add     (x[0], x[0], x[0])
+                loop:   addi    (x[1], x[1], 1)
+                    ''') 
+    """
