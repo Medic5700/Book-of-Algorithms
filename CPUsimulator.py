@@ -1175,7 +1175,7 @@ class CPUsim:
             labels : dict = {}
 
             for i in tree.child:
-                if i.nodePrevious == previous and i.nodeNext == ":":
+                if (i.nodePrevious == previous or i.nodePrevious == None) and i.nodeNext == ":":
                     temp : self.Node = i.copyDeep()
                     temp.type = "label"
                     root.append(temp)
@@ -1356,7 +1356,7 @@ class CPUsim:
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveEmptyLines: " + "\n" + str(root))
 
             root, self.labels = self.ruleFindLabels(root, self.nameSpace)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root) + "\nlabels: " + str(self.labels))
 
             root = self.ruleLabelNamespace(root, self.nameSpace)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleLabelNamespace: " + "\n" + str(root))
