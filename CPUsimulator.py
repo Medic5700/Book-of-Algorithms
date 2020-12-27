@@ -347,6 +347,276 @@ class CPUsim:
 
         return self.state[t1][t2]
 
+    def lazy(self, code : str):
+        """NotImplimented
+        decodes and executes a single instruction line"""
+        pass
+
+    def _postCycleUserDefault(self):
+        """resets all required registers and flags between instructions, copies current state into lastState
+
+        note: can be omited in some cases, such as micro-code that sets flags for the calling procedure"""
+
+        self.lastState = copy.deepcopy(self.state) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
+        
+        for i in self.state['flag'].keys(): #resets all flags
+            self.state['flag'][i] = 0
+        self.state['i'] = []
+
+    def _postCycleEngine(self):
+        """Prototype
+        runs at the end of each execution cycle, meant to handle engine level stuff. Should also run checks to verify the integrity of self.state"""
+        self.engine["cycle"] += 1
+
+    #==================================================================================================================
+
+    def linkAndLoad(self, code: str):
+        """Takes in a string of assembly instructions, and "compiles"/loads it into memory, 'm' registerrs
+        
+        configures:
+            program counter to label __main, 0 if __main not present
+            self.engine["instructionArray"] to contain instruction Nodes
+            self.state["m"] to contain the memory of the program (but not instruction binary encodings)
+            self.engine["labels"] to contain a dictionary of accossations of labels with memory pointers
+
+        #TODO perform checks on all returned compiled stuff
+        """
+        assert type(code) is str
+        assert len(code) > 0
+
+        self.engine["sourceCode"] : str = code
+        parseTree, parseLabels = self._parseCode(code)
+
+        logging.debug(debugHelper(inspect.currentframe()) + "parseLabels = " + str(parseLabels))
+        logging.debug(debugHelper(inspect.currentframe()) + "parseTree = " + "\n" + str(parseTree))
+
+        assemmbledObject = self.compileDefault(self._instructionSet, self._directives)
+        #t1, t2, t3 = assemmbledObject.compile(self.state, self.config, parseTree) #<================================================
+        t1, t2, t3 = assemmbledObject.compile(self.config, parseTree, parseLabels)
+        #t1 is list of instruction nodes
+        #t2 is an integer array of memory elements/registers
+        #t3 is labels, a dictionary accossiating 'labels' to a specific memory addresses
+
+        self.engine["instructionArray"] = t1
+
+        #TODO program is imported into memory, this should be changeable
+        for i in range(len(t2)): #loads program memory into memory one element at a time
+            self.state["m"][i] = t2[i]
+        
+        self.engine["labels"] = t3
+        logging.debug(debugHelper(inspect.currentframe()) + "compilerLabels = " + str(t3))
+
+        #sets the program counter to the label __main, if the label __main exists
+        if "__main" in self.engine["labels"]:
+            self.state["pc"][0] = self.engine["labels"]["__main"]
+
+    def run(self, cycleLimit = 64):
+        """Prototype
+        starts execution of instructions
+        
+        #TODO check for empty instruction lines
+        #TODO perform checks on everything"""
+
+        '''
+            do a depth first search on the execution tree
+            apply 'rule functions' based on what the token is
+            recursivly evaluate
+        '''
+        self.engine["run"] = True
+        self._displayRuntime()
+        self.userPostCycle()
+        self._postCycleEngine()
+
+        i = 0
+        while i < cycleLimit:
+            i += 1
+            if self.engine["run"] == False:
+                break
+            
+            #logging.info(debugHelper(inspect.currentframe()) + str(i))
+            line = self.engine["instructionArray"][self.state["pc"][0]]
+            #logging.info(debugHelper(inspect.currentframe()) + "\n" + str(line))
+            if line is None:
+                break
+
+            self._evaluateNested(line)
+
+            self.engine["sourceCodeLineNumber"] = line.lineNum
+
+            self._displayRuntime()
+            self.userPostCycle()
+            self._postCycleEngine()
+
+        self._displayPostRun()
+            
+    class _registerObject: #TODO this is a short cut
+        def __init__(self, key, index):
+            self.key : str = key
+            self.index : "str/int" = index
+
+    def _evaluateNested(self, tree : "Node") -> ("Object", ...):
+        #logging.info(debugHelper(inspect.currentframe()) + "Recurse\n" + str(tree))
+
+        if tree.token in self._instructionSet.keys():
+            '''case 1
+            tree is an intruction
+                recursivly call _evaluateNested on children if there is any -> arguments
+                process arguments
+                run instruction on arguments
+            '''
+
+            #logging.info(debugHelper(inspect.currentframe()) + "case 4 instruction")
+            if len(tree.child) != 0:
+                arguments = self._evaluateNested(tree.child[0])
+            else:
+                arguments = []
+            if type(arguments) is self._registerObject:
+                arguments = [(arguments.key, arguments.index)]
+            #logging.info(debugHelper(inspect.currentframe()) + "instruction arguments: " + str(arguments))
+
+            newArguments = []
+            for i in range(len(arguments)):
+                if type(arguments[i]) is int:
+                    self.lastState["i"].append(arguments[i])
+                    newArguments.append(("i", len(self.lastState["i"]) - 1))
+                elif type(arguments[i]) is self._registerObject:
+                    newArguments.append((arguments[i].key, arguments[i].index))
+                else:
+                    newArguments.append(arguments[i])
+
+            #logging.info(debugHelper(inspect.currentframe()) + "instruction immidiate processing: " + str(newArguments))
+
+            instruction : "function" = self._instructionSet[tree.token]
+            instruction = functools.partial(instruction, copy.deepcopy(self.lastState), self.state, copy.deepcopy(self.config), self.engine)
+
+            for i in newArguments:
+                instruction = functools.partial(instruction, i)
+
+            #logging.info(debugHelper(inspect.currentframe()) + "instruction function?: " + str(instruction))
+            
+            instruction()
+
+        elif len(tree.child) == 0:
+            '''Case 2
+            tree is a simple base type (int, str, etc) or a label
+                if tree is a label, convert into a register object
+                return object
+            '''
+            #logging.info(debugHelper(inspect.currentframe()) + "case 1 empty")
+            result = None
+            if tree.token in self.engine["labels"]:
+                self.lastState["i"].append(self.engine["labels"][tree.token])
+                result = self._registerObject("i", len(self.lastState["i"]) - 1)
+            else:
+                result = tree.token                
+            return result
+
+        elif tree.type == "container":
+            '''Case 3
+            tree is a container _evaluateNested on children
+                if there is only one child, 'pass through' results
+                else, return a tuple of results
+            '''
+
+            #logging.info(debugHelper(inspect.currentframe()) + "case 2 container")
+            stack = []
+            for i in tree.child:
+                stack.append(self._evaluateNested(i))
+
+            if len(stack) == 1:
+                return stack[0]
+            else:
+                return tuple(stack)
+            
+            #return tuple(stack)
+
+        elif tree.token in self.state.keys():
+            '''Case 4
+            uh... huh... this needs a rewrite
+            #TODO this SHOULD return a _register object
+            '''
+
+            #logging.info(debugHelper(inspect.currentframe()) + "case 3 register")
+            return (tree.token, self._evaluateNested(tree.child[0]))
+
+        else:
+            '''Case X
+            similar to the container case, mainly just 'passes through' the result of a recursive call on children
+            '''
+
+            #logging.info(debugHelper(inspect.currentframe()) + "case x else")
+            stack = []
+            for i in tree.child:
+                stack.append(self._evaluateNested(i))
+            return tuple(stack)
+        
+    class compileDefault:
+        """a working prototype, provides functions that take in an execution tree, and return a programs instruction list, memory array, etc"""
+
+        def __init__(self, instructionSet, directives):
+            self.instructionSet = instructionSet
+            self.directives = directives
+
+        def compileOld(self, oldState, config, executionTree : "Node") -> (["Node", ...], [int, ...], {str : int}):
+            #assumes the instruction array is register array "m"
+            
+            instructionArray : "[Node, ...]" = [None for i in range(len(oldState["m"]))]
+            memoryArray : [int, ...] = [0 for i in range(len(oldState["m"]))]
+            labels : dict = {}
+
+            #scans for labels, removes labels from execution tree
+            #TODO this should be in the parser
+            for i in range(len(executionTree.child)):
+                instructionArray[i] = executionTree.child[i].copyDeep()
+                if len(instructionArray[i].child) != 0:
+                    if instructionArray[i].child[0].type == "label":
+                        labels[instructionArray[i].child[0].token] = i
+                        instructionArray[i].remove(instructionArray[i].child[0])
+
+            #TODO scan for directives, process directives.
+
+            return instructionArray, memoryArray, labels
+
+        def compile(self, config : dict, executionTree : "Node", parseLabels : '{str : Node, ...}') -> (["Node", ...], [int, ...], '{str : int, ...}'):
+            """Takes in in a dict containing the config information of registers, A node representing an execution tree, and parseLabels a dict (where key is the label, and value is a line number).
+            Returns a list of Tree Nodes (representing each instruction), A list of ints (representing the program memory/binary), and a dictionary of labels (where each value corisponds to a memory index)
+
+            config should contain only the config information of the registers the program is being loaded into
+            executionTree should be a properly formated execution Node Tree, duh
+            parseLabels should be of the form {Label : Node}, multiple Labels for the same line number is allowed
+            """
+            assert type(config) is dict
+            #can't assert execution tree is type node because that's only available in the parser?
+            assert type(parseLabels) is dict
+
+            logging.debug(debugHelper(inspect.currentframe()) + "compile input ExecutionTree = \n" + str(executionTree))
+
+            instructionArray : ["Node", ...] = []
+            memoryArray : [int, ...] = []
+            labels : '{str : int, ...}' = {} #Note: needs to handle multiple keys refering to the same value
+
+            for i in range(len(executionTree.child)): #goes through program line by line
+                tempInstruction = executionTree.child[i].copyDeep()
+
+                tempArrayInstruction = [tempInstruction]
+                tempArrayMemory = [0]
+
+                #TODO check for directives should happen here
+
+                #check for labels and associate with memory index (IE: the current len(instructionArray))
+                for i in parseLabels.keys():
+                    if parseLabels[i].lineNum == tempInstruction.lineNum:
+                        labels[i] = len(instructionArray)
+
+                #appends instruction word to memory
+                assert len(tempArrayInstruction) == len(tempArrayMemory)
+                for i in range(len(tempArrayInstruction)):
+                    memoryArray.append(tempArrayMemory[i])
+                    instructionArray.append(tempArrayInstruction[i])
+                #TODO empty instructionArray indices should be filled with a function that raises an error if run? or a special value denoting an error if it is tried to be executed?
+
+            return instructionArray, memoryArray, labels
+
     #==================================================================================================================
 
     class DisplaySimpleAndClean:
@@ -452,6 +722,22 @@ class CPUsim:
         """An intentionally empty definition, that will display nothing to the screen"""
 
         def __init__(self):
+            pass
+
+        def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
+            pass
+
+        def postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
+            pass
+
+    class DisplayInstruction:
+        #TODO
+
+        def __init__(self):
+            import shutil #used to get the terminal window size
+
+            #will return (80, 24) as a default if the terminal size is undefined
+            self.getTerminalSize : function = lambda : (shutil.get_terminal_size()[0], shutil.get_terminal_size()[1])
             pass
 
         def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
@@ -1408,281 +1694,7 @@ class CPUsim:
 
             #return root #<===============================================================================================================
             return root, self.labels
-
-    #==================================================================================================================
-
-    def linkAndLoad(self, code: str):
-        """Takes in a string of assembly instructions, and "compiles"/loads it into memory, 'm' registerrs
-        
-        configures:
-            program counter to label __main, 0 if __main not present
-            self.engine["instructionArray"] to contain instruction Nodes
-            self.state["m"] to contain the memory of the program (but not instruction binary encodings)
-            self.engine["labels"] to contain a dictionary of accossations of labels with memory pointers
-
-        #TODO perform checks on all returned compiled stuff
-        """
-        assert type(code) is str
-        assert len(code) > 0
-
-        self.engine["sourceCode"] : str = code
-        parseTree, parseLabels = self._parseCode(code)
-
-        logging.debug(debugHelper(inspect.currentframe()) + "parseLabels = " + str(parseLabels))
-        logging.debug(debugHelper(inspect.currentframe()) + "parseTree = " + "\n" + str(parseTree))
-
-        assemmbledObject = self.compileDefault(self._instructionSet, self._directives)
-        #t1, t2, t3 = assemmbledObject.compile(self.state, self.config, parseTree) #<================================================
-        t1, t2, t3 = assemmbledObject.compile(self.config, parseTree, parseLabels)
-        #t1 is list of instruction nodes
-        #t2 is an integer array of memory elements/registers
-        #t3 is labels, a dictionary accossiating 'labels' to a specific memory addresses
-
-        self.engine["instructionArray"] = t1
-
-        #TODO program is imported into memory, this should be changeable
-        for i in range(len(t2)): #loads program memory into memory one element at a time
-            self.state["m"][i] = t2[i]
-        
-        self.engine["labels"] = t3
-        logging.debug(debugHelper(inspect.currentframe()) + "compilerLabels = " + str(t3))
-
-        #sets the program counter to the label __main, if the label __main exists
-        if "__main" in self.engine["labels"]:
-            self.state["pc"][0] = self.engine["labels"]["__main"]
-
-    def run(self, cycleLimit = 64):
-        """Prototype
-        starts execution of instructions
-        
-        #TODO check for empty instruction lines
-        #TODO perform checks on everything"""
-
-        '''
-            do a depth first search on the execution tree
-            apply 'rule functions' based on what the token is
-            recursivly evaluate
-        '''
-        self.engine["run"] = True
-        self._displayRuntime()
-        self.userPostCycle()
-        self._postCycleEngine()
-
-        i = 0
-        while i < cycleLimit:
-            i += 1
-            if self.engine["run"] == False:
-                break
             
-            #logging.info(debugHelper(inspect.currentframe()) + str(i))
-            line = self.engine["instructionArray"][self.state["pc"][0]]
-            #logging.info(debugHelper(inspect.currentframe()) + "\n" + str(line))
-            if line is None:
-                break
-
-            self._evaluateNested(line)
-
-            self.engine["sourceCodeLineNumber"] = line.lineNum
-
-            self._displayRuntime()
-            self.userPostCycle()
-            self._postCycleEngine()
-
-        self._displayPostRun()
-            
-    class _registerObject: #TODO this is a short cut
-        def __init__(self, key, index):
-            self.key : str = key
-            self.index : "str/int" = index
-
-    def _evaluateNested(self, tree : "Node") -> ("Object", ...):
-        #logging.info(debugHelper(inspect.currentframe()) + "Recurse\n" + str(tree))
-
-        if tree.token in self._instructionSet.keys():
-            '''case 1
-            tree is an intruction
-                recursivly call _evaluateNested on children if there is any -> arguments
-                process arguments
-                run instruction on arguments
-            '''
-
-            #logging.info(debugHelper(inspect.currentframe()) + "case 4 instruction")
-            if len(tree.child) != 0:
-                arguments = self._evaluateNested(tree.child[0])
-            else:
-                arguments = []
-            if type(arguments) is self._registerObject:
-                arguments = [(arguments.key, arguments.index)]
-            #logging.info(debugHelper(inspect.currentframe()) + "instruction arguments: " + str(arguments))
-
-            newArguments = []
-            for i in range(len(arguments)):
-                if type(arguments[i]) is int:
-                    self.lastState["i"].append(arguments[i])
-                    newArguments.append(("i", len(self.lastState["i"]) - 1))
-                elif type(arguments[i]) is self._registerObject:
-                    newArguments.append((arguments[i].key, arguments[i].index))
-                else:
-                    newArguments.append(arguments[i])
-
-            #logging.info(debugHelper(inspect.currentframe()) + "instruction immidiate processing: " + str(newArguments))
-
-            instruction : "function" = self._instructionSet[tree.token]
-            instruction = functools.partial(instruction, copy.deepcopy(self.lastState), self.state, copy.deepcopy(self.config), self.engine)
-
-            for i in newArguments:
-                instruction = functools.partial(instruction, i)
-
-            #logging.info(debugHelper(inspect.currentframe()) + "instruction function?: " + str(instruction))
-            
-            instruction()
-
-        elif len(tree.child) == 0:
-            '''Case 2
-            tree is a simple base type (int, str, etc) or a label
-                if tree is a label, convert into a register object
-                return object
-            '''
-            #logging.info(debugHelper(inspect.currentframe()) + "case 1 empty")
-            result = None
-            if tree.token in self.engine["labels"]:
-                self.lastState["i"].append(self.engine["labels"][tree.token])
-                result = self._registerObject("i", len(self.lastState["i"]) - 1)
-            else:
-                result = tree.token                
-            return result
-
-        elif tree.type == "container":
-            '''Case 3
-            tree is a container _evaluateNested on children
-                if there is only one child, 'pass through' results
-                else, return a tuple of results
-            '''
-
-            #logging.info(debugHelper(inspect.currentframe()) + "case 2 container")
-            stack = []
-            for i in tree.child:
-                stack.append(self._evaluateNested(i))
-
-            if len(stack) == 1:
-                return stack[0]
-            else:
-                return tuple(stack)
-            
-            #return tuple(stack)
-
-        elif tree.token in self.state.keys():
-            '''Case 4
-            uh... huh... this needs a rewrite
-            #TODO this SHOULD return a _register object
-            '''
-
-            #logging.info(debugHelper(inspect.currentframe()) + "case 3 register")
-            return (tree.token, self._evaluateNested(tree.child[0]))
-
-        else:
-            '''Case X
-            similar to the container case, mainly just 'passes through' the result of a recursive call on children
-            '''
-
-            #logging.info(debugHelper(inspect.currentframe()) + "case x else")
-            stack = []
-            for i in tree.child:
-                stack.append(self._evaluateNested(i))
-            return tuple(stack)
-        
-    class compileDefault:
-        """a working prototype, provides functions that take in an execution tree, and return a programs instruction list, memory array, etc"""
-
-        def __init__(self, instructionSet, directives):
-            self.instructionSet = instructionSet
-            self.directives = directives
-
-        def compileOld(self, oldState, config, executionTree : "Node") -> (["Node", ...], [int, ...], {str : int}):
-            #assumes the instruction array is register array "m"
-            
-            instructionArray : "[Node, ...]" = [None for i in range(len(oldState["m"]))]
-            memoryArray : [int, ...] = [0 for i in range(len(oldState["m"]))]
-            labels : dict = {}
-
-            #scans for labels, removes labels from execution tree
-            #TODO this should be in the parser
-            for i in range(len(executionTree.child)):
-                instructionArray[i] = executionTree.child[i].copyDeep()
-                if len(instructionArray[i].child) != 0:
-                    if instructionArray[i].child[0].type == "label":
-                        labels[instructionArray[i].child[0].token] = i
-                        instructionArray[i].remove(instructionArray[i].child[0])
-
-            #TODO scan for directives, process directives.
-
-            return instructionArray, memoryArray, labels
-
-        def compile(self, config : dict, executionTree : "Node", parseLabels : '{str : Node, ...}') -> (["Node", ...], [int, ...], '{str : int, ...}'):
-            """Takes in in a dict containing the config information of registers, A node representing an execution tree, and parseLabels a dict (where key is the label, and value is a line number).
-            Returns a list of Tree Nodes (representing each instruction), A list of ints (representing the program memory/binary), and a dictionary of labels (where each value corisponds to a memory index)
-
-            config should contain only the config information of the registers the program is being loaded into
-            executionTree should be a properly formated execution Node Tree, duh
-            parseLabels should be of the form {Label : Node}, multiple Labels for the same line number is allowed
-            """
-            assert type(config) is dict
-            #can't assert execution tree is type node because that's only available in the parser?
-            assert type(parseLabels) is dict
-
-            logging.debug(debugHelper(inspect.currentframe()) + "compile input ExecutionTree = \n" + str(executionTree))
-
-            instructionArray : ["Node", ...] = []
-            memoryArray : [int, ...] = []
-            labels : '{str : int, ...}' = {} #Note: needs to handle multiple keys refering to the same value
-
-            for i in range(len(executionTree.child)): #goes through program line by line
-                tempInstruction = executionTree.child[i].copyDeep()
-
-                tempArrayInstruction = [tempInstruction]
-                tempArrayMemory = [0]
-
-                #TODO check for directives should happen here
-
-                #check for labels and associate with memory index (IE: the current len(instructionArray))
-                for i in parseLabels.keys():
-                    if parseLabels[i].lineNum == tempInstruction.lineNum:
-                        labels[i] = len(instructionArray)
-
-                #appends instruction word to memory
-                assert len(tempArrayInstruction) == len(tempArrayMemory)
-                for i in range(len(tempArrayInstruction)):
-                    memoryArray.append(tempArrayMemory[i])
-                    instructionArray.append(tempArrayInstruction[i])
-                #TODO empty instructionArray indices should be filled with a function that raises an error if run? or a special value denoting an error if it is tried to be executed?
-
-            return instructionArray, memoryArray, labels
-
-
-            
-    #==================================================================================================================
-
-    def lazy(self, code : str):
-        """NotImplimented
-        decodes and executes a single instruction line"""
-        pass
-
-    def _postCycleUserDefault(self):
-        """resets all required registers and flags between instructions, copies current state into lastState
-
-        note: can be omited in some cases, such as micro-code that sets flags for the calling procedure"""
-
-        self.lastState = copy.deepcopy(self.state) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
-        
-        for i in self.state['flag'].keys(): #resets all flags
-            self.state['flag'][i] = 0
-        self.state['i'] = []
-
-    def _postCycleEngine(self):
-        """Prototype
-        runs at the end of each execution cycle, meant to handle engine level stuff. Should also run checks to verify the integrity of self.state"""
-        self.engine["cycle"] += 1
-
     #==================================================================================================================
 
     class InstructionSetDefault:
