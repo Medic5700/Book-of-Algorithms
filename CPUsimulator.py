@@ -1363,7 +1363,14 @@ class CPUsim:
 
             root, self.labels = self.ruleFindLabels(root, self.nameSpace)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root) + "\nlabels: " + str(self.labels))
-
+            #TODO   #<==========================================================================================================================
+            i = 0
+            while i < len(root.child): #removes the label nodes, as they don't need to be executed
+                if root.child[i].type == "label":
+                    root.remove(root.child[i])
+                else:
+                    i += 1
+            
             root = self.ruleLabelNamespace(root, self.nameSpace)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleLabelNamespace: " + "\n" + str(root))
 
@@ -1391,7 +1398,8 @@ class CPUsim:
                 root.append(i)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
 
-            return root
+            #return root #<===============================================================================================================
+            return root, self.labels
 
     #==================================================================================================================
 
@@ -1407,10 +1415,13 @@ class CPUsim:
         assert type(code) is str
 
         self.engine["sourceCode"] : str = code
-        parseTree : "Node" = self._parseCode(code)
+        parseTree, parseLabels = self._parseCode(code)
+
+        logging.debug(debugHelper(inspect.currentframe()) + "parseLabels = " + str(parseLabels))
 
         assemmbledObject = self.compileDefault(self._instructionSet, self._directives)
-        t1, t2, t3 = assemmbledObject.compile(self.state, self.config, parseTree)
+        #t1, t2, t3 = assemmbledObject.compile(self.state, self.config, parseTree) #<================================================
+        t1, t2, t3 = assemmbledObject.compile(self.config, parseTree, parseLabels)
         #t1 is list of instruction nodes
         #t2 is an integer array of memory elements/registers
         #t3 is labels, a dictionary accossiating 'labels' to a specific memory addresses
@@ -1422,6 +1433,7 @@ class CPUsim:
             self.state["m"][i] = t2[i]
         
         self.engine["labels"] = t3
+        logging.debug(debugHelper(inspect.currentframe()) + "compilerLabels = " + str(t3))
 
         #sets the program counter to the label __main, if the label __main exists
         if "__main" in self.engine["labels"]:
@@ -1571,7 +1583,7 @@ class CPUsim:
             self.instructionSet = instructionSet
             self.directives = directives
 
-        def compile(self, oldState, config, executionTree : "Node") -> (["Node", ...], [int, ...], {str : int}):
+        def compileOld(self, oldState, config, executionTree : "Node") -> (["Node", ...], [int, ...], {str : int}):
             #assumes the instruction array is register array "m"
             
             instructionArray : "[Node, ...]" = [None for i in range(len(oldState["m"]))]
@@ -1591,20 +1603,45 @@ class CPUsim:
 
             return instructionArray, memoryArray, labels
 
-        def compile2(self, config, executionTree : "Node", parseLabels : '{str : "Node", ...}') -> (["Node", ...], [int, ...], '{str : int, ...}'): #TODO a more functional way to do it
+        def compile(self, config : dict, executionTree : "Node", parseLabels : '{str : Node, ...}') -> (["Node", ...], [int, ...], '{str : int, ...}'):
+            """Takes in in a dict containing the config information of registers, A node representing an execution tree, and parseLabels a dict (where key is the label, and value is a line number).
+            Returns a list of Tree Nodes (representing each instruction), A list of ints (representing the program memory/binary), and a dictionary of labels (where each value corisponds to a memory index)
+
+            config should contain only the config information of the registers the program is being loaded into
+            executionTree should be a properly formated execution Node Tree, duh
+            parseLabels should be of the form {Label : Node}, multiple Labels for the same line number is allowed
+            """
+            assert type(config) is dict
+            #can't assert execution tree is type node because that's only available in the parser?
+            assert type(parseLabels) is dict
+
+            logging.debug(debugHelper(inspect.currentframe()) + "compile input ExecutionTree = \n" + str(executionTree))
+
             instructionArray : ["Node", ...] = []
             memoryArray : [int, ...] = []
-            labels : '{str : int, ...}' = {}
+            labels : '{str : int, ...}' = {} #Note: needs to handle multiple keys refering to the same value
 
-            ##reverses the key value pair with the labels dictionary, makes it easier to 
-            #temp : {"Node" : str, ...} = {}
-            #for i in parseLabels.keys():
-            #    temp[parseLabels[i]] = str(i)
+            for i in range(len(executionTree.child)): #goes through program line by line
+                tempInstruction = executionTree.child[i].copyDeep()
 
-            for i in range(len(executionTree.child)):
-                instructionArray.append(executionTree.child[i].copyDeep())
-                memoryArray.append(0)
+                tempArrayInstruction = [tempInstruction]
+                tempArrayMemory = [0]
+
+                #TODO check for directives should happen here
+
+                #check for labels and associate with memory index (IE: the current len(instructionArray))
+                for i in parseLabels.keys():
+                    if parseLabels[i].lineNum == tempInstruction.lineNum:
+                        labels[i] = len(instructionArray)
+
+                #appends instruction word to memory
+                assert len(tempArrayInstruction) == len(tempArrayMemory)
+                for i in range(len(tempArrayInstruction)):
+                    memoryArray.append(tempArrayMemory[i])
+                    instructionArray.append(tempArrayInstruction[i])
                 #TODO empty instructionArray indices should be filled with a function that raises an error if run? or a special value denoting an error if it is tried to be executed?
+
+            return instructionArray, memoryArray, labels
 
 
             
