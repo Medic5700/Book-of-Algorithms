@@ -187,21 +187,21 @@ class CPUsim:
         self._namespace : dict = {}
 
         #initialize CPU flag datastructure
-        self.configAddRegister('flag', 0, 1) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
+        self.configAddRegister('flag', 1, 0) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
         self.state['flag'] : dict = {} #overrides default array of numbers
         self.lastState['flag'] : dict = {}
 
         #adds special registers that are required
-        self.configAddRegister('i', 0, bitLength) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
-        self.configAddRegister('pc', 1, bitLength) #program counter, it's a list for better consistancy with the other registers
+        self.configAddRegister('i', bitLength, 0) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
+        self.configAddRegister('pc', bitLength, 1) #program counter, it's a list for better consistancy with the other registers
         
         #self.state['sp'] = [0] #stack pointer #FUTURE
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
         #the entire state information for registers, program pointers, etc, should be stored as one memory unit for simplicity
 
         #convinence added stuff for 'works out of the box' functionality
-        self.configAddRegister('r', 8, bitLength) #standard registers
-        self.configAddRegister('m', 32, bitLength) #standard memory
+        self.configAddRegister('r', bitLength, 8) #standard registers
+        self.configAddRegister('m', bitLength, 32) #standard memory
 
         self.configAddFlag('carry')
         #self.configAddFlag('overflow')
@@ -292,7 +292,7 @@ class CPUsim:
         """
         self.userPostCycle = postCycle
 
-    def configAddRegister(self, name : str, amount : int, bitlength : int):
+    def configAddRegister(self, name : str, bitlength : int, amount : int):
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
         assert type(name) is str
         assert len(name) >= 1
@@ -1951,7 +1951,7 @@ class RiscV:
 
         CPU = CPUsim(32)
         CPU.configAddRegister("x", 32, 32)
-        CPU.configAddRegister("m", 2**16, 8)
+        CPU.configAddRegister("m", 8, 2**16)
         
         #not implimented: after tokenization, should replace the token arg1 with (arg2 tokonized again). NOT A STRING FIND AND REPLACE
         #configAddAlias() should be for simple token replacement AND NOTHING MORE
@@ -2694,9 +2694,9 @@ def multiply2(a, b, bitlength=8):
     assert 0 <= b < 2**bitlength
 
     ALU = CPUsim(bitlength) #bitlength
-    ALU.configAddRegister('r', 2, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults
-    ALU.configAddRegister('m', 0, bitlength) #bitlength, register amount, namespace symbol #will overwrite defaults, in this case, erasing it
-    ALU.configAddRegister('t', 2, bitlength * 2) #bitlength, register amount, namespace symbol
+    ALU.configAddRegister('r', bitlength, 2) #bitlength, register amount, namespace symbol #will overwrite defaults
+    ALU.configAddRegister('m', bitlength, 16) #bitlength, register amount, namespace symbol #will overwrite defaults, in this case, erasing it
+    ALU.configAddRegister('t', bitlength * 2, 2) #bitlength, register amount, namespace symbol
 
     t = [0 for j in range(2)]
     r = [0 for i in range(2)]
@@ -2750,9 +2750,9 @@ if __name__ == "__main__":
     #CPU.configSetDisplay(CPU.DisplaySilent())
     print("".rjust(80, "="))
 
-    CPU.configAddRegister('r', 2, 16)
-    CPU.configAddRegister('m', 16, 8)
-    CPU.configAddRegister('t', 2, 16)
+    CPU.configAddRegister('r', 16, 2)
+    CPU.configAddRegister('m', 8, 16)
+    CPU.configAddRegister('t', 16, 2)
     CPU.configAddFlag("random")
     CPU.inject('r', 0, 8)
     CPU.inject('t', 0, 8)
