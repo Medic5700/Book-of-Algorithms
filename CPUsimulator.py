@@ -1246,12 +1246,18 @@ class CPUsim:
             for i in tree.child:
                 if i == splitChar:
                     result.append(current)
-                    current = self.Node(tokenType, None, i.lineNum + 1, i.charNum)
+                    current = self.Node(tokenType, None, 0, 0)
                 else:
                     current.append(i.copyDeep())
 
             if len(current.child) >= 1:
                 result.append(current)
+
+            #Goes through all 'lines' and sets lineNum and charNum to the values of the first child Node in them
+            for i in result:
+                if len(i.child) != 0:
+                    i.lineNum = i.child[0].lineNum
+                    i.charNum = i.child[0].charNum
 
             return result
 
