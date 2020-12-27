@@ -81,8 +81,6 @@ class CPUsim:
             Impliment Parsing exception
         System Calls
             HALT uses self.engine["run"] as a flag for running, or stopping the simulation... there has to be a better more generic way to handle system calls
-
-        BUG #TODO: Compiler/Parser does not pick up on labels if it's in the first line/first instruction line of code?
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -378,8 +376,9 @@ class CPUsim:
             screen : str = ""
             highlight : str = ""
 
+            #The program counter
             lineOp : str = "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "\t"
-
+            #handles the 'instruction' line (IE: the first line)
             if engine["sourceCode"] != None and engine["sourceCodeLineNumber"] != None:
                 sourceCode = engine["sourceCode"].split("\n")
                 lineOp += "[line " + str(engine["sourceCodeLineNumber"]).rjust(4, "0") + "]" + "\t"
@@ -394,18 +393,18 @@ class CPUsim:
 
             #handles the 'pc' register
             highlight = self.textRed if (oldState['pc'][0] != newState['pc'][0]) else ""
-            lineRequired += "\t" + "PC".ljust(8, ' ') \
+            lineRequired += "    " + "PC".ljust(8, ' ') \
                 + "[" + "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "]" \
                 + "\t" \
                 + "[" + highlight + "0x" + hex(newState['pc'][0])[2:].rjust(8, '0').upper() + self.ANSIend + "]" \
                 + "\n"
             for i in range(len(oldState['i'])): #handles the immidiate registers
-                lineRequired += "\t" + ("i[" + str(i) + "]\t").ljust(8, " ") \
+                lineRequired += "    " + ("i[" + str(i) + "]").ljust(8, " ") \
                     + "[" + self.textTeal + str(bin(oldState["i"][i]))[2:].rjust(config["i"]['bitlength'], "0") + self.ANSIend + "]" \
                     + "\n"
             for i in oldState["flag"].keys(): #handles the CPU flags
                 highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
-                lineRequired += "\t" + ("flag[" + str(i) + "]").ljust(16, " ") \
+                lineRequired += "    " + ("flag[" + str(i) + "]").ljust(16, " ") \
                     + "[" + str(oldState["flag"][i]) + "]" \
                     + "\t" \
                     + "[" + highlight + str(newState["flag"][i]) + self.ANSIend + "]" \
@@ -432,7 +431,7 @@ class CPUsim:
                     '''
                     highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
 
-                    lineRegisters += "\t" + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
+                    lineRegisters += "    " + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
                         + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + "]" \
                         + "\t" \
                         + "[" + highlight + str(bin(newState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + self.ANSIend + "]" \
@@ -1415,18 +1414,22 @@ class CPUsim:
     def linkAndLoad(self, code: str):
         """Takes in a string of assembly instructions, and "compiles"/loads it into memory, 'm' registerrs
         
-        sets:
+        configures:
             program counter to label __main, 0 if __main not present
             self.engine["instructionArray"] to contain instruction Nodes
             self.state["m"] to contain the memory of the program (but not instruction binary encodings)
             self.engine["labels"] to contain a dictionary of accossations of labels with memory pointers
+
+        #TODO perform checks on all returned compiled stuff
         """
         assert type(code) is str
+        assert len(code) > 0
 
         self.engine["sourceCode"] : str = code
         parseTree, parseLabels = self._parseCode(code)
 
         logging.debug(debugHelper(inspect.currentframe()) + "parseLabels = " + str(parseLabels))
+        logging.debug(debugHelper(inspect.currentframe()) + "parseTree = " + "\n" + str(parseTree))
 
         assemmbledObject = self.compileDefault(self._instructionSet, self._directives)
         #t1, t2, t3 = assemmbledObject.compile(self.state, self.config, parseTree) #<================================================
@@ -1450,7 +1453,10 @@ class CPUsim:
 
     def run(self, cycleLimit = 64):
         """Prototype
-        starts execution of instructions"""
+        starts execution of instructions
+        
+        #TODO check for empty instruction lines
+        #TODO perform checks on everything"""
 
         '''
             do a depth first search on the execution tree
@@ -1683,6 +1689,7 @@ class CPUsim:
         """A non-functional mockup of what an instructionset definition could look like
         
         Note: uses 'carry' flag, but doesn't need that flag to run. IE: will use 'carry' flag if present
+        Note: instruction functions do not 'see' immediate values, they instead see an index of register 'i' (IE: immediate values are filtered out before instructions are called)
         """
 
         def __init__(self):
