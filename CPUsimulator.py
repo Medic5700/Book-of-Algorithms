@@ -1398,6 +1398,15 @@ class CPUsim:
                 root.append(i)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
 
+            #remove empty lines/empty line nodes
+            i = 0
+            while i < len(root.child):
+                if len(root.child[i].child) == 0:
+                    root.remove(root.child[i])
+                else:
+                    i += 1
+            logging.debug(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
+
             #return root #<===============================================================================================================
             return root, self.labels
 
