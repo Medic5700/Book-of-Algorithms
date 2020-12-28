@@ -1574,18 +1574,19 @@ class CPUsim:
 
             return root
 
-        def ruleLowerCase(self, tree : Node) -> Node:
-            """Takes in a Node Tree. Sets all tokens in the Node Tree's children as lower case. Returns a Node Tree.
-
-            Does not recurse"""
+        def ruleLowerCase(self, tree : Node, recurse : bool = True) -> Node:
+            """Takes in a Node Tree. Sets all tokens in the Node Tree's children as lower case. Recursion optional. Returns a Node Tree."""
             assert type(tree) is self.Node
 
             root : self.Node = tree.copyInfo()
             for i in tree.child:
-                temp = i.copyDeep()
+                temp : self.Node = i.copyDeep()
                 if type(temp.token) is str:
                     temp.token = temp.token.lower()
+                if recurse:
+                    temp = self.ruleLowerCase(temp, True)
                 root.append(temp)
+            
             return root
 
         def ruleApplyAlias(self, tree : Node, alias : dict) -> Node:
