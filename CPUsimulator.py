@@ -18,6 +18,7 @@ assert version[0] == 3 and version[1] >= 8 #asserts python version 3.8 or greate
 
 import copy #copy.deepcopy() required because state['flag'] contains a dictionary which needs to be copied
 import functools #used for partial functions when executioning 'instruction operations'
+from typing import Any, Callable, Dict, List, Tuple #used for more complex annotation typing
 
 #debugging and logging stuff
 import logging
@@ -35,9 +36,9 @@ def debugHelper(frame : "Frame Object") -> str:
     """
     assert inspect.isframe(frame)
     
-    #textRed = "\u001b[31m" #forground red
-    textTeal = "\u001b[96m" #forground teal
-    ANSIend = "\u001b[0m" #resets ANSI colours
+    #textRed : str = "\u001b[31m" #forground red
+    textTeal : str = "\u001b[96m" #forground teal
+    ANSIend : str = "\u001b[0m" #resets ANSI colours
 
     line : str = ""
 
@@ -154,8 +155,8 @@ class CPUsim:
         self.engine["run"] = False 
 
         #TODO find a better structer for this
-        self.engine["labels"] : "{str : int}" = None
-        self.engine["instructionArray"] : ["Nodes", ...] = None
+        self.engine["labels"] : Dict[str, int] = None
+        self.engine["instructionArray"] : List["Nodes"] = None
         self.engine["sourceCode"] : str = None
         self.engine["sourceCodeLineNumber"] : int = None #TODO this should be an array of ints, to represent multiple instructions being executed
         self.engine["cycle"] : int = 0
@@ -167,15 +168,15 @@ class CPUsim:
         '''
         #self.configSetDisplay
         self.userDisplay : __class__ = None
-        self._displayRuntime : "function" = lambda : None
-        self._displayPostRun : "function" = lambda : None
+        self._displayRuntime : Callable[[], None] = lambda : None
+        self._displayPostRun : Callable[[], None] = lambda : None
         #self.configSetInstructionSet
         self.userInstructionSet : __class__ = None
         self._instructionSet : dict = {}
         self._directives : dict = {}
         #self.configSetParser
         self.userPraser : __class__ = None
-        self._parseCode : "function" = lambda x : None
+        self._parseCode : Callable[[str], "Node"] = lambda x : None
         self._updateNameSpace : "function" = lambda x, y : None #TODO change name to _parseUpdate()
         #self.configSetPostCycleFunction
         self.userPostCycle : "function" = lambda x : None
@@ -454,7 +455,7 @@ class CPUsim:
             self.key : str = key
             self.index : "str/int" = index
 
-    def _evaluateNested(self, tree : "Node") -> ("Object", ...):
+    def _evaluateNested(self, tree : "Node") -> Tuple["Object"]:
         #logging.info(debugHelper(inspect.currentframe()) + "Recurse\n" + str(tree))
 
         if tree.token in self._instructionSet.keys():
@@ -557,11 +558,11 @@ class CPUsim:
             self.instructionSet = instructionSet
             self.directives = directives
 
-        def compileOld(self, oldState, config, executionTree : "Node") -> (["Node", ...], [int, ...], {str : int}):
+        def compileOld(self, oldState, config, executionTree : "Node") -> Tuple[List["Node"], List[int], Dict[str, int]]:
             #assumes the instruction array is register array "m"
             
-            instructionArray : "[Node, ...]" = [None for i in range(len(oldState["m"]))]
-            memoryArray : [int, ...] = [0 for i in range(len(oldState["m"]))]
+            instructionArray : List["Node"] = [None for i in range(len(oldState["m"]))]
+            memoryArray : List[int] = [0 for i in range(len(oldState["m"]))]
             labels : dict = {}
 
             #scans for labels, removes labels from execution tree
@@ -577,7 +578,7 @@ class CPUsim:
 
             return instructionArray, memoryArray, labels
 
-        def compile(self, config : dict, executionTree : "Node", parseLabels : '{str : Node, ...}') -> (["Node", ...], [int, ...], '{str : int, ...}'):
+        def compile(self, config : dict, executionTree : "Node", parseLabels : Dict[str, "Node"]) -> Tuple[List["Node"], List[int], Dict[str, int]]:
             """Takes in in a dict containing the config information of registers, A node representing an execution tree, and parseLabels a dict (where key is the label, and value is a line number).
             Returns a list of Tree Nodes (representing each instruction), A list of ints (representing the program memory/binary), and a dictionary of labels (where each value corisponds to a memory index)
 
@@ -591,9 +592,9 @@ class CPUsim:
 
             logging.debug(debugHelper(inspect.currentframe()) + "compile input ExecutionTree = \n" + str(executionTree))
 
-            instructionArray : ["Node", ...] = []
-            memoryArray : [int, ...] = []
-            labels : '{str : int, ...}' = {} #Note: needs to handle multiple keys refering to the same value
+            instructionArray : List["Node"] = []
+            memoryArray : List[int] = []
+            labels : Dict[str, int] = {} #Note: needs to handle multiple keys refering to the same value
 
             for i in range(len(executionTree.child)): #goes through program line by line
                 tempInstruction = executionTree.child[i].copyDeep()
@@ -635,10 +636,10 @@ class CPUsim:
 
             self.animationDelay : int = animationDelay
 
-            self.textRed = "\u001b[31m" #forground red, meant for register writes
-            self.textTeal = "\u001b[96m" #forground teal, meant for register reads
-            self.textGrey = "\u001b[90m" #forground grey
-            self.ANSIend = "\u001b[0m" #resets ANSI colours
+            self.textRed : str = "\u001b[31m" #forground red, meant for register writes
+            self.textTeal : str = "\u001b[96m" #forground teal, meant for register reads
+            self.textGrey : str = "\u001b[90m" #forground grey
+            self.ANSIend : str = "\u001b[0m" #resets ANSI colours
 
         def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
             """Executed after every instruction/cycle. Accesses/takes in all information about the engine, takes control of the screen to print information."""
@@ -812,9 +813,9 @@ class CPUsim:
                 self.child : list = []
 
                 #relational references to other nodes
-                self.parent : "Node" = None
-                self.nodePrevious : "Node" = None
-                self.nodeNext : "Node" = None
+                self.parent : self.__class__ = None
+                self.nodePrevious : self.__class__ = None
+                self.nodeNext : self.__class__ = None
 
                 #the line number of the string or character position in a line, will be needed for indentation awareness if it's ever needed
                 self.lineNum : int = lineNum 
@@ -968,8 +969,8 @@ class CPUsim:
                 assert type(depth) is int
                 assert depth >= 0
 
-                block = ""
-                line = ""
+                block : str = ""
+                line : str = ""
                 for i in range(depth):
                     line += "    "
                 line += repr(self.token)
@@ -981,7 +982,7 @@ class CPUsim:
 
                 line += "\n"
 
-                childLines = [i.__repr__(depth+1) for i in self.child]
+                childLines : List[str] = [i.__repr__(depth+1) for i in self.child]
                 block += line
                 for i in childLines:
                     block += i
@@ -1028,7 +1029,7 @@ class CPUsim:
                 while len(self.child) != 0:
                     self.remove(self.child[0])
 
-        def _tokenize(self, code : str) -> [(str, int, int), ... ] :
+        def _tokenize(self, code : str) -> List[Tuple[str, int, int]] :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). 
             
             No characters are filtered out"""
@@ -1113,7 +1114,7 @@ class CPUsim:
             for i in tree.child:
                 if type(i.token) == str:
                     if i.token.startswith("0x") or i.token.startswith("0X"):
-                        temp = i.copyDeep()
+                        temp : self.Node = i.copyDeep()
                         temp.token = int(i.token, 16)
                         temp.type = "int"
                         root.append(temp)
@@ -1152,7 +1153,7 @@ class CPUsim:
 
             return root
 
-        def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : [str, ...] = [" ", "\t"]) -> Node:
+        def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : List[str] = [" ", "\t"]) -> Node:
             """Takes in a node, removes all white space tokens between a new line token and the next token. Returns a node
             
             Does not recurse
@@ -1408,7 +1409,7 @@ class CPUsim:
             assert type(nodeType) is str
 
             root : self.Node = tree.copyInfo()
-            stack : [(str, self.Node), ...] = []
+            stack : List[Tuple[str, self.Node]] = []
 
             for i in tree.child:
                 '''
@@ -1446,18 +1447,17 @@ class CPUsim:
 
             return root
 
-        def ruleFindLabels(self, tree : Node, symbolTable : dict) -> (Node, dict):
-            """Takes in a node, attempts to find a label (a token not in symbolTable) that is immidiatly followed by a ":", returns a Node Tree, and a dictionary of labels
+        def ruleFindLabels(self, tree : Node) -> Tuple[Node, Dict[str, Node]]:
+            """Takes in a node, attempts to find a label that is immidiatly followed by a ":", returns a Node Tree, and a dictionary of labels
             
             Does not recurse"""
             assert type(tree) is self.Node
-            assert type(symbolTable) is dict
 
             root : self.Node = tree.copyInfo()
             previous : str = "\n"
             skipToken : bool = False
 
-            labels : dict = {}
+            labels : Dict[str, "Node"] = {}
 
             for i in tree.child:
                 if (i.nodePrevious == previous or i.nodePrevious == None) and i.nodeNext == ":":
@@ -1487,7 +1487,7 @@ class CPUsim:
             assert type(tokenType) is str
 
             root : self.Node = tree.copyInfo()
-            keys : [str, ...]= [i.lower() for i in nameSpace.keys()]
+            keys : List[str]= [i.lower() for i in nameSpace.keys()]
 
             for i in tree.child:
                 if type(i.token) is str:
@@ -1516,7 +1516,7 @@ class CPUsim:
 
             return root
         
-        def ruleSplitLines(self, tree : Node, tokenType : str = "line", splitChar : str = "\n") -> [Node]:
+        def ruleSplitLines(self, tree : Node, tokenType : str = "line", splitChar : str = "\n") -> List[Node]:
             """Takes in a node tree. Returns a list of Nodes, split by '\n'
             
             #TODO should be able to recurse
@@ -1525,7 +1525,7 @@ class CPUsim:
             assert type(tokenType) is str
             assert type(splitChar) is str
 
-            result : [self.Node, ...] = []
+            result : List[self.Node] = []
             current : self.Node = self.Node(tokenType, None, 0, 0)
 
             for i in tree.child:
@@ -1592,7 +1592,7 @@ class CPUsim:
         def ruleApplyAlias(self, tree : Node, alias : dict) -> Node:
             pass
 
-        def ruleFilterBlockComments(self, tree : Node, character : str = "#") -> Node:
+        def ruleFilterBlockComments(self, tree : Node, character : dict = {}) -> Node:
             pass
 
         def ruleFindDirectives(self, tree : Node, directives : dict) -> Node:
@@ -1647,9 +1647,8 @@ class CPUsim:
             root = self.ruleRemoveEmptyLines(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveEmptyLines: " + "\n" + str(root))
 
-            root, self.labels = self.ruleFindLabels(root, self.nameSpace)
+            root, self.labels = self.ruleFindLabels(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root) + "\nlabels: " + str(self.labels))
-            #TODO   #<==========================================================================================================================
             i = 0
             while i < len(root.child): #removes the label nodes, as they don't need to be executed
                 if root.child[i].type == "label":
@@ -1684,7 +1683,7 @@ class CPUsim:
                 root.append(i)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
 
-            #remove empty lines/empty line nodes
+            #removes empty lines/empty line nodes
             i = 0
             while i < len(root.child):
                 if len(root.child[i].child) == 0:
@@ -1706,7 +1705,7 @@ class CPUsim:
         """
 
         def __init__(self):
-            self.instructionSet : dict = {
+            self.instructionSet : Dict[str, Callable[[dict, dict, dict, dict, Any], None]] = {
                 "nop"   : self.opNop,
                 "add"   : self.opAdd,
                 "and"   : self.opAND,
@@ -1726,7 +1725,7 @@ class CPUsim:
 
             self.directives : dict = {}
 
-        def redirect(self, redirection : str, register : str, index : "str/int") -> (str, int):
+        def redirect(self, redirection : str, register : str, index : "str/int") -> Tuple[str, int]:
             """Takes in redirection as a pointer to the memory array to access, and a register index pair. Returns a key index pair corrispoding to redirection as key, index as value stored in register[index]"""
             assert type(redirection) is str
             assert type(register) is str
@@ -1734,7 +1733,7 @@ class CPUsim:
 
             return (redirection, register[index])
 
-        def enforceImm(self, registerTuple : (str, int)) -> (str, int):
+        def enforceImm(self, registerTuple : Tuple[str, int]) -> Tuple[str, int]:
             """Takes in a register key index pair. Returns a register key index pair iff key is 'i' for immediate. Raises an Exception otherwise"""
             assert type(registerTuple) is tuple and len(registerTuple) == 2 
             assert type(registerTuple[0]) is str and (type(registerTuple[0]) is int or type(registerTuple[0]) is str) 
@@ -1929,7 +1928,7 @@ class CPUsim:
             #TODO
             engine["run"] = False
 
-        def dirString(self, config) -> [int, ...]:
+        def dirString(self, config) -> List[int]:
             pass
 
 class RiscV:
@@ -2252,6 +2251,7 @@ def multiply2(a, b, bitlength=8):
     assert 0 <= b < 2**bitlength
 
     ALU = CPUsim(bitlength) #bitlength
+    ALU.configSetDisplay(ALU.DisplaySimpleAndClean(0))
     ALU.configAddRegister('r', bitlength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
     ALU.configAddRegister('m', bitlength, 10) #namespace symbol, bitlength, register amount #will overwrite defaults, in this case, erasing it
     ALU.configAddRegister('t', bitlength * 2, 2) #namespace symbol, bitlength, register amount
@@ -2300,7 +2300,7 @@ if __name__ == "__main__":
     logging.basicConfig(level = logging.INFO)
     debugHighlight = lambda x : 1350 <= x <= 1500
 
-    multiply2(8, 10)
+    print("multiply 8 * 10 =>".ljust(32, " ") + str(multiply2(8, 10)) + "\t" + str(multiply2(8,10) == 8 * 10))
     """
     CPU = RiscV().CPU
     CPU.linkAndLoad('''
