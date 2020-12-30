@@ -172,7 +172,7 @@ class CPUsim:
         self._displayPostRun : Callable[[], None] = lambda : None
         #self.configSetInstructionSet
         self.userInstructionSet : __class__ = None
-        self._instructionSet : dict = {}
+        self._instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Args"], None]] = {}
         self._directives : dict = {}
         #self.configSetParser
         self.userPraser : __class__ = None
@@ -244,6 +244,8 @@ class CPUsim:
         """
         assert displayInstance.runtime
         assert displayInstance.postrun
+        assert callable(displayInstance.runtime)
+        assert callable(displayInstance.postrun)
 
         self.userDisplay : __class__ = displayInstance
         self._displayRuntime = lambda : displayInstance.runtime(self.lastState, self.state, self.config, self.stats, self.engine)
@@ -368,6 +370,15 @@ class CPUsim:
         """Prototype
         runs at the end of each execution cycle, meant to handle engine level stuff. Should also run checks to verify the integrity of self.state"""
         self.engine["cycle"] += 1
+        
+        '''#TODO
+        assert state and last state have the same keys
+        assert state and last state registers have int values
+            assert those values are positive
+        '''
+
+        #for i in self.state.keys():
+        #    assert all([type(j) is int for j in self.state[i]])
 
     #==================================================================================================================
 
@@ -389,25 +400,37 @@ class CPUsim:
         parseTree, parseLabels = self._parseCode(code)
 
         logging.debug(debugHelper(inspect.currentframe()) + "parseLabels = " + str(parseLabels))
-        logging.debug(debugHelper(inspect.currentframe()) + "parseTree = " + "\n" + str(parseTree))
+        logging.info(debugHelper(inspect.currentframe()) + "linkAndLoad parseTree = " + "\n" + str(parseTree))
 
         assemmbledObject = self.compileDefault(self._instructionSet, self._directives)
-        #t1, t2, t3 = assemmbledObject.compile(self.state, self.config, parseTree) #<================================================
-        t1, t2, t3 = assemmbledObject.compile(self.config, parseTree, parseLabels)
-        #t1 is list of instruction nodes
-        #t2 is an integer array of memory elements/registers
-        #t3 is labels, a dictionary accossiating 'labels' to a specific memory addresses
+        instructionArray : List["Node" or None] = [] #instructionArray is list of instruction nodes
+        memoryArray : List[int] = [] #memoryArray is an integer array of memory elements/registers
+        compileLabels : Dict[str, int] = {} #compileLabels is labels, a dictionary accossiating 'labels' to a specific memory addresses
+        instructionArray, memoryArray, compileLabels = assemmbledObject.compile(self.config, parseTree, parseLabels)
+        
+        #some checks on the returned values from compile function
+        if len(memoryArray) > len(self.state["m"]):
+            raise Exception("Program is too large to fit into memory array")
+        assert type(instructionArray) is list
+        assert type(memoryArray) is list
+        assert type(compileLabels) is dict
+        assert len(instructionArray) == len(memoryArray)
+        assert all([(callable(i) or i == None) for i in instructionArray])
+        assert all([len(i.child) != 0 for i in instructionArray]) #asserts there are no empty lines
+        assert all([type(i) is int for i in memoryArray])
+        assert all([(type(key) is str and type(value) is int) for key, value in compileLabels.items()])
 
-        self.engine["instructionArray"] = t1
+        self.engine["instructionArray"] = instructionArray
 
         #TODO program is imported into memory, this should be changeable
-        for i in range(len(t2)): #loads program memory into memory one element at a time
-            self.state["m"][i] = t2[i]
+        for i in range(len(memoryArray)): #loads program memory into memory one element at a time
+            self.state["m"][i] = memoryArray[i]
         
-        self.engine["labels"] = t3
-        logging.debug(debugHelper(inspect.currentframe()) + "compilerLabels = " + str(t3))
+        self.engine["labels"] = compileLabels
+        logging.debug(debugHelper(inspect.currentframe()) + "compilerLabels = " + str(compileLabels))
 
         #sets the program counter to the label __main, if the label __main exists
+        #TODO allow a settable 'main' label. IE: allow different labels to be used as the program start instead of '__main'
         if "__main" in self.engine["labels"]:
             self.state["pc"][0] = self.engine["labels"]["__main"]
 
@@ -423,26 +446,31 @@ class CPUsim:
             apply 'rule functions' based on what the token is
             recursivly evaluate
         '''
-        self.engine["run"] = True
         self._displayRuntime()
         self.userPostCycle()
         self._postCycleEngine()
+
+        self.engine["run"] = True
+        self.engine["cycle"] = 0
 
         i = 0
         while i < cycleLimit:
             i += 1
             if self.engine["run"] == False:
                 break
-            
+
             #logging.info(debugHelper(inspect.currentframe()) + str(i))
             line = self.engine["instructionArray"][self.state["pc"][0]]
             #logging.info(debugHelper(inspect.currentframe()) + "\n" + str(line))
             if line is None:
                 break
 
+            self.engine["sourceCodeLineNumber"] = line.lineNum
+
             self._evaluateNested(line)
 
-            self.engine["sourceCodeLineNumber"] = line.lineNum
+            if self.lastState['pc'][0] == self.state['pc'][0] and self.engine["run"] == True:
+                logging.warning(debugHelper(inspect.currentframe()) + "Program Counter has not incremented\t" + str(line))
 
             self._displayRuntime()
             self.userPostCycle()
@@ -849,7 +877,8 @@ class CPUsim:
                         self.token,
                         self.lineNum,
                         self.charNum,
-                        self.child)))
+                        self.child))
+                    )
 
                 for i in range(len(self.child)):
                     newNode.append(self.child[i].copyDeep())
@@ -1036,9 +1065,9 @@ class CPUsim:
             assert type(code) is str
 
             #done like this to easily add extra characters
-            _isName : "function" = lambda x : x.isalnum() or x in "_" #returns True is character can be in a name, False otherwise
+            _isName : Callable[[str], bool] = lambda x : x.isalnum() or x in "_" #returns True is character can be in a name, False otherwise
 
-            tokenList : list = []
+            tokenList : List[Tuple[str, int, int]] = []
             token : str = ""
             lineNum : int = 0
             characterNum : int = 0
@@ -1143,7 +1172,7 @@ class CPUsim:
 
             root : self.Node = tree.copyInfo()
 
-            stack = "\n"
+            stack : str = "\n"
 
             for i in tree.child:
                 #if previous == "\n" and current == "\n" do nothing, else copy Node
@@ -1364,7 +1393,7 @@ class CPUsim:
 
             return root
 
-        def ruleContainer(self, tree : Node, containers : dict = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> Node:
+        def ruleContainer(self, tree : Node, containers : Dict[str, str] = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> Node:
             """Takes in a Node Tree, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers. Returns a node tree
 
             Containers are of the form {"opening bracket": "closing bracket", ...}
@@ -1445,6 +1474,9 @@ class CPUsim:
                     else:
                         stack[-1][1].append(i.copyDeep())
 
+            if len(stack) != 0:
+                raise Exception("Parse Error: mismatching brackets")
+
             return root
 
         def ruleFindLabels(self, tree : Node) -> Tuple[Node, Dict[str, Node]]:
@@ -1457,7 +1489,7 @@ class CPUsim:
             previous : str = "\n"
             skipToken : bool = False
 
-            labels : Dict[str, "Node"] = {}
+            labels : Dict[str, self.Node] = {}
 
             for i in tree.child:
                 if (i.nodePrevious == previous or i.nodePrevious == None) and i.nodeNext == ":":
@@ -1516,20 +1548,20 @@ class CPUsim:
 
             return root
         
-        def ruleSplitLines(self, tree : Node, tokenType : str = "line", splitChar : str = "\n") -> List[Node]:
+        def ruleSplitLines(self, tree : Node, tokenType : str = "line", splitToken : str = "\n") -> List[Node]:
             """Takes in a node tree. Returns a list of Nodes, split by '\n'
             
             #TODO should be able to recurse
             """
             assert type(tree) is self.Node
             assert type(tokenType) is str
-            assert type(splitChar) is str
+            assert type(splitToken) is str
 
             result : List[self.Node] = []
             current : self.Node = self.Node(tokenType, None, 0, 0)
 
             for i in tree.child:
-                if i == splitChar:
+                if i == splitToken:
                     result.append(current)
                     current = self.Node(tokenType, None, 0, 0)
                 else:
@@ -1559,6 +1591,7 @@ class CPUsim:
 
             for i in tree.child:
                 if i.type == "container":  
+                    temp : self.Node = None
                     if recurse:
                         temp = self.ruleNestContainersIntoInstructions(i.copyDeep(), nameSpace, True)
                     else:
@@ -1598,7 +1631,7 @@ class CPUsim:
         def ruleFindDirectives(self, tree : Node, directives : dict) -> Node:
             pass
 
-        def parseCode(self, sourceCode : str) -> Node:
+        def parseCode(self, sourceCode : str) -> Tuple[Node, Dict[str, Node]]:
             """Takes a string of code, returns a parsed instruction tree
             
             Applies following rules to sourceCode, in order:
@@ -1624,7 +1657,7 @@ class CPUsim:
             assert type(sourceCode) is str
             
             #tokenizes sourceCode, and turns it into a Node Tree
-            root = self.Node("root")
+            root : self.Node = self.Node("root")
             for i in self._tokenize(sourceCode):
                 root.append(self.Node("token", i[0], i[1], i[2]))
 
@@ -1677,7 +1710,7 @@ class CPUsim:
             root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
 
-            temp : list = self.ruleSplitLines(root)
+            temp : List[self.Node] = self.ruleSplitLines(root)
             root = self.Node("root")
             for i in temp:
                 root.append(i)
@@ -1705,7 +1738,7 @@ class CPUsim:
         """
 
         def __init__(self):
-            self.instructionSet : Dict[str, Callable[[dict, dict, dict, dict, Any], None]] = {
+            self.instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Arguments"], None]] = {
                 "nop"   : self.opNop,
                 "add"   : self.opAdd,
                 "and"   : self.opAND,
@@ -1904,7 +1937,7 @@ class CPUsim:
             a1, a2 = a
             des1, des2 = des
 
-            amount = 0
+            amount : int = 0
             if type(n) is int:
                 amount = n
             elif type(n) is tuple:
@@ -1912,20 +1945,19 @@ class CPUsim:
 
             result = oldState[a1][a2]
             for i in range(amount):
-                t1 = 0
+                t1 : int = 0
                 if arithmetic:
                     t1 = 2 ** (config[a1]['bitlength'] - 1)
                     t1 = t1 & result
                 result = result >> 1
                 result = result | t1
 
-            result = result & (2**config[des1]['bitlength'] - 1)
+            result : int = result & (2**config[des1]['bitlength'] - 1)
 
             newState[des1][des2] = result
             newState['pc'][0] = oldState['pc'][0] + 1
 
         def opHalt(self, oldState, newState, config, engine):
-            #TODO
             engine["run"] = False
 
         def dirString(self, config) -> List[int]:
@@ -2250,14 +2282,31 @@ def multiply2(a, b, bitlength=8):
     assert 0 <= a < 2**bitlength
     assert 0 <= b < 2**bitlength
 
-    ALU = CPUsim(bitlength) #bitlength
-    ALU.configSetDisplay(ALU.DisplaySimpleAndClean(0))
-    ALU.configAddRegister('r', bitlength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
-    ALU.configAddRegister('m', bitlength, 10) #namespace symbol, bitlength, register amount #will overwrite defaults, in this case, erasing it
-    ALU.configAddRegister('t', bitlength * 2, 2) #namespace symbol, bitlength, register amount
-
+    #configure memory
     t = [0 for j in range(2)]
     r = [0 for i in range(2)]
+    
+    t[0] = a
+    r[0] = b
+
+    #A python algorithm that multiplies two numbers together
+    while(r[0] != 0):
+        r[1] = r[0] & 1
+        if r[1] == 1:
+            t[1] = t[0] + t[1]
+        t[0] = t[0] << 1
+        r[0] = r[0] >> 1
+        
+    resultPython = t[1]
+
+    #the same algorithm, but using a generic assembly algorithm
+    ALU = CPUsim(bitlength) #bitlength
+    ALU.configSetDisplay(ALU.DisplaySimpleAndClean(0))
+
+    #configure memory
+    ALU.configAddRegister('r', bitlength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
+    ALU.configAddRegister('m', bitlength, 8) #the program is loaded into here
+    ALU.configAddRegister('t', bitlength * 2, 2) #note that the register bitlength is double the input register size
 
     ALU.linkAndLoad('''
                 # Multiplies two numbers together
@@ -2272,22 +2321,11 @@ def multiply2(a, b, bitlength=8):
                             jump    (loop)
                 end:    halt
                 ''')
+    #loads arguments into correct registers
     ALU.inject('t', 0, a)
     ALU.inject('r', 0, b)
     ALU.run()
     resultALU = ALU.extract('t', 1)
-    
-    t[0] = a
-    r[0] = b
-    
-    while(r[0] != 0):
-        r[1] = r[0] & 1
-        if r[1] == 1:
-            t[1] = t[0] + t[1]
-        t[0] = t[0] << 1
-        r[0] = r[0] >> 1
-        
-    resultPython = t[1]
 
     #sanity check
     assert resultALU == a * b
@@ -2300,7 +2338,8 @@ if __name__ == "__main__":
     logging.basicConfig(level = logging.INFO)
     debugHighlight = lambda x : 1350 <= x <= 1500
 
-    print("multiply 8 * 10 =>".ljust(32, " ") + str(multiply2(8, 10)) + "\t" + str(multiply2(8,10) == 8 * 10))
+    result = multiply2(8, 10)
+    print("multiply 8 * 10 =>".ljust(32, " ") + str(result) + "\t" + str(result == 8 * 10))
     """
     CPU = RiscV().CPU
     CPU.linkAndLoad('''
