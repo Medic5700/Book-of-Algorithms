@@ -191,7 +191,7 @@ class CPUsim:
         self.lastState['flag'] : dict = {}
 
         #adds special registers that are required
-        self.configAddRegister('i', bitLength, 0) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
+        self.configAddRegister('imm', bitLength, 0) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
         self.configAddRegister('pc', bitLength, 1) #program counter, it's a list for better consistancy with the other registers
         
         #self.state['sp'] = [0] #stack pointer #FUTURE
@@ -364,7 +364,7 @@ class CPUsim:
         
         for i in self.state['flag'].keys(): #resets all flags
             self.state['flag'][i] = 0
-        self.state['i'] = []
+        self.state['imm'] = []
 
     def _postCycleEngine(self):
         """Prototype
@@ -506,8 +506,8 @@ class CPUsim:
             newArguments = []
             for i in range(len(arguments)):
                 if type(arguments[i]) is int:
-                    self.lastState["i"].append(arguments[i])
-                    newArguments.append(("i", len(self.lastState["i"]) - 1))
+                    self.lastState["imm"].append(arguments[i])
+                    newArguments.append(("imm", len(self.lastState["imm"]) - 1))
                 elif type(arguments[i]) is self._registerObject:
                     newArguments.append((arguments[i].key, arguments[i].index))
                 else:
@@ -534,8 +534,8 @@ class CPUsim:
             #logging.info(debugHelper(inspect.currentframe()) + "case 1 empty")
             result = None
             if tree.token in self.engine["labels"]:
-                self.lastState["i"].append(self.engine["labels"][tree.token])
-                result = self._registerObject("i", len(self.lastState["i"]) - 1)
+                self.lastState["imm"].append(self.engine["labels"][tree.token])
+                result = self._registerObject("imm", len(self.lastState["imm"]) - 1)
             else:
                 result = tree.token                
             return result
@@ -697,9 +697,9 @@ class CPUsim:
                 + "\t" \
                 + "[" + highlight + "0x" + hex(newState['pc'][0])[2:].rjust(8, '0').upper() + self.ANSIend + "]" \
                 + "\n"
-            for i in range(len(oldState['i'])): #handles the immidiate registers
-                lineRequired += "    " + ("i[" + str(i) + "]").ljust(8, " ") \
-                    + "[" + self.textTeal + str(bin(oldState["i"][i]))[2:].rjust(config["i"]['bitlength'], "0") + self.ANSIend + "]" \
+            for i in range(len(oldState['imm'])): #handles the immidiate registers
+                lineRequired += "    " + ("imm[" + str(i) + "]").ljust(8, " ") \
+                    + "[" + self.textTeal + str(bin(oldState["imm"][i]))[2:].rjust(config["imm"]['bitlength'], "0") + self.ANSIend + "]" \
                     + "\n"
             for i in oldState["flag"].keys(): #handles the CPU flags
                 highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
@@ -717,8 +717,8 @@ class CPUsim:
                 keys.remove("flag")
             if "pc" in keys:
                 keys.remove("pc")
-            if "i" in keys:
-                keys.remove("i")
+            if "imm" in keys:
+                keys.remove("imm")
 
             for i in keys:
                 for j in range(len(oldState[i])):
@@ -1734,7 +1734,7 @@ class CPUsim:
         """A non-functional mockup of what an instructionset definition could look like
         
         Note: uses 'carry' flag, but doesn't need that flag to run. IE: will use 'carry' flag if present
-        Note: instruction functions do not 'see' immediate values, they instead see an index of register 'i' (IE: immediate values are filtered out before instructions are called)
+        Note: instruction functions do not 'see' immediate values, they instead see an index of register 'imm' (IE: immediate values are filtered out before instructions are called)
         """
 
         def __init__(self):
@@ -1767,11 +1767,11 @@ class CPUsim:
             return (redirection, register[index])
 
         def enforceImm(self, registerTuple : Tuple[str, int]) -> Tuple[str, int]:
-            """Takes in a register key index pair. Returns a register key index pair iff key is 'i' for immediate. Raises an Exception otherwise"""
+            """Takes in a register key index pair. Returns a register key index pair iff key is 'imm' for immediate. Raises an Exception otherwise"""
             assert type(registerTuple) is tuple and len(registerTuple) == 2 
             assert type(registerTuple[0]) is str and (type(registerTuple[0]) is int or type(registerTuple[0]) is str) 
 
-            if registerTuple[0] != "i":
+            if registerTuple[0] != "imm":
                 raise Exception
             return registerTuple
 
@@ -2053,7 +2053,7 @@ class RiscV:
 
         for i in notSelf.state['flag'].keys():
             notSelf.state['flag'][i] = 0
-        notSelf.state['i'] = []
+        notSelf.state['imm'] = []
 
     class RiscVISA(CPUsim.InstructionSetDefault):
         def __init__(self):
