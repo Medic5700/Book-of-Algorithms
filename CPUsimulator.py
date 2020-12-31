@@ -293,18 +293,20 @@ class CPUsim:
         """
         self.userPostCycle = postCycle
 
-    def configAddRegister(self, name : str, bitlength : int, amount : int):
+    def configAddRegister(self, name : str, bitlength : int, amount : int, show : bool = True):
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
         assert type(name) is str
         assert len(name) >= 1
         assert type(bitlength) is int and bitlength > 0
         assert type(amount) is int and amount >= 0
+        assert type(show) is bool
         
         self.state[name.lower()] = [0 for i in range(amount)]
         self.lastState[name.lower()] = [0 for i in range(amount)]
         self.config[name.lower()] = {}
 
         self.config[name]['bitlength'] = bitlength
+        self.config[name]['show'] = show
 
         self._computeNamespace()
 
@@ -721,20 +723,21 @@ class CPUsim:
                 keys.remove("imm")
 
             for i in keys:
-                for j in range(len(oldState[i])):
-                    highlight = ""
+                if config[i]['show'] == True:
+                    for j in range(len(oldState[i])):
+                        highlight = ""
 
-                    ''' #this highlights the registers containing instructions with grey, but doesn't make the display more readable... should be used for another display class
-                    if engine["instructionArray"] != None and i == "m":
-                        highlight = self.textGrey if not (engine["instructionArray"][j] is None) else ""
-                    '''
-                    highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
+                        ''' #this highlights the registers containing instructions with grey, but doesn't make the display more readable... should be used for another display class
+                        if engine["instructionArray"] != None and i == "m":
+                            highlight = self.textGrey if not (engine["instructionArray"][j] is None) else ""
+                        '''
+                        highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
 
-                    lineRegisters += "    " + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
-                        + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + "]" \
-                        + "\t" \
-                        + "[" + highlight + str(bin(newState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + self.ANSIend + "]" \
-                        + "\n"
+                        lineRegisters += "    " + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
+                            + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + "]" \
+                            + "\t" \
+                            + "[" + highlight + str(bin(newState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + self.ANSIend + "]" \
+                            + "\n"
 
             screen += lineOp
             screen += lineRequired
@@ -2305,7 +2308,7 @@ def multiply2(a, b, bitlength=8):
 
     #configure memory
     ALU.configAddRegister('r', bitlength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
-    ALU.configAddRegister('m', bitlength, 8) #the program is loaded into here
+    ALU.configAddRegister('m', bitlength, 8, show=False) #the program is loaded into here
     ALU.configAddRegister('t', bitlength * 2, 2) #note that the register bitlength is double the input register size
 
     ALU.linkAndLoad('''
