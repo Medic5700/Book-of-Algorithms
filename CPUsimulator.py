@@ -1566,9 +1566,7 @@ class CPUsim:
             return root
         
         def ruleRemoveToken(self, tree : Node, token : str, recurse : bool = True) -> Node:
-            """Takes in a Node Tree of arbitrary depth, and a token. Removes all instances of token in tree.child. Returns a Node Tree of arbitrary depth.
-            
-            Does not recurse"""
+            """Takes in a Node Tree of arbitrary depth, and a token. Removes all instances of token in tree.child. Returns a Node Tree of arbitrary depth."""
             assert type(tree) is self.Node
             
             root : self.Node = tree.copyInfo()
@@ -1576,6 +1574,12 @@ class CPUsim:
             for i in tree.child:
                 if i != token:
                     root.append(i.copyDeep())
+
+            if recurse:
+                newRoot : self.Node = tree.copyInfo()
+                for i in root.child:
+                    newRoot.append(self.ruleRemoveToken(i.copyDeep(), token, True))
+                root = newRoot
 
             return root
         
