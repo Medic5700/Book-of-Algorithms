@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Tuple #used for more complex annot
 
 #debugging and logging stuff
 import logging
-import inspect
+import inspect #used for logging, also used to assertion testing
 debugHighlight = lambda x : False #debugHighlight = lambda x : 322 <= x <= 565 #will highlight the debug lines between those number, or set to -1 to highlight nothing
 def debugHelper(frame : "Frame Object") -> str:
     """Takes in a frame object, returns a string representing debug location info (IE: the line number and container name of the debug call)
@@ -79,9 +79,8 @@ class CPUsim:
             needs a rule to label containers as function arguments, array indices, other?
             Parser currently assumes all source code to process is perfect with no errors/typos, and thus is super fragile
             Parser 'rules' need more functionality for each function, to make it more modular
-            Impliment Parsing exception
         System Calls
-            HALT uses self.engine["run"] as a flag for running, or stopping the simulation... there has to be a better more generic way to handle system calls
+            How to handle system calls?
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -104,6 +103,8 @@ class CPUsim:
         https://www.youtube.com/watch?v=Q4aTB0k633Y&ab_channel=Level1Techs #Ryzen is Released - Rant/Rave with Tech Tech Potato (Dr. Ian Cutress
             four times the L3 cache (16MB to 64MB), eight extra clock cycle access time
             AMD 64-bit int division, 19-ish cycles (down from like 90-120 cyles years ago)
+        https://www.youtube.com/watch?v=UvCri1tqIxQ #Making Your First Game: Minimum Viable Product - Scope Small, Start Right - Extra Credits
+            What is Minimum Viable Product
 
     Out of scope (for this itteration): #it's sometimes helpful to know what not to do
         caching
@@ -215,7 +216,7 @@ class CPUsim:
         self.userPostCycle()
         self._postCycleEngine()
 
-    def _computeNamespace(self):
+    def _computeNamespace(self): #TODO this should serve a different function, updating namespaces throughout program WITHOUT using a centralized 'namespace' variable
         """computes the namespace of instructions, registers, etc for the CPU. Updates self._updateNameSpace : dict"""
 
         names = {}
@@ -229,6 +230,16 @@ class CPUsim:
         self._updateNameSpace(names, self._tokenAlias)
 
     def configAddAlias(self, token : str, replacement : str):
+        """Takes in a 'token' and a 'replacement' str
+        
+        When used, adds it to self._tokenAlias.
+        Parsing source code will replace that token with it's replacement during parsing"""
+        assert type(token) is str
+        assert type(replacement) is str
+        assert len(token) != 0
+        assert len(replacement) != 0
+        assert token != replacement
+
         self._tokenAlias[token] = replacement
         
         self._computeNamespace()
@@ -240,12 +251,14 @@ class CPUsim:
             runtime(lastState, state, config, stats, engine) - runs after every execution cycle
             postrun(lastState, state, config, stats, engine) - runs after the CPU halts
 
-        Note: runtime() must be able to handle the 'i' register having a variying sized array, since it's size changes based on what the currect instruction needs
+        Note: runtime() must be able to handle the 'imm' register having a variying sized array, since it's size changes based on what the currect instruction needs
         """
         assert displayInstance.runtime
         assert displayInstance.postrun
         assert callable(displayInstance.runtime)
         assert callable(displayInstance.postrun)
+        assert len((inspect.signature(displayInstance.runtime)).parameters) == 5
+        assert len((inspect.signature(displayInstance.postrun)).parameters) == 5
 
         self.userDisplay : __class__ = displayInstance
         self._displayRuntime = lambda : displayInstance.runtime(self.lastState, self.state, self.config, self.stats, self.engine)
@@ -260,12 +273,22 @@ class CPUsim:
         """
         assert type(instructionSetInstance.instructionSet) is dict
         assert type(instructionSetInstance.directives) is dict
+        assert all([type(i) is str for i in instructionSetInstance.instructionSet]) #some keys in instructionSet are not strings
+        assert all([len(i) > 0 for i in instructionSetInstance.instructionSet]) #some keys in instructionSet are null strings
+        assert all([callable(instructionSetInstance.instructionSet[i]) for i in instructionSetInstance.instructionSet.keys()]) #some keys in instructionSet have non-function values
+        assert all([len((inspect.signature(instructionSetInstance.instructionSet[i])).parameters) >= 4 for i in instructionSetInstance.instructionSet.keys()]) #some instructionSet functions take less than the minimum required functions
 
         self.userInstructionSet : __class__ = instructionSetInstance
         self._instructionSet : dict = instructionSetInstance.instructionSet
         self._directives : dict = instructionSetInstance.directives
 
         self._computeNamespace()
+
+        logging.info(debugHelper(inspect.currentframe()) + "Imported Instruction Set\n" + \
+            "".join(
+                [("    " + str(i).ljust(12, " ") + str(inspect.signature(instructionSetInstance.instructionSet[i])) + "\n") for i in instructionSetInstance.instructionSet]
+                )
+            )
 
     def configSetParser(self, parserInstance):
         """Takes in a class representing a source code parser
@@ -275,8 +298,11 @@ class CPUsim:
             updateNameSpace(nameSpace : dict) - a function which takes in a nameSpace dictionary representing the CPUs registers, flags, instructions, etc
         """
         assert parserInstance.parseCode
-        assert type(parserInstance.nameSpace) is dict
+        assert callable(parserInstance.parseCode)
+        assert len(inspect.signature(parserInstance.parseCode).parameters) >= 1
         assert parserInstance.updateNameSpace
+        assert callable(parserInstance.updateNameSpace)
+        #TODO assert update function takes right number of arguments
 
         self.userParser = parserInstance
         self._parseCode = parserInstance.parseCode
@@ -357,7 +383,7 @@ class CPUsim:
         decodes and executes a single instruction line"""
         pass
 
-    def _postCycleUserDefault(self):
+    def _postCycleUserDefault(self): #TODO this needs a redesign, should be more functional/modular
         """resets all required registers and flags between instructions, copies current state into lastState
 
         note: can be omited in some cases, such as micro-code that sets flags for the calling procedure"""
@@ -1066,6 +1092,7 @@ class CPUsim:
             
             No characters are filtered out"""
             assert type(code) is str
+            assert len(code) > 0
 
             #done like this to easily add extra characters
             _isName : Callable[[str], bool] = lambda x : x.isalnum() or x in "_" #returns True is character can be in a name, False otherwise
@@ -1096,7 +1123,7 @@ class CPUsim:
             return tokenList
 
         def ruleCastInts(self, tree : Node) -> Node:
-            """Takes in a node tree, casts all children that are integers to integers (with labels). Returns a node tree
+            """Takes in a Node Tree of depth 2, casts all children that are integers to integers (with labels). Returns a Node Tree of depth 2.
 
             Does not recurse
 
@@ -1127,7 +1154,7 @@ class CPUsim:
             return root
 
         def ruleCastHex(self, tree : Node) -> Node:
-            """Takes in a node tree, casts all children that are in hex format to integers (with labels). Returns a node tree
+            """Takes in a Node Tree of depth 2, casts all children that are in hex format to integers (with labels). Returns a node tree of depth 2.
 
             Does not recurse
 
@@ -1158,7 +1185,7 @@ class CPUsim:
             return root
 
         def ruleRemoveEmptyLines(self, tree : Node) -> Node:
-            """Takes in a node tree, removes all empty lines. Returns a node
+            """Takes in a Node Tree of depth 2. Removes all empty lines. Returns a Node Tree of depth 2.
 
             Does not recurse
 
@@ -1186,7 +1213,7 @@ class CPUsim:
             return root
 
         def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : List[str] = [" ", "\t"]) -> Node:
-            """Takes in a node, removes all white space tokens between a new line token and the next token. Returns a node
+            """Takes in a Node Tree of depth 2, removes all white space tokens between a new line token and the next token. Returns a Node Tree of depth 2.
             
             Does not recurse
 
@@ -1205,7 +1232,8 @@ class CPUsim:
                 '\n'
             """
             assert type(tree) is self.Node
-            assert all([True if len(i) == 1 else False for i in whiteSpace])
+            assert type(whiteSpace) is list
+            assert all([len(i) == 1 for i in whiteSpace])
 
             root : self.Node = tree.copyInfo()
 
@@ -1244,7 +1272,7 @@ class CPUsim:
             return root
 
         def ruleStringSimple(self, tree : Node) -> Node:
-            """Takes in a node, combines all the tokens that are contained by quote tokens into a string node. Returns a node
+            """Takes in a Node Tree of depth 2, combines all the tokens that are contained by quote tokens into a string node. Returns a Node Tree of depth 2.
             #TODO allow for arbitrary definition of list of 'quote like characters'
 
             Does not recurse
@@ -1326,7 +1354,7 @@ class CPUsim:
             return root
 
         def ruleFilterLineComments(self, tree : Node, character : str = "#") -> Node:
-            """Takes in a Node Tree, removes any tokens between a "#" token and a new line token. Returns a Node Tree.
+            """Takes in a Node Tree of depth 2, removes any tokens between a "#" token and a new line token. Returns a Node Tree of depth 2.
 
             Does not recurse
 
@@ -1397,7 +1425,7 @@ class CPUsim:
             return root
 
         def ruleContainer(self, tree : Node, containers : Dict[str, str] = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> Node:
-            """Takes in a Node Tree, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers. Returns a node tree
+            """Takes in a Node Tree of depth 2, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers. Returns a Node Tree of arbitrary depth.
 
             Containers are of the form {"opening bracket": "closing bracket", ...}
             Does not copy closing brackets
@@ -1483,7 +1511,7 @@ class CPUsim:
             return root
 
         def ruleFindLabels(self, tree : Node) -> Tuple[Node, Dict[str, Node]]:
-            """Takes in a node, attempts to find a label that is immidiatly followed by a ":", returns a Node Tree, and a dictionary of labels
+            """Takes in a Node Tree of depth 2, attempts to find a label that is immidiatly followed by a ":", returns a Node Tree of depth 2, and a dictionary of labels
             
             Does not recurse"""
             assert type(tree) is self.Node
@@ -1513,7 +1541,7 @@ class CPUsim:
             return (root, labels)
 
         def ruleLabelNamespace(self, tree : Node, nameSpace : dict, tokenType : str = "namespace") -> Node:
-            """Takes in a node tree, and a nameSpace. Labels all nodes that are in nameSpace as 'NameSpace'. Returns Node Tree
+            """Takes in a node tree, and a nameSpace. Labels all nodes that are in nameSpace as 'NameSpace'. Returns Node Tree of depth 2.
             
             Does not recurse
             #TODO find a better/less confusing name (conflicts with ruleFindLabels)?"""
@@ -1537,8 +1565,8 @@ class CPUsim:
 
             return root
         
-        def ruleRemoveToken(self, tree : Node, token : str) -> Node:
-            """Takes in a Node Tree, and a token. Removes all instances of token in tree.child. Returns a Node Tree
+        def ruleRemoveToken(self, tree : Node, token : str, recurse : bool = True) -> Node:
+            """Takes in a Node Tree of arbitrary depth, and a token. Removes all instances of token in tree.child. Returns a Node Tree of arbitrary depth.
             
             Does not recurse"""
             assert type(tree) is self.Node
@@ -1552,7 +1580,7 @@ class CPUsim:
             return root
         
         def ruleSplitLines(self, tree : Node, tokenType : str = "line", splitToken : str = "\n") -> List[Node]:
-            """Takes in a node tree. Returns a list of Nodes, split by '\n'
+            """Takes in a Node Tree of arbitrary depth. Returns a list of Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited.
             
             #TODO should be able to recurse
             """
@@ -1582,9 +1610,9 @@ class CPUsim:
             return result
 
         def ruleNestContainersIntoInstructions(self, tree : Node, nameSpace : dict, recurse : bool = True) -> Node:
-            """Takes in a Node Tree, and a nameSpace dict represeting instructions, registers, etc. 
+            """Takes in a Node Tree of arbitrary depth, and a nameSpace dict represeting instructions, registers, etc. 
             If a container node follows a nameSpace node, make container node a child of the nameSpace node.
-            Returns a Node Tree
+            Returns a Node Tree of arbitrary depth.
 
             Recurses by default"""
             assert type(tree) is self.Node
@@ -1611,7 +1639,7 @@ class CPUsim:
             return root
 
         def ruleLowerCase(self, tree : Node, recurse : bool = True) -> Node:
-            """Takes in a Node Tree. Sets all tokens in the Node Tree's children as lower case. Recursion optional. Returns a Node Tree."""
+            """Takes in a Node Tree of arbitrary depth. Sets all tokens in the Node Tree's children as lower case. Recursion optional. Returns a Node Tree of arbitrary depth."""
             assert type(tree) is self.Node
 
             root : self.Node = tree.copyInfo()
@@ -1667,7 +1695,8 @@ class CPUsim:
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
 
-            #does operations on the Node Tree, but the depth of the Node Tree remains 2
+            #Note: at this point, rules do operations on the Node Tree, but the depth of the Node Tree remains 2
+
             root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
@@ -1675,7 +1704,7 @@ class CPUsim:
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
 
             root = self.ruleLowerCase(root)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root))            
 
             root = self.ruleRemoveLeadingWhitespace(root, [" ", "\t"])
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveLeadingWhitespace: " + "\n" + str(root))
@@ -1695,9 +1724,8 @@ class CPUsim:
             root = self.ruleLabelNamespace(root, self.nameSpace)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleLabelNamespace: " + "\n" + str(root))
 
-            root = self.ruleRemoveToken(root, " ")
-            root = self.ruleRemoveToken(root, "\t")
-            root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
+            root = self.ruleRemoveToken(root, " ", False)
+            root = self.ruleRemoveToken(root, "\t", False)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveToken: " + "\n" + str(root))
 
             root = self.ruleCastInts(root)
@@ -1713,7 +1741,7 @@ class CPUsim:
             root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
 
-            temp : List[self.Node] = self.ruleSplitLines(root)
+            temp : List[self.Node] = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
             for i in temp:
                 root.append(i)
@@ -1728,7 +1756,9 @@ class CPUsim:
                     i += 1
             logging.debug(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
 
-            #return root #<===============================================================================================================
+            root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
+            logging.debug(debugHelper(inspect.currentframe()) + "remove commas #TODO: " + "\n" + str(root))
+
             return root, self.labels
             
     #==================================================================================================================
@@ -1745,14 +1775,13 @@ class CPUsim:
                 "nop"   : self.opNop,
                 "add"   : self.opAdd,
                 "and"   : self.opAND,
+                "or"    : self.opOR,
+                "xor"   : self.opXOR,
                 "jumpeq": (lambda z1, z2, z3, z4,   pointer, a, b     : self.opJump(z1, z2, z3, z4,       "==", pointer, a, b)),
                 "jumpne": (lambda z1, z2, z3, z4,   pointer, a, b     : self.opJump(z1, z2, z3, z4,       "!=", pointer, a, b)),
                 "jump"  : (lambda z1, z2, z3, z4,   pointer           : self.opJump(z1, z2, z3, z4,       "goto", pointer)),
                 "shiftl": (lambda z1, z2, z3, z4,   des, a            : self.opShiftL(z1, z2, z3, z4,     des, a, 1)),
                 "shiftr": (lambda z1, z2, z3, z4,   des, a            : self.opShiftR(z1, z2, z3, z4,     des, a, 1)),
-
-                "or"    : self.opOR,
-                "xor"   : self.opXOR,
 
                 "halt"  : self.opHalt
             }
@@ -2263,25 +2292,36 @@ class RiscV:
             root = self.ruleContainer(root, {"(":")", "[":"]"})
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
-            root = self.ruleContainerTokensFollowingInstruction(root)                               #<=================================================
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleContainerTokensFollowingInstruction: " + "\n" + str(root))
-
-            temp : list = self.ruleSplitLines(root)
+            temp : list = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
             for i in temp:
                 root.append(i)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
+            logging.info(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
+
+            temp = root.copyInfo()                  #<==========================================================================
+            for i in root.child:
+                temp.append(self.ruleContainerTokensFollowingInstruction(i, self.nameSpace))
+            root = temp                            
+            logging.info(debugHelper(inspect.currentframe()) + "ruleContainerTokensFollowingInstruction: " + "\n" + str(root))
 
             return root
 
         def ruleContainerTokensFollowingInstruction(self, root : "Node") -> "Node":
             pass
 
-def multiply2(a, b, bitlength=8):
+            return root
+
+def multiply2(a : int, b : int, bitlength : int = 8) -> int:
     """Takes in two unsigned integers, a, b -> returns an integer a*b
 
     bitlength is the size of the numbers/architecture, in bits
+
+    This is a real world use case
     """
+    assert type(a) is int
+    assert type(b) is int
+    assert type(bitlength) is int
+    assert bitlength >= 1
     assert 0 <= a < 2**bitlength
     assert 0 <= b < 2**bitlength
 
@@ -2302,7 +2342,7 @@ def multiply2(a, b, bitlength=8):
         
     resultPython = t[1]
 
-    #the same algorithm, but using a generic assembly algorithm
+    #the same algorithm, but using a generic assembly like algorithm
     ALU = CPUsim(bitlength) #bitlength
     ALU.configSetDisplay(ALU.DisplaySimpleAndClean(0))
 
@@ -2341,7 +2381,7 @@ if __name__ == "__main__":
     logging.basicConfig(level = logging.INFO)
     debugHighlight = lambda x : 1350 <= x <= 1500
 
-    result = multiply2(8, 10)
+    result = multiply2(7, 3)
     print("multiply 8 * 10 =>".ljust(32, " ") + str(result) + "\t" + str(result == 8 * 10))
     """
     CPU = RiscV().CPU
