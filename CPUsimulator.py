@@ -1039,12 +1039,12 @@ class CPUsim:
                 for i in range(len(removeNode.child) - 1, -1, -1):
                     removeNode.remove(removeNode.child[i])
 
-            def __repr__(self, depth : int = 0) -> str:
+            def __repr__(self, depth : int = 1) -> str:
                 """Recursivly composes a string representing the node hierarchy, returns a string.
                 
                 Called by print() to display the object"""
                 assert type(depth) is int
-                assert depth >= 0
+                assert depth >= 1
 
                 block : str = ""
                 line : str = ""
