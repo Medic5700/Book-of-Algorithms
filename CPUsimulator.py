@@ -1680,8 +1680,75 @@ class CPUsim:
             
             return root
 
-        def ruleApplyAlias(self, tree : Node, alias : dict) -> Node:
-            pass
+        def ruleApplyAlias(self, tree : Node, alias : Dict[str, str]) -> Node:
+            """Takes in a Node Tree of Depth 2. If a token is in alias, replaces that token, then tokenizes it. Returns a Node Tree of Depth 2.
+            
+            Case 1: alias = {'123': 'hello world'}
+            Node
+                'test'
+                ' '
+                '123'       |
+                ' '
+                'abc'
+            =>
+            Node
+                'test'
+                ' '
+                'hello'     |
+                ' '         |
+                'world'     |
+                ' '
+                'abc'
+            
+            Case 2: alias = {'abc' : '1 2 3'}
+            Node
+                'test'
+                ' '
+                'abc'       |
+                    'hello' |
+                    ' '     |
+                    'world' |
+                ' '
+                'temp
+            =>
+            Node
+                'test'
+                ' '
+                '1'         |
+                    'hello' |
+                    ' '     |
+                    'world' |
+                ' '         |
+                '2'         |
+                ' '         |
+                '3'         |
+                ' '
+                'temp'
+            """
+            assert type(tree) is self.Node
+            assert type(alias) is dict
+            assert all([type(i) is str for i in alias.keys()])
+            assert all([type(i) is str for i in alias.values()])
+            assert all([i != j for i, j in alias.items()])
+
+            root : self.Node = tree.copyInfo()
+
+            for i in tree.child:
+                temp = []
+                if type(i.token) is str and i.token in alias: #if alias token found, tokenize it's replacement string, and add that series of tokens to root
+                    for j in self._tokenize(alias[i.token]):
+                        temp.append(self.Node("token", j[0], i.lineNum, i.charNum))
+                else:
+                    temp.append(i.copyInfo())
+
+                for j in i.child: #if alias token has children, add children to first token of the replacement tokens
+                    temp[0].append(j.copyDeep)
+                
+                #append tokens to root
+                for j in temp:
+                    root.append(j)
+
+            return root
 
         def ruleFilterBlockComments(self, tree : Node, character : dict = {}) -> Node:
             pass
@@ -1729,6 +1796,8 @@ class CPUsim:
 
             root = self.ruleFilterLineComments(root, "#")
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
+            root = self.ruleApplyAlias(root, self.alias) #<=========================================================================
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
 
             root = self.ruleLowerCase(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root))            
