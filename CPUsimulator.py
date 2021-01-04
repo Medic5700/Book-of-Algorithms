@@ -81,6 +81,10 @@ class CPUsim:
             Parser 'rules' need more functionality for each function, to make it more modular
         System Calls
             How to handle system calls?
+        configAddAlias() should be split into addParserAlias and addEngineAlias
+            addParserAlias is just like it is now, the parser searches for and replaces a token with another token (or series of tokens)
+            addEngineAlias would have to be run in the execution engine, dynamically changing register names as they are being executed
+                would also have to add names for each register as part of self.config (IE: each register/memory element would get a dictionary of properties)
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -943,7 +947,7 @@ class CPUsim:
                         index = i
                 
                 if index == None:
-                    raise Exception
+                    raise Exception("oldNode not found, can not replace oldNode. oldNode = \n" + str(oldNode))
 
                 removeNode = self.child[index]
                 
@@ -1000,7 +1004,7 @@ class CPUsim:
                         index = i
 
                 if index == None:
-                    raise Exception
+                    raise Exception("node is not found, can not remove. node = \n" + str(node))
 
                 removeNode : self.__class__ = self.child[index]
 
@@ -1368,7 +1372,7 @@ class CPUsim:
                             string += str(i.token)
 
             if stack != None: #TODO handle mis-matched quotes
-                raise Exception
+                raise Exception("Parse Error: Mismatched quotes")
 
             return root
 
@@ -1827,7 +1831,7 @@ class CPUsim:
             assert type(registerTuple[0]) is str and (type(registerTuple[0]) is int or type(registerTuple[0]) is str) 
 
             if registerTuple[0] != "imm":
-                raise Exception
+                raise Exception("Expected immediate value, got register instead")
             return registerTuple
 
         def opNop(self, oldState, newState, config, engine):
@@ -2057,7 +2061,8 @@ class RiscV:
 
         CPU = CPUsim(32)
         CPU.configAddRegister("x", 32, 32)
-        CPU.configAddRegister("m", 8, 2**16)
+        #CPU.configAddRegister("m", 8, 2**16, show=False)
+        CPU.configAddRegister("m", 8, 2**4, show=False)
         
         #not implimented: after tokenization, should replace the token arg1 with (arg2 tokonized again). NOT A STRING FIND AND REPLACE
         #configAddAlias() should be for simple token replacement AND NOTHING MORE
@@ -2114,18 +2119,18 @@ class RiscV:
         def __init__(self):
             self.instructionSet : dict = {
                 #arithmetic (add, add immidiate, subtract, load upper immediate, add upper immediate to PC)
-                "add"   : self.opAdd, #(lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z1, z2, z3, z4,        des, a, b)),
+                "add"   : self.opAdd,
                 "addi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAdd(z1, z2, z3, z4,        des, a, self.enforceImm(imm))), #note: no enforcement of imm being an immediate value
                 "sub"   : None,
                 "lui"   : None,
                 "auipc" : None,
 
                 #logical
-                "xor"   : self.opXOR, #(lambda z1, z2, z3, z4,   des, a, b       : self.opXOR(z1, z2, z3, z4,        des, a, b)),
+                "xor"   : self.opXOR, 
                 "xori"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opXOR(z1, z2, z3, z4,        des, a, self.enforceImm(imm))),
-                "or"    : self.opOR, #(lambda z1, z2, z3, z4,   des, a, b       : self.opOR(z1, z2, z3, z4,         des, a, b)),
+                "or"    : self.opOR,
                 "ori"   : (lambda z1, z2, z3, z4,   des, a, imm     : self.opOR(z1, z2, z3, z4,         des, a, self.enforceImm(imm))),
-                "and"   : self.opAND, #(lambda z1, z2, z3, z4,   des, a, b       : self.opAND(z1, z2, z3, z4,        des, a, b)),
+                "and"   : self.opAND,
                 "andi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAND(z1, z2, z3, z4,        des, a, self.enforceImm(imm))),
 
                 #branch (equal, not equal, less than, greater or equal, less then unsigned, greater or equal unsigned)
@@ -2137,9 +2142,9 @@ class RiscV:
                 "bgeu"  : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       ">=", pointer, a, b)), 
 
                 #shifts (shift left, shilf left immediate, shift right, shift right immediate, shift right arithmetic, shift right arithmetic immediate)
-                "sll"   : self.opShiftL, #(lambda z1, z2, z3, z4,   des, a, n       : self.opShiftL(z1, z2, z3, z4,     des, a, n)),
+                "sll"   : self.opShiftL,
                 "slli"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftL(z1, z2, z3, z4,     des, a, self.enforceImm(imm))),
-                "srl"   : self.opShiftR, #(lambda z1, z2, z3, z4,   des, a, n       : self.opShiftR(z1, z2, z3, z4,     des, a, n)),
+                "srl"   : self.opShiftR,
                 "srli"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftR(z1, z2, z3, z4,     des, a, self.enforceImm(imm))),
                 "sra"   : (lambda z1, z2, z3, z4,   des, a, n       : self.opShiftR(z1, z2, z3, z4,     des, a, n, True)),
                 "srai"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftR(z1, z2, z3, z4,     des, a, self.enforceImm(imm), True)),
@@ -2165,6 +2170,9 @@ class RiscV:
                 "sb"    : None,
                 "sh"    : None,
                 "sw"    : None
+
+                #hotwired system call because I haven't figured out how to impliment system calls yet
+                "halt"  : self.opHalt
             }
 
             '''instructions missing according to riscv-spec-20191213.pdf -> page 90 (108 of 238) -> RV32I Base Integer Instruction Set
@@ -2265,28 +2273,53 @@ class RiscV:
             newState['pc'][0] = oldState['pc'][0] + 1
 
     class RiscVParser(CPUsim.ParseDefault):
-        
-        def parseCode(self, sourceCode : str) -> "Node":
-            """Takes a string of code, returns a parsed instruction tree"""
+
+        def parseCode(self, sourceCode : str) -> Tuple["Node", Dict[str, "Node"]]:
+            """Takes a string of code, returns a parsed instruction tree
+            
+            Applies following rules to sourceCode, in order:
+                tokenizes
+                finds strings
+                filter out line comments
+                lowercase everything
+                remove leading whitespace
+                remove empty lines
+                find labels and return
+                find stuff in nameSpace, change node type to reflect it
+                remove spaces
+                remove tabs
+                remove commas #TODO this should actually be a split line
+                cast ints
+                cast hex
+                process containers ([{brackets}])
+
+                set containers as children of previous token iff previous token is in namespace
+
+                split lines
+            """
             assert type(sourceCode) is str
             
             #tokenizes sourceCode, and turns it into a Node Tree
-            root = self.Node("root")
+            root : self.Node = self.Node("root")
             for i in self._tokenize(sourceCode):
                 root.append(self.Node("token", i[0], i[1], i[2]))
 
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
 
-            #does operations on the Node Tree, but the depth of the Node Tree remains 2
-            root = self.ruleStringSimple(root)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
-
-            root = self.ruleApplyAlias(root, self.alias)                                    #<=============================================================
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
+            #Note: at this point, rules do operations on the Node Tree, but the depth of the Node Tree remains 2
 
             root = self.ruleFilterLineComments(root, "#")
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
+
+            root = self.ruleStringSimple(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
+
+            root = self.ruleApplyAlias(root, self.alias) #<=========================================================================
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
+
+            root = self.ruleLowerCase(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root))            
 
             root = self.ruleRemoveLeadingWhitespace(root, [" ", "\t"])
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveLeadingWhitespace: " + "\n" + str(root))
@@ -2294,15 +2327,20 @@ class RiscV:
             root = self.ruleRemoveEmptyLines(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveEmptyLines: " + "\n" + str(root))
 
-            root, self.labels = self.ruleFindLabels(root, self.nameSpace)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root))
-
+            root, self.labels = self.ruleFindLabels(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root) + "\nlabels: " + str(self.labels))
+            i = 0
+            while i < len(root.child): #removes the label nodes, as they don't need to be executed
+                if root.child[i].type == "label":
+                    root.remove(root.child[i])
+                else:
+                    i += 1
+            
             root = self.ruleLabelNamespace(root, self.nameSpace)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleLabelNamespace: " + "\n" + str(root))
 
-            root = self.ruleRemoveToken(root, " ")
-            root = self.ruleRemoveToken(root, "\t")
-            #root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
+            root = self.ruleRemoveToken(root, " ", False)
+            root = self.ruleRemoveToken(root, "\t", False)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveToken: " + "\n" + str(root))
 
             root = self.ruleCastInts(root)
@@ -2315,19 +2353,31 @@ class RiscV:
             root = self.ruleContainer(root, {"(":")", "[":"]"})
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
-            temp : list = self.ruleSplitLines(root, "line", "\n")
+            temp : List[self.Node] = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
             for i in temp:
                 root.append(i)
-            logging.info(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
+
+            #removes empty lines/empty line nodes
+            i = 0
+            while i < len(root.child):
+                if len(root.child[i].child) == 0:
+                    root.remove(root.child[i])
+                else:
+                    i += 1
+            logging.debug(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
+
+            root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
+            logging.debug(debugHelper(inspect.currentframe()) + "remove commas #TODO: " + "\n" + str(root))
 
             temp = root.copyInfo()                  #<==========================================================================
             for i in root.child:
                 temp.append(self.ruleContainerTokensFollowingInstruction(i, self.nameSpace))
             root = temp                            
-            logging.info(debugHelper(inspect.currentframe()) + "ruleContainerTokensFollowingInstruction: " + "\n" + str(root))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleContainerTokensFollowingInstruction: " + "\n" + str(root))
 
-            return root
+            return root, self.labels
 
         def ruleContainerTokensFollowingInstruction(self, root : "Node") -> "Node":
             pass
@@ -2405,8 +2455,8 @@ if __name__ == "__main__":
     debugHighlight = lambda x : 1350 <= x <= 1500
 
     result = multiply2(7, 3)
-    print("multiply 8 * 10 =>".ljust(32, " ") + str(result) + "\t" + str(result == 8 * 10))
-    """
+    print("multiply 7 * 3 =>".ljust(32, " ") + str(result) + "\t" + str(result == 7 * 3))
+    
     CPU = RiscV().CPU
     CPU.linkAndLoad('''
                         add     (x[0], x[0], x[0])
