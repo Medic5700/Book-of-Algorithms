@@ -522,18 +522,35 @@ class CPUsim:
                 run instruction on arguments
             '''
 
-            #logging.info(debugHelper(inspect.currentframe()) + "case 4 instruction")
+            #logging.info(debugHelper(inspect.currentframe()) + "case 1 instruction")
+
+            #evaluates children to get arguments
+            arguments = []
             if len(tree.child) != 0:
-                arguments = self._evaluateNested(tree.child[0])
-            else:
-                arguments = []
-            if type(arguments) is self._registerObject:
-                arguments = [(arguments.key, arguments.index)]
+                for i in tree.child:
+                    temp = self._evaluateNested(i)
+                    
+                    if type(temp) is tuple: #incase child is container, unpacks container
+                        for j in temp:
+                            arguments.append(j)
+                    else:
+                        arguments.append(temp)
+            #logging.info(debugHelper(inspect.currentframe()) + "instruction raw input: " + str(arguments))
+
+            #unpacks register objects
+            newArguments = []
+            for i in arguments:
+                if type(i) is self._registerObject:
+                    newArguments.append((i.key, i.index))
+                else:
+                    newArguments.append(i)
+            arguments = newArguments
             #logging.info(debugHelper(inspect.currentframe()) + "instruction arguments: " + str(arguments))
 
+            #adds immediate values to self.state
             newArguments = []
             for i in range(len(arguments)):
-                if type(arguments[i]) is int:
+                if type(arguments[i]) is int: #TODO this case 'should' no longer be possible
                     self.lastState["imm"].append(arguments[i])
                     newArguments.append(("imm", len(self.lastState["imm"]) - 1))
                 elif type(arguments[i]) is self._registerObject:
@@ -543,7 +560,7 @@ class CPUsim:
 
             #logging.info(debugHelper(inspect.currentframe()) + "instruction immidiate processing: " + str(newArguments))
 
-            instruction : "function" = self._instructionSet[tree.token]
+            instruction : Callable[[dict, dict, dict, dict, Any], None] = self._instructionSet[tree.token]
             instruction = functools.partial(instruction, copy.deepcopy(self.lastState), self.state, copy.deepcopy(self.config), self.engine)
 
             for i in newArguments:
@@ -559,7 +576,7 @@ class CPUsim:
                 if tree is a label, convert into a register object
                 return object
             '''
-            #logging.info(debugHelper(inspect.currentframe()) + "case 1 empty")
+            #logging.info(debugHelper(inspect.currentframe()) + "case 2 empty")
             result = None
             if tree.token in self.engine["labels"]:
                 self.lastState["imm"].append(self.engine["labels"][tree.token])
@@ -575,7 +592,7 @@ class CPUsim:
                 else, return a tuple of results
             '''
 
-            #logging.info(debugHelper(inspect.currentframe()) + "case 2 container")
+            #logging.info(debugHelper(inspect.currentframe()) + "case 3 container")
             stack = []
             for i in tree.child:
                 stack.append(self._evaluateNested(i))
@@ -589,12 +606,14 @@ class CPUsim:
 
         elif tree.token in self.state.keys():
             '''Case 4
-            uh... huh... this needs a rewrite
-            #TODO this SHOULD return a _register object
+            tree is a register
+                assumes a single child
+                assumes child is index
+            returns register object
             '''
 
-            #logging.info(debugHelper(inspect.currentframe()) + "case 3 register")
-            return (tree.token, self._evaluateNested(tree.child[0]))
+            #logging.info(debugHelper(inspect.currentframe()) + "case 4 register")
+            return self._registerObject(tree.token, self._evaluateNested(tree.child[0]))
 
         else:
             '''Case X
