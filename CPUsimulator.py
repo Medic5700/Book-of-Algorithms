@@ -1791,11 +1791,10 @@ class CPUsim:
 
             #Note: at this point, rules do operations on the Node Tree, but the depth of the Node Tree remains 2
 
+            root = self.ruleFilterLineComments(root, "#")
             root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
-            root = self.ruleFilterLineComments(root, "#")
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
             root = self.ruleApplyAlias(root, self.alias) #<=========================================================================
             logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
 
