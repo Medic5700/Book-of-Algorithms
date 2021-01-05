@@ -2421,6 +2421,9 @@ class RiscV:
             root = self.ruleContainer(root, {"(":")", "[":"]"})
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
+            root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
+
             temp : List[self.Node] = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
             for i in temp:
@@ -2447,8 +2450,56 @@ class RiscV:
 
             return root, self.labels
 
-        def ruleContainerTokensFollowingInstruction(self, root : "Node") -> "Node":
-            pass
+        def ruleContainerTokensFollowingInstruction(self, tree : "Node", nameSpace : Dict[str, Any]) -> "Node":
+            """Takes in a Node Tree of arbitrary depth, and a nameSpace dictionary. Returns a Node Tree of arbitrary depth.
+            If an instruction token is found, all following tokens are made children of the instruction token.
+
+            Case 0: nameSpace = {'add' : Any}
+            Node
+                'test'
+                'add'       |
+                '1'         |
+                '2'         |
+                '3'         |
+            =>
+            Node
+                'test'
+                'add'       |   #all the following tokens were appended to 'add'
+                    '1'     |
+                    '2'     |
+                    '3'     |
+
+            Case 1: nameSpace = {'add' : Any}
+            Node
+                'add'       |
+                '\n'        |
+                '1'         |
+                '2'         |
+                '3'         |
+            =>
+            Node
+                'add'       |
+                    '\n'    |   #note: newline is not respected
+                    '1'     |
+                    '2'     |
+                    '3'     |
+            """
+            assert type(tree) is self.Node
+            assert type(nameSpace) is dict
+
+            root : self.Node = tree.copyInfo()
+            instruction : self.Node = None
+
+            for i in tree.child:
+                if i.token in nameSpace and instruction is None:
+                    instruction = i.copyDeep()
+                elif not (instruction is None):
+                    instruction.append(i.copyDeep())
+                else:
+                    root.append(i.copyDeep())
+
+            if not(instruction is None):
+                root.append(instruction)
 
             return root
 
