@@ -2216,9 +2216,9 @@ class RiscV:
                 #arithmetic (add, add immidiate, subtract, load upper immediate, add upper immediate to PC)
                 "add"   : self.opAdd,
                 "addi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAdd(z1, z2, z3, z4,        des, a, self.enforceImm(imm))), #note: no enforcement of imm being an immediate value
-                "sub"   : None,
-                "lui"   : None,
-                "auipc" : None,
+                #"sub"   : None,
+                #"lui"   : None,
+                #"auipc" : None,
 
                 #logical
                 "xor"   : self.opXOR, 
@@ -2231,8 +2231,8 @@ class RiscV:
                 #branch (equal, not equal, less than, greater or equal, less then unsigned, greater or equal unsigned)
                 "beq"   : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "==", pointer, a, b)), 
                 "bne"   : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "!=", pointer, a, b)), 
-                "blt"   : None, #opJump doesn't handle signed compairisons
-                "bge"   : None,  
+                #"blt"   : None, #opJump doesn't handle signed compairisons
+                #"bge"   : None,  
                 "bltu"  : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "<", pointer, a, b)), 
                 "bgeu"  : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       ">=", pointer, a, b)), 
 
@@ -2245,26 +2245,26 @@ class RiscV:
                 "srai"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opShiftR(z1, z2, z3, z4,     des, a, self.enforceImm(imm), True)),
 
                 #compare (set less than, set less than immediate, set less that unsigned, set less that immediate unsigned)
-                "slt"   : None, #signed compairsons for opSetLessThen is not implimented
-                "slti"  : None,
+                #"slt"   : None, #signed compairsons for opSetLessThen is not implimented
+                #"slti"  : None,
                 "sltu"  : (lambda z1, z2, z3, z4,   des, a, b       : self.opSetLessThan(z1, z2, z3, z4,     des, a, b, False)),
                 "sltiu" : (lambda z1, z2, z3, z4,   des, a, imm     : self.opSetLessThan(z1, z2, z3, z4,     des, a, self.enforceImm(imm), False)),
 
                 #jump and link
-                "jal"   : None,
-                "jalr"  : None,
+                #"jal"   : None,
+                #"jalr"  : None,
 
                 #load
-                "lb"    : None,
-                "lh"    : None,
-                "lw"    : None,
-                "lbu"   : None,
-                "lhu"   : None,
+                #"lb"    : None,
+                #"lh"    : None,
+                #"lw"    : None,
+                #"lbu"   : None,
+                #"lhu"   : None,
 
                 #store
-                "sb"    : None,
-                "sh"    : None,
-                "sw"    : None
+                #"sb"    : None,
+                #"sh"    : None,
+                #"sw"    : None
 
                 #hotwired system call because I haven't figured out how to impliment system calls yet
                 "halt"  : self.opHalt
