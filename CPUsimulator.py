@@ -85,6 +85,9 @@ class CPUsim:
             addParserAlias is just like it is now, the parser searches for and replaces a token with another token (or series of tokens)
             addEngineAlias would have to be run in the execution engine, dynamically changing register names as they are being executed
                 would also have to add names for each register as part of self.config (IE: each register/memory element would get a dictionary of properties)
+        ? should self.config store a config dictionary for EVERY key, index pair?
+            Would use a tremendous amount of memory
+            Would also make accessing data on a particular register/memory element more consistent
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -413,7 +416,7 @@ class CPUsim:
         self.engine["cycle"] += 1
         
         '''#TODO
-        assert state and last state have the same keys
+        assert state and last state have the same keys (except for immediate values/registers)
         assert state and last state registers have int values
             assert those values are positive
         '''
@@ -511,7 +514,7 @@ class CPUsim:
             self._evaluateNested(line)
 
             if self.lastState['pc'][0] == self.state['pc'][0] and self.engine["run"] == True:
-                logging.warning(debugHelper(inspect.currentframe()) + "Program Counter has not incremented\t" + str(line))
+                logging.warning(debugHelper(inspect.currentframe()) + "Program Counter has not incremented\n" + str(line))
 
             self._displayRuntime()
             self.lastState, self.state = self.userPostCycle(self.state)
@@ -1705,7 +1708,7 @@ class CPUsim:
             Node
                 'test'
                 ' '
-                'hello'     |
+                'hello'     | #notice how the string 'hello world' was tokenized
                 ' '         |
                 'world'     |
                 ' '
@@ -1725,7 +1728,7 @@ class CPUsim:
             Node
                 'test'
                 ' '
-                '1'         |
+                '1'         | #notice how the children of 'abc' was added to the first of the replacement nodes
                     'hello' |
                     ' '     |
                     'world' |
@@ -1803,6 +1806,8 @@ class CPUsim:
             #Note: at this point, rules do operations on the Node Tree, but the depth of the Node Tree remains 2
 
             root = self.ruleFilterLineComments(root, "#")
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
+
             root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
@@ -2139,6 +2144,7 @@ class RiscV:
         #when initalizing this class making an instance of this class, initalizing this class should return a CPUsim() object
 
         CPU = CPUsim(32)
+        CPU.configAddRegister("pc", 32, 1)
         CPU.configAddRegister("x", 32, 32)
         #CPU.configAddRegister("m", 8, 2**16, show=False)
         CPU.configAddRegister("m", 8, 2**4, show=False)
@@ -2404,7 +2410,7 @@ class RiscV:
             root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
-            root = self.ruleApplyAlias(root, self.alias) #<=========================================================================
+            root = self.ruleApplyAlias(root, self.alias)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
 
             root = self.ruleLowerCase(root)
