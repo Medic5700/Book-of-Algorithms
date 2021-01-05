@@ -721,7 +721,9 @@ class CPUsim:
             self.ANSIend : str = "\u001b[0m" #resets ANSI colours
 
         def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
-            """Executed after every instruction/cycle. Accesses/takes in all information about the engine, takes control of the screen to print information."""
+            """Executed after every instruction/cycle. Accesses/takes in all information about the engine, takes control of the screen to print information.
+            
+            #TODO program counter does not take into account the config bitlength of the program counter"""
             
             screen : str = ""
             highlight : str = ""
@@ -744,13 +746,13 @@ class CPUsim:
             #handles the 'pc' register
             highlight = self.textRed if (oldState['pc'][0] != newState['pc'][0]) else ""
             lineRequired += "    " + "PC".ljust(8, ' ') \
-                + "[" + "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "]" \
+                + "[" + self.textGrey + "0x" + self.ANSIend + hex(oldState['pc'][0])[2:].rjust(config['pc']['bitlength'] // 4, "0").upper() + "]" \
                 + "\t" \
-                + "[" + highlight + "0x" + hex(newState['pc'][0])[2:].rjust(8, '0').upper() + self.ANSIend + "]" \
+                + "[" + self.textGrey + "0x" + self.ANSIend + highlight + hex(newState['pc'][0])[2:].rjust(config['pc']['bitlength'] // 4, "0").upper() + self.ANSIend + "]" \
                 + "\n"
             for i in range(len(oldState['imm'])): #handles the immidiate registers
                 lineRequired += "    " + ("imm[" + str(i) + "]").ljust(8, " ") \
-                    + "[" + self.textTeal + str(bin(oldState["imm"][i]))[2:].rjust(config["imm"]['bitlength'], "0") + self.ANSIend + "]" \
+                    + "[" + self.textGrey + "0b" + self.ANSIend + self.textTeal + str(bin(oldState["imm"][i]))[2:].rjust(config["imm"]['bitlength'], "0") + self.ANSIend + "]" \
                     + "\n"
             for i in oldState["flag"].keys(): #handles the CPU flags
                 highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
@@ -783,9 +785,9 @@ class CPUsim:
                         highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
 
                         lineRegisters += "    " + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
-                            + "[" + str(bin(oldState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + "]" \
+                            + "[" + self.textGrey + "0b" + self.ANSIend + str(bin(oldState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + "]" \
                             + "\t" \
-                            + "[" + highlight + str(bin(newState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + self.ANSIend + "]" \
+                            + "[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(newState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + self.ANSIend + "]" \
                             + "\n"
 
             screen += lineOp
