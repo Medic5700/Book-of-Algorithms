@@ -2526,8 +2526,30 @@ if __name__ == "__main__":
     print("multiply 7 * 3 =>".ljust(32, " ") + str(result) + "\t" + str(result == 7 * 3))
     
     CPU = RiscV().CPU
-    CPU.linkAndLoad('''
-                        add     (x[0], x[0], x[0])
-                loop:   addi    (x[1], x[1], 1)
-                    ''') 
     """
+    CPU.linkAndLoad('''
+                        addi    a2, zero, 8
+                loop:   addi    a1, a1, 1
+                        bne     a1, a2, loop
+                        halt
+                    ''')
+    """
+    CPU.linkAndLoad('''
+                    # Multiplies two number together using shift and add
+                    # Inputs: a0 (x10), a2 (x12)
+                    # Outputs: a3 (x13)
+                    # [register mappping from other program]: r0 => a0 (x10), r1 => a1 (x11), t0 => a2 (x12), t1 => a3 (x13)
+                    loop:   beq     a0, 0, end          #note: the destination pointer is the third argument, where in the previous example it was the first argument
+                            andi    a1, a0, 1
+                            bne     a1, 1, temp
+                            add     a3, a2, a3
+                    temp:   slli    a2, a2, 1           #can't use zero as a label, it's a register (x0)
+                            srli    a0, a0, 1
+                            beq     zero, zero, loop    #a psudoinstruction for an unconditional jump
+                    end:    halt                        #this is a jurry-rigged instruction for 'halt' because I haven't figured out how to implement system calls yet
+                    ''')
+    CPU.inject('x', 10, 7)
+    CPU.inject('x', 12, 3)
+    CPU.run()
+
+    
