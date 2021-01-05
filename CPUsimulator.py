@@ -184,7 +184,7 @@ class CPUsim:
         self._parseCode : Callable[[str], "Node"] = lambda x : None
         self._updateNameSpace : "function" = lambda x, y : None #TODO change name to _parseUpdate()
         #self.configSetPostCycleFunction
-        self.userPostCycle : "function" = lambda x : None
+        self.userPostCycle : Callable[[dict], Tuple[dict, dict]] = lambda x : (x, x)
         #self.configAddAlias
         self._tokenAlias : dict = {}
 
@@ -217,7 +217,7 @@ class CPUsim:
         self.configSetPostCycleFunction(self._postCycleUserDefault)
 
         #engine stuff?
-        self.userPostCycle()
+        self.lastState, self.state = self.userPostCycle(self.state)
         self._postCycleEngine()
 
     def _computeNamespace(self): #TODO this should serve a different function, updating namespaces throughout program WITHOUT using a centralized 'namespace' variable
@@ -314,13 +314,18 @@ class CPUsim:
 
         self._computeNamespace()
 
-    def configSetPostCycleFunction(self, postCycle : "function"):
-        """Takes in a function that is executed after every execution cycle
+    def configSetPostCycleFunction(self, postCycle : Callable[[dict], Tuple[dict, dict]]):
+        """Takes in a function that is executed after every execution cycle.
 
-        explicifly copies the self.state to self.lastState, resets CPU flags, etc
-        Note: must take in self as an argument
-        #TODO it doesn't seem right that the uninstantiated function needs to take in self... research required
+        Function must take in a dictionary currentState representing the current state
+        Function must output a tuple containing a lastState dictionary and a newState dictionary, in that order.
+        See self._postCycleUserDefault() for the default implimentation
+
+        That function is used for (aside from explicidly copies the old state to the new state, etc) to reset CPU Flags, reset registers that are supposed to be hardwired to zero, to zero, etc.
         """
+        assert callable(postCycle)
+        assert len(inspect.signature(postCycle).parameters) == 1
+
         self.userPostCycle = postCycle
 
     def configAddRegister(self, name : str, bitlength : int, amount : int, show : bool = True):
@@ -387,16 +392,20 @@ class CPUsim:
         decodes and executes a single instruction line"""
         pass
 
-    def _postCycleUserDefault(self): #TODO this needs a redesign, should be more functional/modular
-        """resets all required registers and flags between instructions, copies current state into lastState
+    def _postCycleUserDefault(self, currentState : dict) -> Tuple[dict, dict]: #TODO this needs a redesign, should be more functional/modular
+        """Takes in a dictionary currentState, returns a tuple containing two dictionaries representing the oldState and the newState, respectivly.
 
-        note: can be omited in some cases, such as micro-code that sets flags for the calling procedure"""
+        resets all required registers and flags between instructions, copies current state into lastState"""
+        assert type(currentState) is dict
 
-        self.lastState = copy.deepcopy(self.state) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
+        oldState = copy.deepcopy(currentState) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
+        newState = copy.deepcopy(currentState)
         
-        for i in self.state['flag'].keys(): #resets all flags
-            self.state['flag'][i] = 0
-        self.state['imm'] = []
+        for i in newState['flag'].keys(): #resets all flags
+            newState['flag'][i] = 0
+        newState['imm'] = []
+
+        return (oldState, newState)
 
     def _postCycleEngine(self):
         """Prototype
@@ -479,7 +488,7 @@ class CPUsim:
             recursivly evaluate
         '''
         self._displayRuntime()
-        self.userPostCycle()
+        self.lastState, self.state = self.userPostCycle(self.state)
         self._postCycleEngine()
 
         self.engine["run"] = True
@@ -505,7 +514,7 @@ class CPUsim:
                 logging.warning(debugHelper(inspect.currentframe()) + "Program Counter has not incremented\t" + str(line))
 
             self._displayRuntime()
-            self.userPostCycle()
+            self.lastState, self.state = self.userPostCycle(self.state)
             self._postCycleEngine()
 
         self._displayPostRun()
@@ -2176,14 +2185,24 @@ class RiscV:
 
         self.CPU = CPU
 
-    def postCycle(self, notSelf): #which argument exactly is going to be getting the CPU state information?
-        notSelf.lastState = copy.deepcopy(notSelf.state)
-        
-        notSelf.lastState["x"][0] = 0 #resets x0 to zero
+    def postCycle(self, currentState : dict) -> Tuple[dict, dict]:
+        """Takes in the currentState dict, returns a tuple containing the oldState dict, and the newState dict
 
-        for i in notSelf.state['flag'].keys():
-            notSelf.state['flag'][i] = 0
-        notSelf.state['imm'] = []
+        resets CPU Flags to zero (if there are CPU Flags)
+        resets x0 to zero
+        """
+        assert type(currentState) is dict
+
+        oldState = copy.deepcopy(currentState)
+        newState = copy.deepcopy(currentState)
+        
+        oldState["x"][0] = 0 #resets x0 to zero
+
+        for i in newState['flag'].keys():
+            newState['flag'][i] = 0
+        newState['imm'] = []
+
+        return (oldState, newState)
 
     class RiscVISA(CPUsim.InstructionSetDefault):
         def __init__(self):
