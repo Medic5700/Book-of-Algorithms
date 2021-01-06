@@ -637,10 +637,15 @@ class CPUsim:
             '''
 
             #logging.info(debugHelper(inspect.currentframe()) + "case x else")
+            #logging.info(debugHelper(inspect.currentframe()) + "tree = \n" + str(tree))
             stack = []
             for i in tree.child:
                 stack.append(self._evaluateNested(i))
-            return tuple(stack)
+            
+            if len(stack) == 1:
+                return stack[0]
+            else:
+                return tuple(stack)
         
     class compileDefault:
         """a working prototype, provides functions that take in an execution tree, and return a programs instruction list, memory array, etc"""
