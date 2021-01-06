@@ -1655,6 +1655,123 @@ class CPUsim:
 
             return result
 
+        def ruleSplitTokens(self, tree : Node, tokenType : str = "line", splitToken : str = "\n", recurse : bool = True) -> Node:
+            """Takes in a Node Tree of arbitrary depth. Returns a Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited, and in containers.
+
+            Case 1: splitToken = "\n"
+            Node
+                'test'
+                '\n'    #notice the splitToken '\n' is omitted
+                'abc'
+            =>
+            Node
+                None
+                    'test'
+                None
+                    'abc' 
+
+            Case 2: splitToken = ','
+            Node
+                'test1'
+                'test2'
+                    'abc1'
+                    ','
+                    'abc2'
+                    ','
+                    'abc3'
+                    'abc4'
+            =>
+            Node
+                'test1'
+                'test2'
+                    None
+                        'abc1'
+                    None
+                        'abc2'
+                    None
+                        'abc3'
+                        'abc4'
+            
+            Case 3: splitToken = ','
+            Node
+                'test1'
+                    'abc1'
+                    ','
+                    'abc2'
+                ','
+                'test2'
+            =>
+            Node
+                None
+                    'test1'
+                        None
+                            'abc1'
+                        None
+                            'abc2'
+                None
+                    'test2'
+
+            Case 4: splitToken = '\n'
+            Node
+                'test1'
+                'test2'
+                'test3'
+            =>
+            Node
+                'test1'
+                'test2'
+                'test3'
+            """
+            assert type(tree) is self.Node
+            assert type(tokenType) is str
+            assert len(tokenType) > 0
+            assert type(splitToken) is str
+            assert len(splitToken) > 0
+            assert type(recurse) is bool
+
+            root : self.Node = tree.copyInfo()
+            tokenFound : bool = False
+
+            #checks if there is a splitToken in children
+            for i in tree.child:
+                if i == splitToken:
+                    tokenFound = True
+
+            if tokenFound:
+                stack : List[self.Node] = []
+                for i in tree.child:
+                    if i == splitToken:
+                        temp : self.Node = self.Node(tokenType, None, stack[0].lineNum, stack[0].charNum)
+                        while len(stack) != 0:
+                            temp.append(stack.pop(0))
+                        root.append(temp)
+                    else:
+                        #stack.append(self.ruleSplitTokens(i.copyDeep(), tokenType, splitToken, recurse) if recurse else i.copyDeep())
+                        temp : self.Node = None
+                        if recurse:
+                            temp = self.ruleSplitTokens(i.copyDeep(), tokenType, splitToken, recurse)
+                        else:
+                            temp = i.copyDeep()
+                        stack.append(temp)
+
+                if len(stack) != 0:
+                    temp : self.Node = self.Node(tokenType, None, stack[0].lineNum, stack[0].charNum)
+                    while len(stack) != 0:
+                        temp.append(stack.pop(0))
+                    root.append(temp)
+                    
+            else: #the splitToken not found case
+                for i in tree.child:
+                    temp : self.Node = None
+                    if recurse:
+                        temp = self.ruleSplitTokens(i.copyDeep(), tokenType, splitToken, recurse)
+                    else:
+                        temp = i.copyDeep()
+                    root.append(temp)
+            
+
+            return root
+
         def ruleNestContainersIntoInstructions(self, tree : Node, nameSpace : dict, recurse : bool = True) -> Node:
             """Takes in a Node Tree of arbitrary depth, and a nameSpace dict represeting instructions, registers, etc. 
             If a container node follows a nameSpace node, make container node a child of the nameSpace node.
@@ -1816,7 +1933,7 @@ class CPUsim:
             root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
-            root = self.ruleApplyAlias(root, self.alias) #<=========================================================================
+            root = self.ruleApplyAlias(root, self.alias)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
 
             root = self.ruleLowerCase(root)
@@ -1870,10 +1987,13 @@ class CPUsim:
                     root.remove(root.child[i])
                 else:
                     i += 1
-            logging.debug(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
+            logging.info(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
 
-            root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
-            logging.debug(debugHelper(inspect.currentframe()) + "remove commas #TODO: " + "\n" + str(root))
+            #root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
+            #logging.debug(debugHelper(inspect.currentframe()) + "remove commas #TODO: " + "\n" + str(root))
+
+            root = self.ruleSplitTokens(root, "argument", ',', True)
+            logging.info(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
 
             return root, self.labels
             
@@ -2471,14 +2591,17 @@ class RiscV:
                     i += 1
             logging.debug(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
 
-            root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
-            logging.debug(debugHelper(inspect.currentframe()) + "remove commas #TODO: " + "\n" + str(root))
+            #root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
+            #logging.debug(debugHelper(inspect.currentframe()) + "remove commas #TODO: " + "\n" + str(root))
 
-            temp = root.copyInfo()                  #<==========================================================================
+            temp = root.copyInfo()
             for i in root.child:
                 temp.append(self.ruleContainerTokensFollowingInstruction(i, self.nameSpace))
             root = temp                            
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainerTokensFollowingInstruction: " + "\n" + str(root))
+
+            root = self.ruleSplitTokens(root, "argument", ',', True)
+            logging.info(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
 
             return root, self.labels
 
