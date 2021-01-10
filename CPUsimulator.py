@@ -476,7 +476,7 @@ class CPUsim:
 
         self.engine["instructionArray"] = instructionArray
 
-        #TODO program is imported into memory, this should be changeable
+        #TODO program is imported into memory 'm', this should be changeable
         for i in range(len(memoryArray)): #loads program memory into memory one element at a time
             self.state["m"][i] = memoryArray[i]
         
@@ -488,7 +488,7 @@ class CPUsim:
         if "__main" in self.engine["labels"]:
             self.state["pc"][0] = self.engine["labels"]["__main"]
 
-    def run(self, cycleLimit = 64):
+    def run(self, cycleLimit = 1024):
         """Prototype
         starts execution of instructions
         
@@ -915,7 +915,11 @@ class CPUsim:
                 assert type(typeStr) is str or typeStr == None
                 #check for type(token) not done for better flexibility
                 assert type(lineNum) is int or lineNum == None
+                if type(lineNum) is int:
+                    assert lineNum >= 0
                 assert type(charNum) is int or charNum == None
+                if type(charNum) is int:
+                    assert charNum >= 0
 
                 self.type : str = typeStr
                 self.token : str = token
@@ -932,7 +936,7 @@ class CPUsim:
 
             def append(self, node : "Node"):
                 """Adds a new node object to self as a child (at end of list)"""
-                assert type(node) == self.__class__
+                assert type(node) is self.__class__
 
                 if len(self.child) != 0:
                     self.child[-1].nodeNext = node
@@ -969,8 +973,8 @@ class CPUsim:
 
             def replace(self, oldNode : "Node", newNode : "Node"):
                 """Takes in an oldNode that is child of self, and replaces it with newNode. Deletes oldNode"""
-                assert type(oldNode) == self.__class__
-                assert type(newNode) == self.__class__
+                assert type(oldNode) is self.__class__
+                assert type(newNode) is self.__class__
 
                 index = None
                 for i in range(len(self.child)):
@@ -1016,18 +1020,12 @@ class CPUsim:
                 for i in range(len(removeNode.child) - 1, -1, -1):
                     removeNode.remove(removeNode.child[i])
 
-            def refreshLinks(self, recurse : bool = False):
-                """NotImplimented
-                Refreshes/remakes the links between children nodes. recurse = True to recursivly refreshLinks on entire node tree"""
-                pass
-
-
             def remove(self, node : "Node"):
                 """Takes in a node that is a child of self, removes node. raises exception if node is not a child
                 
                 deletes references to other nodes from Node, recursively removes child nodes of Node using remove()
                 This is to make it easier to the python garbage collecter to destroy it, because cyclic references"""
-                assert type(node) == self.__class__
+                assert type(node) is self.__class__
 
                 index : int = None
                 for i in range(len(self.child)):
@@ -1106,7 +1104,7 @@ class CPUsim:
                 logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
 
                 #return self.token == other
-                if type(other) == self.__class__:
+                if type(other) is self.__class__:
                     return self.token == other.token
                 else:
                     return self.token == other
@@ -1116,7 +1114,7 @@ class CPUsim:
                 logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
 
                 #return self.token != other
-                if type(other) == self.__class__:
+                if type(other) is self.__class__:
                     return self.token != other.token
                 else:
                     return self.token != other
@@ -1518,7 +1516,6 @@ class CPUsim:
             Containers are of the form {"opening bracket": "closing bracket", ...}
             Does not copy closing brackets
             Does not recurse
-            #TODO raise error for mismatched brackets
             
             Case: "test[test(test)]" ->
             Node
@@ -2829,7 +2826,8 @@ if __name__ == "__main__":
     result = multiply2(7, 3)
     print("multiply 7 * 3 =>".ljust(32, " ") + str(result) + "\t" + str(result == 7 * 3))
     
-    CPU = RiscV().CPU
+    temp = RiscV() #a couple hundred lines of setup discribing (part of) a RiscV CPU
+    CPU = temp.CPU
     """
     CPU.linkAndLoad('''
                         addi    a2, zero, 8
