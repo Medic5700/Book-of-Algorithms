@@ -88,6 +88,7 @@ class CPUsim:
         ? should self.config store a config dictionary for EVERY key, index pair?
             Would use a tremendous amount of memory
             Would also make accessing data on a particular register/memory element more consistent
+        Execution engine should not rely on Node labels to be labeled 'container' to recurse (it doesn't rely on it, but it also shouldn't be a case if it's handled by else?)
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -139,6 +140,15 @@ class CPUsim:
             will need a simple address pointer lookup function to simulate a redirect at the instruction composting stage
                 IE: add(m[r[0]], r[1], r[4]) needs to be allowed
             can merge self.lastState and self.state into single state?
+                No, will make it harder to understand instruction source code/cause confusion
+            Case 1: Track register reads/writes
+            Case 2: Keep track of data in a cache hierarchy
+            Case 3: Allow multiple reads/writes per line/instruction word in the case of sloppy written source code, or Very Long Instruction Words which have multiple paralell instructions
+            Case 4: Speculative execution will require keeping track of all reads/writes on a instruction word by instruction word basis, and allow for discarding some speculative results/operations
+            Case 5: Since instructions are customizable, it is impossible to predict the dynamics of an instruction before executing it.
+                Therefore implimenting superscaler stuff would require actually executing MANY following instructions and seeing which instructions conflict before deciding which instructions to schedual
+                (yes, it's as backwords as it sounds, in possibly the most glorious and ironic way possible)
+            Case 6: Out of Order execution would require keeping track of which instructions changed what, and when to commit the changes
         Microcode. The execution engine just isn't built out enough yet to consider this yet
             Microcode could run as a recursive CPU call, elimating the need for complex tracking of register windows, since it's run in a 'custom cpu construct' made for that instruction
             Microcode could be implimented at the instruction set composition level instead
@@ -162,7 +172,7 @@ class CPUsim:
 
         self.engine["run"] = False 
 
-        #TODO find a better structer for this
+        #TODO find a better structure for this
         self.engine["labels"] : Dict[str, int] = None
         self.engine["instructionArray"] : List["Nodes"] = None
         self.engine["sourceCode"] : str = None
@@ -432,10 +442,10 @@ class CPUsim:
         configures:
             program counter to label __main, 0 if __main not present
             self.engine["instructionArray"] to contain instruction Nodes
-            self.state["m"] to contain the memory of the program (but not instruction binary encodings)
-            self.engine["labels"] to contain a dictionary of accossations of labels with memory pointers
+            self.state["m"] to contain the memory of the program (but not instruction binary encodings, instructions are written as zeros)
+            self.engine["labels"] to contain a dictionary of associations of labels with memory pointers
 
-        #TODO perform checks on all returned compiled stuff
+        #TODO '__main__' label should be changeable
         """
         assert type(code) is str
         assert len(code) > 0
@@ -506,7 +516,7 @@ class CPUsim:
             #logging.info(debugHelper(inspect.currentframe()) + str(i))
             line = self.engine["instructionArray"][self.state["pc"][0]]
             #logging.info(debugHelper(inspect.currentframe()) + "\n" + str(line))
-            if line is None:
+            if line is None: #TODO this should raise an exception, since it's trying to execute a non-instruction
                 break
 
             self.engine["sourceCodeLineNumber"] = line.lineNum
@@ -601,7 +611,7 @@ class CPUsim:
                 result = tree.token                
             return result
 
-        elif tree.type == "container":
+        elif tree.type == "container": #TODO this should not rely on the parser properly labeling Nodes
             '''Case 3
             tree is a container _evaluateNested on children
                 if there is only one child, 'pass through' results
@@ -939,7 +949,9 @@ class CPUsim:
                 return self.__class__(self.type, self.token, self.lineNum, self.charNum) #TODO This feels wrong, but I don't know why it's wrong
 
             def copyDeep(self) -> "Node": #name is copyDeep instead of deepCopy to avoid accedentally calling copy.copyDeep()
-                """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree."""
+                """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree.
+                
+                Has the side effect of 'resetting' all relational links (parent, nodeNext, nodePrevious)"""
                 
                 newNode = self.__class__(self.type, self.token, self.lineNum, self.charNum)
 
@@ -1111,7 +1123,7 @@ class CPUsim:
 
             #No longer needed since remove() cleans up enough recursivly for the python garbage collector to pick it up. This function might be useful for debugging purposes
             def __del__(self):
-                """Decontructor, needed because the various inter-node references may make it harder for the python garbage collector to properly delete an entire tree
+                """Decontructor, needed because the various inter-node references may make it harder for the python garbage collector to properly delete an entire tree.
                 
                 will not touch pointers to this node from other nodes. IE: nodeNext's pointer to this node could be set to None, but that could get messy?"""
                 
@@ -1132,7 +1144,18 @@ class CPUsim:
         def _tokenize(self, code : str) -> List[Tuple[str, int, int]] :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). 
             
-            No characters are filtered out"""
+            No characters are filtered out
+            
+            Case 1: "test\n\nHello World" =>
+            [
+                ('test',    0, 0),
+                ('\n',      0, 0),
+                ('\n',      1, 0),
+                ('Hello',   2, 0),
+                (' ',       2, 5),
+                ('World',   2, 6)
+            ]
+            """
             assert type(code) is str
             assert len(code) > 0
 
@@ -1167,15 +1190,22 @@ class CPUsim:
         def ruleCastInts(self, tree : Node) -> Node:
             """Takes in a Node Tree of depth 2, casts all children that are integers to integers (with labels). Returns a Node Tree of depth 2.
 
-            Does not recurse
+            Does not recurse #TODO should recruse
 
-            Case: "123 456 789" ->
+            Case: "123 456 789" =>
             Node
-                123
+                '123'   |
                 ' '
-                456
+                '456'   |
                 ' '
-                789
+                '789'   |
+            =>
+            Node
+                123     |
+                ' '
+                456     |
+                ' '
+                789     |
             """
             assert type(tree) is self.Node
 
@@ -1198,15 +1228,22 @@ class CPUsim:
         def ruleCastHex(self, tree : Node) -> Node:
             """Takes in a Node Tree of depth 2, casts all children that are in hex format to integers (with labels). Returns a node tree of depth 2.
 
-            Does not recurse
+            Does not recurse #TODO should recurse
 
-            Case: "0x0 0x000A 0xff" ->
-            node
-                0
+            Case: "0x0 0x000A 0xff" =>
+            Node
+                '0x0'       |
                 ' '
-                10
+                '0x000A'    |
                 ' '
-                255
+                '0xff'      |
+            =>
+            Node
+                0           |
+                ' '
+                10          |
+                ' '
+                255         |
             """
             assert type(tree) is self.Node
 
@@ -1231,12 +1268,21 @@ class CPUsim:
 
             Does not recurse
 
-            Case: "test\ntest\n\n\ntest\n" ->
+            Case 1: "test\ntest\n\n\ntest\n" =>
             Node
                 'test'
                 '\n'
                 'test'
+                '\n'    |
+                '\n'    |
+                '\n'    |
+                'test'
                 '\n'
+            Node
+                'test'
+                '\n'
+                'test'
+                '\n'    |
                 'test'
                 '\n'
             """
@@ -1608,7 +1654,38 @@ class CPUsim:
             return root
         
         def ruleRemoveToken(self, tree : Node, token : str, recurse : bool = True) -> Node:
-            """Takes in a Node Tree of arbitrary depth, and a token. Removes all instances of token in tree.child. Returns a Node Tree of arbitrary depth."""
+            """Takes in a Node Tree of arbitrary depth, and a token. Removes all instances of token in tree.child. Returns a Node Tree of arbitrary depth.
+            
+            Case 1: token = '\n'
+            Node
+                'test1'
+                '\n'
+                'test2'
+            =>
+            Node
+                'test1'
+                'test2'
+
+            Case 2: token = ','
+            Node
+                'add'
+                    'arg1'
+                    ','
+                    'arg2'
+                ','
+                'mult'
+                    'arg1'
+                    ','
+                    'arg2'
+            =>
+            Node
+                'add'
+                    'arg1'
+                    'arg2'
+                'mult'
+                    'arg1'
+                    'arg2'
+            """
             assert type(tree) is self.Node
             
             root : self.Node = tree.copyInfo()
@@ -1657,6 +1734,8 @@ class CPUsim:
 
         def ruleSplitTokens(self, tree : Node, tokenType : str = "line", splitToken : str = "\n", recurse : bool = True) -> Node:
             """Takes in a Node Tree of arbitrary depth. Returns a Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited, and in containers.
+
+            #TODO should be implemented more elegently
 
             Case 1: splitToken = "\n"
             Node
@@ -1777,7 +1856,8 @@ class CPUsim:
             If a container node follows a nameSpace node, make container node a child of the nameSpace node.
             Returns a Node Tree of arbitrary depth.
 
-            Recurses by default"""
+            Recurses by default            
+            """
             assert type(tree) is self.Node
             assert type(nameSpace) is dict
             
@@ -1802,7 +1882,23 @@ class CPUsim:
             return root
 
         def ruleLowerCase(self, tree : Node, recurse : bool = True) -> Node:
-            """Takes in a Node Tree of arbitrary depth. Sets all tokens in the Node Tree's children as lower case. Recursion optional. Returns a Node Tree of arbitrary depth."""
+            """Takes in a Node Tree of arbitrary depth. Sets all tokens in the Node Tree's children as lower case. Recurses by default. Returns a Node Tree of arbitrary depth.
+            
+            Case 1:
+            Node
+                'HELLO'
+                ' '
+                'WORLD'
+                    'test'
+                    'ABC'
+            =>
+            Node
+                'hello'
+                ' '
+                'world'
+                    'test'
+                    'abc'
+            """
             assert type(tree) is self.Node
 
             root : self.Node = tree.copyInfo()
@@ -2035,7 +2131,9 @@ class CPUsim:
             return (redirection, register[index])
 
         def enforceImm(self, registerTuple : Tuple[str, int]) -> Tuple[str, int]:
-            """Takes in a register key index pair. Returns a register key index pair iff key is 'imm' for immediate. Raises an Exception otherwise"""
+            """Takes in a register key index pair. Returns a register key index pair iff key is 'imm' for immediate. Raises an Exception otherwise
+            
+            #TODO should also be able to limit the size of the immediate value. IE: imm < 2**12"""
             assert type(registerTuple) is tuple and len(registerTuple) == 2 
             assert type(registerTuple[0]) is str and (type(registerTuple[0]) is int or type(registerTuple[0]) is str) 
 
@@ -2269,7 +2367,7 @@ class RiscV:
         #when initalizing this class making an instance of this class, initalizing this class should return a CPUsim() object
 
         CPU = CPUsim(32)
-        CPU.configAddRegister("pc", 32, 1)
+        CPU.configAddRegister("pc", 32, 1) #explicidly set the Program Counter to 32-bit
         CPU.configAddRegister("x", 32, 32)
         #CPU.configAddRegister("m", 8, 2**16, show=False)
         CPU.configAddRegister("m", 8, 2**4, show=False)
@@ -2712,10 +2810,10 @@ def multiply2(a : int, b : int, bitlength : int = 8) -> int:
                 end:    halt
                 ''')
     #loads arguments into correct registers
-    ALU.inject('t', 0, a)
-    ALU.inject('r', 0, b)
+    ALU.inject(key='t', index=0, value=a)
+    ALU.inject(key='r', index=0, value=b)
     ALU.run()
-    resultALU = ALU.extract('t', 1)
+    resultALU = ALU.extract(key='t', index=1)
 
     #sanity check
     assert resultALU == a * b
