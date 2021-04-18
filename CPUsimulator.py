@@ -14,7 +14,7 @@ Development Stack:
 
 import sys
 version = sys.version_info
-assert version[0] == 3 and version[1] >= 8 #asserts python version 3.8 or greater
+assert version[0] == 3 and version[1] >= 8 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
 
 import copy #copy.deepcopy() required because state['flag'] contains a dictionary which needs to be copied
 import functools #used for partial functions when executioning 'instruction operations'
@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict, List, Tuple #used for more complex annot
 #debugging and logging stuff
 import logging
 import inspect #used for logging, also used to assertion testing
-debugHighlight = lambda x : False #debugHighlight = lambda x : 322 <= x <= 565 #will highlight the debug lines between those number, or set to -1 to highlight nothing
+debugHighlight = lambda _ : False #debugHighlight = lambda x : 322 <= x <= 565 #will highlight the debug lines between those number, or set to -1 to highlight nothing
 def debugHelper(frame : "Frame Object") -> str:
     """Takes in a frame object, returns a string representing debug location info (IE: the line number and container name of the debug call)
 
@@ -155,6 +155,7 @@ class CPUsim:
                 IE: add(a,b,c) used to make a vector add instruction (lambda a,b,c : add(a,b,c), add(a+1,b+1,c+1), add(a+2,b+2,c+2), etc)
                 Only useful for simple instructions
         Instruction non-execution analysis utilities to better help calabrate instructions (IE: some utilities to help the user see energy use for each instruction in a graph before code is run)
+        Support for virtual memory?
     '''
 
     def __init__(self, bitLength : int = 16):
@@ -437,7 +438,7 @@ class CPUsim:
     #==================================================================================================================
 
     def linkAndLoad(self, code: str):
-        """Takes in a string of assembly instructions, and "compiles"/loads it into memory, 'm' registerrs
+        """Takes in a string of assembly instructions, and "compiles"/loads it into memory, 'm' registers
         
         configures:
             program counter to label __main, 0 if __main not present
@@ -449,6 +450,8 @@ class CPUsim:
         """
         assert type(code) is str
         assert len(code) > 0
+
+        logging.info(debugHelper(inspect.currentframe()) + "Loading source code = " + "\n" + str(code))
 
         self.engine["sourceCode"] : str = code
         parseTree, parseLabels = self._parseCode(code)
@@ -487,6 +490,8 @@ class CPUsim:
         #TODO allow a settable 'main' label. IE: allow different labels to be used as the program start instead of '__main'
         if "__main" in self.engine["labels"]:
             self.state["pc"][0] = self.engine["labels"]["__main"]
+
+        logging.info(debugHelper(inspect.currentframe()) + "Program Counter set to " + hex(self.state["pc"][0]))
 
     def run(self, cycleLimit = 1024):
         """Prototype
@@ -2080,13 +2085,13 @@ class CPUsim:
                     root.remove(root.child[i])
                 else:
                     i += 1
-            logging.info(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
+            logging.debug(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
 
             #root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
             #logging.debug(debugHelper(inspect.currentframe()) + "remove commas #TODO: " + "\n" + str(root))
 
             root = self.ruleSplitTokens(root, "argument", ',', True)
-            logging.info(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
 
             return root, self.labels
             
@@ -2696,7 +2701,7 @@ class RiscV:
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainerTokensFollowingInstruction: " + "\n" + str(root))
 
             root = self.ruleSplitTokens(root, "argument", ',', True)
-            logging.info(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
 
             return root, self.labels
 
@@ -2825,6 +2830,7 @@ if __name__ == "__main__":
 
     result = multiply2(7, 3)
     print("multiply 7 * 3 =>".ljust(32, " ") + str(result) + "\t" + str(result == 7 * 3))
+    print("===========================================================================================================")
     
     temp = RiscV() #a couple hundred lines of setup discribing (part of) a RiscV CPU
     CPU = temp.CPU
