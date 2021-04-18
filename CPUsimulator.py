@@ -66,6 +66,22 @@ class CPUsim:
         configSetInstructionSet() should autofill stats datastructer for any unfilled in data. (but should also show a warning)
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
+        Note: Use Big Endian, it's convention in most cases
+            If an array pointer points to a specific byte in a four byte word, does it point to the big side or little side (Big Endian points to the big side)
+        Load upper immediate needs to be a thing
+            Some instructions can't store a large immediate value, and use 'load upper immediate' to load the upper bytes of a large immediate
+            since immediate registers are generated on the fly, and 'load upper immediate' is called before a specific a instruction...
+                There needs to be a way to specify that a just declared immediate should be bolted onto the next declared immediate
+            How does this impact out of order execution?
+            possible implimentation:
+                could have imm registers always have the last index be a blank index, and some operation is done to it whenever the next immediate is added?
+                A special temp immediate register that is only used for loading upper immediates
+                Immediate registers could be generated in pairs, allowing different instructions to interact with multiple pairs of immediates
+                    IE: 'load upper immediate' creates 'imm1[1]' and 'imm2[1]' puts a number in 'imm1[1]', 'add immediate' creates 'imm1[2]' and 'imm2[2]', puts a number in 'imm2[2]' and combines it with 'imm1[1]'
+                    Immediate registers are reset between instructions, so this wouldn't be visible to the next instruction
+                could create an 'upperImm' register as part of custom ISA, and a special 'combine with immediate' function in the custom ISA (like enforceImmediate()) (which also resets the 'upperImm' register)
+                    Would get around the persistance problem
+                    Would be kind of 'hacky' as it could require extra control flags, etc
         Data to keep track of:
             stats:
                 number of times a line is executed
@@ -79,8 +95,16 @@ class CPUsim:
             needs a rule to label containers as function arguments, array indices, other?
             Parser currently assumes all source code to process is perfect with no errors/typos, and thus is super fragile
             Parser 'rules' need more functionality for each function, to make it more modular
-        System Calls
-            How to handle system calls?
+        Instructions/Special considerations
+            System Calls
+                How to handle system calls?
+            Load and Store instructions should be able to handle bit-addressing within a memory element
+            Should I define a function that enforces only a specific memory access?
+                Like enforceImm(imm), enforcing access only to the imm registers. But for different registers, like 'r', or 'm'
+            https://youtu.be/QKdiZSfwg-g?t=5728
+                The 'repeat' prefix instruction in x86
+                'repeat' (1 byte) prefix, 'moveString' (1 byte) instruction, with registers EDI (extended implicid source) defined, ESI (extended implicid destination) defined, ECX (implicid count register)
+                    Allows copying an arbitry length string from ESI memory pointer to EDI memory pointer of ECX string length
         configAddAlias() should be split into addParserAlias and addEngineAlias
             addParserAlias is just like it is now, the parser searches for and replaces a token with another token (or series of tokens)
             addEngineAlias would have to be run in the execution engine, dynamically changing register names as they are being executed
@@ -89,6 +113,72 @@ class CPUsim:
             Would use a tremendous amount of memory
             Would also make accessing data on a particular register/memory element more consistent
         Execution engine should not rely on Node labels to be labeled 'container' to recurse (it doesn't rely on it, but it also shouldn't be a case if it's handled by else?)
+        MicroArchitecture something something NOT MicroCode?
+            self.instructionSet : dict { 
+                #a single instruction, the normal case, SISD. Note: The engine should treat this as a single instruction executing
+                "add"   : (lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z1, z2, z3, z4,        des, a, b))
+            }
+            self.instructionSet : dict = { 
+                #a vector, where each instruction actually represents multiple similar instructions. SIMD. Note: The engine should treat this as 4 instructions executing, with 4 seperate memory accesses
+                
+                "addVector": Vector(
+                    (lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z1, z2, z3, z4,        des, (a[0], a[1] + 0), (b[0], b[1] + 0)   )),
+                    (lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z1, z2, z3, z4,        des, (a[0], a[1] + 1), (b[0], b[1] + 1)   )),
+                    (lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z1, z2, z3, z4,        des, (a[0], a[1] + 2), (b[0], b[1] + 2)   )),
+                    (lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z1, z2, z3, z4,        des, (a[0], a[1] + 3), (b[0], b[1] + 3)   ))
+                    
+                )
+            }
+            self.instructionSet : dict = { 
+                #Executing as a single instruction. SISD. The engine should treat this as 1 instruction executing, with one memory access.
+                #Not entirly sure this is needed, or how usefull it is, as I can't think of a good example. Maybe multiply and accumulate?
+                #The instructions are executed linearly as a list.
+                "loadAndIncrement" : Single( #think accessing/loading stuff from an array, where one register 'r0' holds a pointer
+                    (lambda z1, z2, z3, z4,   des             : self.opLoad(z1, z2, z3, z4,       des, ('r', 0)             )),
+                    (lambda z1, z2, z3, z4,   des, a, b       : self.opAdd(z2, z2, z3, z4,        ('r', 0), ('r', 0), 1     )), #Notice "self.opAdd(z2, z2, z3, z4, " has the nextState 'z2' as both the lastState and nextState
+                )
+            }
+            self.instructionSet: dict = {
+                #implimenting NAND as a linear combination of AND and NOT instructions. Node: The engine should treat this as one instruction executing, with one memory access
+                #Note: this is a further case where the instruction functions should not be altering the PC by themselves. #TODO
+                "nand" : Single(
+                    (lambda z1, z2, z3, z4,   des, a, b       : self.opAnd(z1, z2, z3, z4,        des, a, b     )),
+                    (lambda z1, z2, z3, z4,   des             : self.opNot(z2, z2, z3, z4,        des, des      )) #Notice "self.opNot(z2, z2, z3, z4, " has the nextState 'z2' as both the lastState and nextState
+                    #adding a NOP here just to reset the PC is dumb and confusing
+                )
+            }
+            self.instructionSet : dict = {
+                #microcode?
+                #possible cases = 
+                #   1: the microcode functions like a function call, and after a context switch operates on the same registers as a user space program
+                #   2: the microcode functions as a translation layer that queues up a series of instructions operating on hidden registers not exposed to the user space program
+                #might have to use complex numbers for the program counter to represent multi-vector instruction streams...? IE: one component keeps track of the user space PC, the other component keeps track of the microcode PC
+                "multiply" : HardwareTranslationEngine("""
+                            # Multiplies two numbers together
+                            # Inputs: r[0], t[0]
+                            # Output: t[1]
+                    loop:   jumpEQ  (end, r[0], 0)
+                            and     (r[1], r[0], 1)
+                            jumpNE  (zero, r[1], 1)
+                                add     (t[1], t[0], t[1])
+                    zero:       shiftL  (t[0], t[0])
+                            shiftR  (r[0], r[0])
+                            jump    (loop)
+                    end:    halt
+                    """
+                )
+            }
+            self.instructionSet: dict = {
+                #'repeat' (1 byte) prefix, 'moveString' (1 byte) instruction, with registers EDI (extended implicid source) defined, ESI (extended implicid destination) defined, ECX (implicid count register)
+                #   Allows copying an arbitry length string from ESI memory pointer to EDI memory pointer of ECX string length
+                "repeatMoveString" : Single(
+                    (lambda z1, z2, z3, z4,                : self.opMove(z1, z2, z3, z4,       ESI, EDI      )),
+                    (lambda z1, z2, z3, z4,                : self.opSub(z2, z2, z3, z4,        ECX, ECX, 1   )),
+                    (lambda z1, z2, z3, z4,                : self.opJump(z2, z2, z3, z4,       '==', PC + 1, ECX, 0  )), #assuming PC is not altered by other instructions, which hasn't been implimented
+                    (lambda z1, z2, z3, z4,                : self.opJump(z2, z2, z3, z4,       '!=', PC - 1, ECX, 0  ))
+                )
+            }
+            #is a double indirect load possible? IE: take a register 'r=255' as a pointer, load the memory address 'm255=64' of the pointer, use that as a pointer to load another memory address 'm64=Whatever'
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
