@@ -862,6 +862,9 @@ class CPUsim:
 
             import time #this is imported for this specific class because this class is supposed to able to be 'swapped out' and may not be neccassary if another display class doesn't need the 'time' module
             self.sleep : "function" = time.sleep
+            import timeit
+            self.timer : "function" = lambda : timeit.default_timer()
+            self.lastTime : int = 0
 
             self.animationDelay : int = animationDelay
 
@@ -945,7 +948,11 @@ class CPUsim:
             screen += lineRegisters
 
             print(screen)
-            self.sleep(self.animationDelay)
+
+            #the animation delay
+            delay : float = (self.animationDelay - self.timer() + self.lastTime) if 0 < (self.animationDelay - self.timer() + self.lastTime) < self.animationDelay else 0
+            self.sleep(delay)
+            self.lastTime = self.timer()
 
         def postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None): #TODO
             """When CPU execution HALTS, displays information about execution stats, etc"""
@@ -2952,6 +2959,7 @@ if __name__ == "__main__":
     
     temp = RiscV() #a couple hundred lines of setup discribing (part of) a RiscV CPU
     CPU = temp.CPU
+    CPU.configSetDisplay(CPU.DisplaySimpleAndClean(1))
     """
     CPU.linkAndLoad('''
                         addi    a2, zero, 8
