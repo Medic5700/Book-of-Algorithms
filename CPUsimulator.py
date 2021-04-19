@@ -320,7 +320,10 @@ class CPUsim:
         self.lastState['flag'] : dict = {}
 
         #adds special registers that are required
-        self.configAddRegister('imm', bitLength, 0) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
+        self.configAddRegister('imm', bitLength, 1024) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
+        self.lastState['imm'] = {}
+        self.state['imm'] = {}
+
         self.configAddRegister('pc', bitLength, 1) #program counter, it's a list for better consistancy with the other registers
         
         #self.state['sp'] = [0] #stack pointer #FUTURE
@@ -460,12 +463,9 @@ class CPUsim:
         assert type(amount) is int and amount >= 0
         assert type(show) is bool
         
-        self.state[name.lower()] = [0 for i in range(amount)]
-        self.lastState[name.lower()] = [0 for i in range(amount)]
-        self.config[name.lower()] = {}
-
-        self.config[name]['bitlength'] = bitlength
-        self.config[name]['show'] = show
+        self.state[name.lower()] = {i:0 for i in range(amount)}
+        self.lastState[name.lower()] = {i:0 for i in range(amount)}
+        self.config[name.lower()] = {i:{'bitlength':bitlength, 'show':show} for i in range(amount)}
 
         self._computeNamespace()
 
@@ -477,6 +477,8 @@ class CPUsim:
 
         self.state['flag'][name.lower()] = 0
         self.lastState['flag'][name.lower()] = 0
+
+        self.config['flag'][name.lower()] = {'bitlength':1, 'show':True}
 
         self._computeNamespace()
 
@@ -491,9 +493,10 @@ class CPUsim:
         assert value >= 0
 
         t1 = key.lower()
-        t2 = index.lower() if key.lower() == "flag" else index
+        t2 = index.lower() if type(index) is str else index
 
-        self.state[t1][t2] = value & (2**self.config[t1]['bitlength']-1)
+        #TODO check if key/index pair is in state before assigning value
+        self.state[t1][t2] = value & (2**self.config[t1][t2]['bitlength']-1)
 
         self._displayRuntime()
 
@@ -505,7 +508,7 @@ class CPUsim:
         assert type(index) is int or type(index) is str
 
         t1 = key.lower()
-        t2 = index.lower() if key.lower() == "flag" else index
+        t2 = index.lower() if type(index) is str else index
 
         self._postCycleEngine()
 
@@ -527,7 +530,7 @@ class CPUsim:
         
         for i in newState['flag'].keys(): #resets all flags
             newState['flag'][i] = 0
-        newState['imm'] = []
+        newState['imm'] = {} 
 
         return (oldState, newState)
 
@@ -691,9 +694,12 @@ class CPUsim:
             #adds immediate values to self.state
             newArguments = []
             for i in range(len(arguments)):
-                if type(arguments[i]) is int: #TODO this case 'should' no longer be possible
-                    self.lastState["imm"].append(arguments[i])
+                if type(arguments[i]) is int: #TODO this case 'should' no longer be possible, but is somehow still active
+                    #self.lastState["imm"].append(arguments[i])
+                    self.lastState["imm"][len(self.lastState["imm"])] = arguments[i] #the created 'index' of the key/index pair will always be an int == length, int + 1 == previous index
+
                     newArguments.append(("imm", len(self.lastState["imm"]) - 1))
+                    
                 elif type(arguments[i]) is self._registerObject:
                     newArguments.append((arguments[i].key, arguments[i].index))
                 else:
@@ -720,7 +726,9 @@ class CPUsim:
             #logging.info(debugHelper(inspect.currentframe()) + "case 2 empty")
             result = None
             if tree.token in self.engine["labels"]:
-                self.lastState["imm"].append(self.engine["labels"][tree.token])
+                #self.lastState["imm"].append(self.engine["labels"][tree.token])
+                self.lastState["imm"][len(self.lastState["imm"])] = self.engine["labels"][tree.token] #the created 'index' of the key/index pair will always be an int == length, int + 1 == previous index
+                
                 result = self._registerObject("imm", len(self.lastState["imm"]) - 1)
             else:
                 result = tree.token                
@@ -888,13 +896,13 @@ class CPUsim:
             #handles the 'pc' register
             highlight = self.textRed if (oldState['pc'][0] != newState['pc'][0]) else ""
             lineRequired += "    " + "PC".ljust(8, ' ') \
-                + "[" + self.textGrey + "0x" + self.ANSIend + hex(oldState['pc'][0])[2:].rjust(config['pc']['bitlength'] // 4, "0").upper() + "]" \
+                + "[" + self.textGrey + "0x" + self.ANSIend + hex(oldState['pc'][0])[2:].rjust(config['pc'][0]['bitlength'] // 4, "0").upper() + "]" \
                 + "\t" \
-                + "[" + self.textGrey + "0x" + self.ANSIend + highlight + hex(newState['pc'][0])[2:].rjust(config['pc']['bitlength'] // 4, "0").upper() + self.ANSIend + "]" \
+                + "[" + self.textGrey + "0x" + self.ANSIend + highlight + hex(newState['pc'][0])[2:].rjust(config['pc'][0]['bitlength'] // 4, "0").upper() + self.ANSIend + "]" \
                 + "\n"
-            for i in range(len(oldState['imm'])): #handles the immidiate registers
+            for i in oldState['imm']: #handles the immidiate registers
                 lineRequired += "    " + ("imm[" + str(i) + "]").ljust(8, " ") \
-                    + "[" + self.textGrey + "0b" + self.ANSIend + self.textTeal + str(bin(oldState["imm"][i]))[2:].rjust(config["imm"]['bitlength'], "0") + self.ANSIend + "]" \
+                    + "[" + self.textGrey + "0b" + self.ANSIend + self.textTeal + str(bin(oldState["imm"][i]))[2:].rjust(config["imm"][i]['bitlength'], "0") + self.ANSIend + "]" \
                     + "\n"
             for i in oldState["flag"].keys(): #handles the CPU flags
                 highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
@@ -916,8 +924,8 @@ class CPUsim:
                 keys.remove("imm")
 
             for i in keys:
-                if config[i]['show'] == True:
-                    for j in range(len(oldState[i])):
+                for j in range(len(oldState[i])):
+                    if config[i][j]['show'] == True:
                         highlight = ""
 
                         ''' #this highlights the registers containing instructions with grey, but doesn't make the display more readable... should be used for another display class
@@ -927,9 +935,9 @@ class CPUsim:
                         highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
 
                         lineRegisters += "    " + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
-                            + "[" + self.textGrey + "0b" + self.ANSIend + str(bin(oldState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + "]" \
+                            + "[" + self.textGrey + "0b" + self.ANSIend + str(bin(oldState[i][j]))[2:].rjust(config[i][j]['bitlength'], "0") + "]" \
                             + "\t" \
-                            + "[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(newState[i][j]))[2:].rjust(config[i]['bitlength'], "0") + self.ANSIend + "]" \
+                            + "[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(newState[i][j]))[2:].rjust(config[i][j]['bitlength'], "0") + self.ANSIend + "]" \
                             + "\n"
 
             screen += lineOp
@@ -2272,10 +2280,10 @@ class CPUsim:
             newState[des1][des2] = oldState[a1][a2] + oldState[b1][b2]
 
             if 'carry' in newState['flag']:
-                if newState[des1][des2] >= 2**config[des1]['bitlength']:
+                if newState[des1][des2] >= 2**config[des1][des2]['bitlength']:
                     newState['flag']['carry'] = 1
             
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1)
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1)
 
             newState['pc'][0] = oldState['pc'][0] + 1
             
@@ -2294,7 +2302,7 @@ class CPUsim:
 
             newState[des1][des2] = oldState[a1][a2] & oldState[b1][b2] #performs the bitwise and operation
 
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
@@ -2313,7 +2321,7 @@ class CPUsim:
 
             newState[des1][des2] = oldState[a1][a2] | oldState[b1][b2] #performs the bitwise and operation
 
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
@@ -2332,7 +2340,7 @@ class CPUsim:
 
             newState[des1][des2] = oldState[a1][a2] ^ oldState[b1][b2] #performs the bitwise and operation
 
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
@@ -2397,7 +2405,7 @@ class CPUsim:
 
             newState[des1][des2] = oldState[a1][a2] << amount
 
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1]['bitlength'] - 1)
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1)
 
             newState['pc'][0] = oldState['pc'][0] + 1
 
@@ -2425,12 +2433,12 @@ class CPUsim:
             for i in range(amount):
                 t1 : int = 0
                 if arithmetic:
-                    t1 = 2 ** (config[a1]['bitlength'] - 1)
+                    t1 = 2 ** (config[a1][a2]['bitlength'] - 1)
                     t1 = t1 & result
                 result = result >> 1
                 result = result | t1
 
-            result : int = result & (2**config[des1]['bitlength'] - 1)
+            result : int = result & (2**config[des1][des2]['bitlength'] - 1)
 
             newState[des1][des2] = result
             newState['pc'][0] = oldState['pc'][0] + 1
@@ -2541,7 +2549,7 @@ class RiscV:
 
         for i in newState['flag'].keys():
             newState['flag'][i] = 0
-        newState['imm'] = []
+        newState['imm'] = {}
 
         return (oldState, newState)
 
