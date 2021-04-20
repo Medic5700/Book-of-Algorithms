@@ -26,17 +26,18 @@ Goals:
 
 Getting Started:
     Note: this is a prototype, so the entire API is in flux
-    refer to function "def multiply2" for an example of a possible use case.
-    refer to class "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
+    refer to "def multiply2" for an example of a possible use case.
+    refer to "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
 
     #TODO: put API list here
 """
 
+#asserts python version 3.8 or greater, needed due to new feature used [variable typing]
 import sys
 version = sys.version_info
-assert version[0] == 3 and version[1] >= 8 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
+assert version[0] == 3 and version[1] >= 8
 
-import copy #copy.deepcopy() required because state['flag'] contains a dictionary which needs to be copied
+import copy #copy.deepcopy() required because states are a nested dictionary, and need to be copied instead of referenced
 import functools #used for partial functions when executioning 'instruction operations'
 from typing import Any, Callable, Dict, List, Tuple #used for more complex annotation typing
 
@@ -47,7 +48,9 @@ debugHighlight = lambda _ : False #debugHighlight = lambda x : 322 <= x <= 565 #
 def debugHelper(frame : "Frame Object") -> str:
     """Takes in a frame object, returns a string representing debug location info (IE: the line number and container name of the debug call)
 
-    Usage -> logging.debug(debugHelper(inspect.currentframe()) + "String") -> DEBUG:root:<container>"remove"[0348]@line[0372] = String
+    Usage 
+        -> logging.debug(debugHelper(inspect.currentframe()) + "String")
+        -> DEBUG:root:<container>"remove"[0348]@line[0372] = String
     Used for easy debugging identification of a specific line
     No, you can't assign that code segment to a lambda function, because it will always return the location of the original lambda definition
 
@@ -275,9 +278,9 @@ class CPUsim:
         self.bitLength : int = bitLength #the length of the registers in bits
 
         '''core engine variables, used by a number of different functions, classes, etc. It's assumed that these variables always exist'''
-        self.state : dict = {}
-        self.lastState : dict = {}
-        self.config : dict = {}
+        self.state      : Dict[str, Dict[str or int, int]] = {}
+        self.lastState  : Dict[str, Dict[str or int, int]] = {}
+        self.config     : Dict[str, Dict[str or int, dict]] = {}
         self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
         self.engine : dict = {} #FUTURE used to keep track of CPU engine information?, should it be merged with self.stats?
 
@@ -457,10 +460,16 @@ class CPUsim:
 
     def configAddRegister(self, name : str, bitlength : int, amount : int, show : bool = True):
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
+        #TODO make this function use configConfigRegister() to create registers to centralize default values
         assert type(name) is str
         assert len(name) >= 1
-        assert type(bitlength) is int and bitlength > 0
-        assert type(amount) is int and amount >= 0
+
+        assert type(bitlength) is int 
+        assert bitlength > 0
+
+        assert type(amount) is int 
+        assert amount >= 0
+
         assert type(show) is bool
         
         self.state[name.lower()] = {i:0 for i in range(amount)}
@@ -473,6 +482,7 @@ class CPUsim:
         """Takes in a name for a CPU flag to add, Adds it to self.state"""
         assert type(name) is str
         assert len(name) >= 1
+
         assert 'flag' in self.state.keys()
 
         self.state['flag'][name.lower()] = 0
@@ -482,7 +492,7 @@ class CPUsim:
 
         self._computeNamespace()
 
-    def inject(self, key : str, index : "int/str", value : int):
+    def inject(self, key : str, index : int or str, value : int):
         """Takes in a key index pair representing a specific register. Assigns int value to register.
         
         value >= 0
@@ -502,7 +512,7 @@ class CPUsim:
 
         self._postCycleEngine()
 
-    def extract(self, key : str, index : "int/str") -> int:
+    def extract(self, key : str, index : int or str) -> int:
         """Takes in a key index pair representing a specific register. Returns an int representing the value stored in that register"""
         assert type(key) is str
         assert type(index) is int or type(index) is str
@@ -543,6 +553,7 @@ class CPUsim:
         assert state and last state have the same keys (except for immediate values/registers)
         assert state and last state registers have int values
             assert those values are positive
+        assert all state variables are the correct type (dict)
         '''
 
         #for i in self.state.keys():
@@ -2959,7 +2970,7 @@ if __name__ == "__main__":
     
     temp = RiscV() #a couple hundred lines of setup discribing (part of) a RiscV CPU
     CPU = temp.CPU
-    CPU.configSetDisplay(CPU.DisplaySimpleAndClean(1))
+    CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
     """
     CPU.linkAndLoad('''
                         addi    a2, zero, 8
