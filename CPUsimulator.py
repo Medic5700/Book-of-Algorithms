@@ -326,7 +326,6 @@ class CPUsim:
 
         self.configAddRegister('pc', bitLength, 1) #program counter, it's a list for better consistancy with the other registers
         
-        #self.state['sp'] = [0] #stack pointer #FUTURE
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
         #the entire state information for registers, program pointers, etc, should be stored as one memory unit for simplicity
 
@@ -360,6 +359,8 @@ class CPUsim:
         self._updateNameSpace(names, self._tokenAlias)
 
     def configAddAlias(self, token : str, replacement : str):
+        #TODO replace this with configConfigRegister()
+        #TODO use a more robust method for dealing with aliases, instead of string replacement
         """Takes in a 'token' and a 'replacement' str
         
         When used, adds it to self._tokenAlias.
@@ -2566,7 +2567,7 @@ class RiscV:
     def __init__(self):
         #when initalizing this class making an instance of this class, initalizing this class should return a CPUsim() object
 
-        CPU = CPUsim(32)
+        CPU = CPUsim(32, defaultSetup=False)
         CPU.configAddRegister("pc", 32, 1) #explicidly set the Program Counter to 32-bit
         CPU.configAddRegister("x", 32, 32)
         #CPU.configAddRegister("m", 8, 2**16, show=False)
@@ -3022,7 +3023,7 @@ def multiply2(a : int, b : int, bitlength : int = 8) -> int:
     resultPython = t[1]
 
     #the same algorithm, but using a generic assembly like algorithm
-    ALU = CPUsim(bitlength) #bitlength
+    ALU = CPUsim(bitlength, defaultSetup=False) #bitlength
     ALU.configSetDisplay(ALU.DisplaySimpleAndClean(0))
 
     #configure memory
@@ -3064,9 +3065,9 @@ if __name__ == "__main__":
     print("multiply 7 * 3 =>".ljust(32, " ") + str(result) + "\t" + str(result == 7 * 3))
     print("===========================================================================================================")
     
-    temp = RiscV() #a couple hundred lines of setup discribing (part of) a RiscV CPU
-    CPU = temp.CPU
+    CPU = RiscV().CPU #a couple hundred lines of setup discribing (part of) a RiscV CPU
     CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
+
     """
     CPU.linkAndLoad('''
                         addi    a2, zero, 8
