@@ -319,11 +319,6 @@ class CPUsim:
 
         self._namespace : dict = {}
 
-        #initialize CPU flag datastructure
-        self.configAddRegister('flag', 1, 0) #done this way so any changes to the 'self.config' data structure is also added to 'flag', for consistancy reasons
-        self.state['flag'] : dict = {} #overrides default array of numbers
-        self.lastState['flag'] : dict = {}
-
         #adds special registers that are required
         self.configAddRegister('imm', bitLength, 1024) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
         self.lastState['imm'] = {}
@@ -602,8 +597,9 @@ class CPUsim:
         oldState = copy.deepcopy(currentState) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
         newState = copy.deepcopy(currentState)
         
-        for i in newState['flag'].keys(): #resets all flags
-            newState['flag'][i] = 0
+        if 'flag' in newState.keys():
+            for i in newState['flag'].keys(): #resets all flags
+                newState['flag'][i] = 0
         newState['imm'] = {} 
 
         return (oldState, newState)
@@ -982,13 +978,14 @@ class CPUsim:
                 lineRequired += "    " + ("imm[" + str(i) + "]").ljust(8, " ") \
                     + "[" + self.textGrey + "0b" + self.ANSIend + self.textTeal + str(bin(oldState["imm"][i]))[2:].rjust(config["imm"][i]['bitlength'], "0") + self.ANSIend + "]" \
                     + "\n"
-            for i in oldState["flag"].keys(): #handles the CPU flags
-                highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
-                lineRequired += "    " + ("flag[" + str(i) + "]").ljust(16, " ") \
-                    + "[" + str(oldState["flag"][i]) + "]" \
-                    + "\t" \
-                    + "[" + highlight + str(newState["flag"][i]) + self.ANSIend + "]" \
-                    + "\n"
+            if 'flag' in oldState.keys():
+                for i in oldState["flag"].keys(): #handles the CPU flags
+                    highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
+                    lineRequired += "    " + ("flag[" + str(i) + "]").ljust(16, " ") \
+                        + "[" + str(oldState["flag"][i]) + "]" \
+                        + "\t" \
+                        + "[" + highlight + str(newState["flag"][i]) + self.ANSIend + "]" \
+                        + "\n"
 
             lineRegisters : str = ""
 
@@ -2361,9 +2358,10 @@ class CPUsim:
 
             newState[des1][des2] = oldState[a1][a2] + oldState[b1][b2]
 
-            if 'carry' in newState['flag']:
-                if newState[des1][des2] >= 2**config[des1][des2]['bitlength']:
-                    newState['flag']['carry'] = 1
+            if 'flag' in newState.keys():
+                if 'carry' in newState['flag']:
+                    if newState[des1][des2] >= 2**config[des1][des2]['bitlength']:
+                        newState['flag']['carry'] = 1
             
             newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1)
 
@@ -2662,8 +2660,9 @@ class RiscV:
         
         oldState["x"][0] = 0 #resets x0 to zero
 
-        for i in newState['flag'].keys():
-            newState['flag'][i] = 0
+        if 'flag' in oldState.keys():
+            for i in newState['flag'].keys():
+                newState['flag'][i] = 0
         newState['imm'] = {}
 
         return (oldState, newState)
