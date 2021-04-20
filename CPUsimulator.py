@@ -460,7 +460,9 @@ class CPUsim:
         self.userPostCycle = postCycle
 
     def configAddRegister(self, name : str, bitlength : int, amount : int, show : bool = True):
-        """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state"""
+        """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state
+        
+        calls self.configConfigRegister()"""
         #TODO make this function use configConfigRegister() to create registers to centralize default values
         assert type(name) is str
         assert len(name) >= 1
@@ -472,24 +474,85 @@ class CPUsim:
         assert amount >= 0
 
         assert type(show) is bool
-        
-        self.state[name.lower()] = {i:0 for i in range(amount)}
-        self.lastState[name.lower()] = {i:0 for i in range(amount)}
-        self.config[name.lower()] = {i:{'bitlength':bitlength, 'show':show} for i in range(amount)}
+
+        for i in range(amount):
+            self.configConfigRegister(name.lower(), i, bitlength, show)
 
         self._computeNamespace()
 
     def configAddFlag(self, name : str):
-        """Takes in a name for a CPU flag to add, Adds it to self.state"""
+        """Takes in a name for a CPU flag to add, Adds it to self.state
+        
+        calls self.configConfigRegister()"""
         assert type(name) is str
         assert len(name) >= 1
 
-        assert 'flag' in self.state.keys()
+        self.configConfigRegister('flag', name.lower(), bitlength=1)
 
-        self.state['flag'][name.lower()] = 0
-        self.lastState['flag'][name.lower()] = 0
+        self._computeNamespace()
 
-        self.config['flag'][name.lower()] = {'bitlength':1, 'show':True}
+    def configConfigRegister(self, register : str, index : int or str, bitlength : int = None, show : bool = None, alias : List[str] = None, latencyCycles : int = None, energy : int = None, note : str = None, ):
+        """Takes in a key/value pair representing a register/memory element, and takes in arguments for detailed configuration of that register/memory element
+
+        if a key/value pair does not exist, it will be created
+        """
+        assert type(register) is str
+        assert len(register) >= 1
+
+        assert type(index) is int or type(index) is str
+        assert (True if index >= 0 else False) if type(index) is int else True
+        assert (True if len(index) >= 1 else False) if type(index) is str else True
+
+        assert type(bitlength) is type(None) or type(bitlength) is int
+        assert (True if bitlength >= 1 else False) if type(bitlength) is int else True
+
+        assert type(show) is type(None) or type(show) is bool
+
+        assert type(note) is type(None) or type(note) is str
+        assert (True if 0 <= len(note) <= 16 else False) if type(note) is str else True
+
+        assert type(alias) is type(None) or type(alias) is list
+        #assert (True if len(alias) >= 1 else False) if type(alias) is list else False #'alias' should allow for an empty list
+        assert all([(type(i) is str) for i in alias]) if type(alias) is list else True #assert 'alias' list contains strings
+        assert all([(True if alias.count(i) == 1 else False) for i in alias]) if type(alias) is list else True #assert there are no duplicates in 'alias'
+
+        assert type(latencyCycles) is type(None) or type(latencyCycles) is int
+        assert (True if latencyCycles >= 0 else False) if type(latencyCycles) is int else True
+
+        assert type(energy) is type(None) or type(energy) is int
+        assert (True if energy >= 0 else False) if type(energy) is int else True
+
+        if not(register.lower() in self.state.keys()):
+            self.state[register.lower()]        = {}
+            self.lastState[register.lower()]    = {}
+            self.config[register.lower()]       = {}
+
+        if not(index in self.state[register.lower()].keys()):
+            self.state[register.lower()][index]     = 0
+            self.lastState[register.lower()][index] = 0
+            self.config[register.lower()][index]    = {}
+
+            self.config[register.lower()][index]['bitlength']       = 1
+            self.config[register.lower()][index]['show']            = True
+            self.config[register.lower()][index]['alias']           = []
+            self.config[register.lower()][index]['latencyCycles']   = 0
+            self.config[register.lower()][index]['energy']          = 0
+            self.config[register.lower()][index]['note']            = ""
+
+        if bitlength != None:
+            self.config[register.lower()][index]['bitlength']       = bitlength
+        if show != None:
+            self.config[register.lower()][index]['show']            = show
+        if alias != None:
+            self.config[register.lower()][index]['alias']           = []
+            for i in alias:
+                self.config[register.lower()][index]['alias'].append(i)
+        if latencyCycles != None:
+            self.config[register.lower()][index]['latencyCycles']   = latencyCycles
+        if energy != None:
+            self.config[register.lower()][index]['energy']          = energy
+        if note != None:
+            self.config[register.lower()][index]['note']            = note
 
         self._computeNamespace()
 
@@ -938,8 +1001,8 @@ class CPUsim:
             if "imm" in keys:
                 keys.remove("imm")
 
-            for i in keys:
-                for j in range(len(oldState[i])):
+            for i in sorted(keys):
+                for j in sorted(list(oldState[i].keys())):
                     if config[i][j]['show'] == True:
                         highlight = ""
 
@@ -2547,6 +2610,39 @@ class RiscV:
         CPU.configAddAlias("t5",    "x[30]")
         CPU.configAddAlias("t6",    "x[31]")
 
+        CPU.configConfigRegister('x',  0, note="zero",  alias=["zero"])         #always zero
+        CPU.configConfigRegister('x',  1, note="r1",    alias=["r1"])           #call return address
+        CPU.configConfigRegister('x',  2, note="sp",    alias=["sp"])           #stack pointer
+        CPU.configConfigRegister('x',  3, note="gp",    alias=["gp"])           #global pointer
+        CPU.configConfigRegister('x',  4, note="tp",    alias=["tp"])           #thread pointer
+        CPU.configConfigRegister('x',  5, note="t0",    alias=["t0"])           #t0-t6 temporary registers
+        CPU.configConfigRegister('x',  6, note="t1",    alias=["t1"])
+        CPU.configConfigRegister('x',  7, note="t2",    alias=["t2"])
+        CPU.configConfigRegister('x',  8, note="s0",    alias=["s0", "fp"])     #s0-s11 saved registers, note the two different mappings for x[08] = fp = s0
+        CPU.configConfigRegister('x',  9, note="s1",    alias=["s1"])
+        CPU.configConfigRegister('x', 10, note="a0",    alias=["a0"])           #a0-a7 function arguments
+        CPU.configConfigRegister('x', 11, note="a1",    alias=["a1"])
+        CPU.configConfigRegister('x', 12, note="a2",    alias=["a2"])
+        CPU.configConfigRegister('x', 13, note="a3",    alias=["a3"])
+        CPU.configConfigRegister('x', 14, note="a4",    alias=["a4"])
+        CPU.configConfigRegister('x', 15, note="a5",    alias=["a5"])
+        CPU.configConfigRegister('x', 16, note="a6",    alias=["a6"])
+        CPU.configConfigRegister('x', 17, note="a7",    alias=["a7"])
+        CPU.configConfigRegister('x', 18, note="s2",    alias=["s2"])
+        CPU.configConfigRegister('x', 19, note="s3",    alias=["s3"])
+        CPU.configConfigRegister('x', 20, note="s4",    alias=["s4"])
+        CPU.configConfigRegister('x', 21, note="s5",    alias=["s5"])
+        CPU.configConfigRegister('x', 22, note="s6",    alias=["s6"])
+        CPU.configConfigRegister('x', 23, note="s7",    alias=["s7"])
+        CPU.configConfigRegister('x', 24, note="s8",    alias=["s8"])
+        CPU.configConfigRegister('x', 25, note="s9",    alias=["s9"])
+        CPU.configConfigRegister('x', 26, note="s10",   alias=["s10"])
+        CPU.configConfigRegister('x', 27, note="s11",   alias=["s11"])
+        CPU.configConfigRegister('x', 28, note="t3",    alias=["t3"])
+        CPU.configConfigRegister('x', 29, note="t4",    alias=["t4"])
+        CPU.configConfigRegister('x', 30, note="t5",    alias=["t5"])
+        CPU.configConfigRegister('x', 31, note="t6",    alias=["t6"])
+        
         CPU.configSetPostCycleFunction(self.postCycle)
         CPU.configSetInstructionSet(self.RiscVISA())
         CPU.configSetParser(self.RiscVParser())
