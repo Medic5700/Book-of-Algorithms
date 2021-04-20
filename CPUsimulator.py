@@ -271,9 +271,11 @@ class CPUsim:
         Support for virtual memory?
     '''
 
-    def __init__(self, bitLength : int = 16):
+    def __init__(self, bitLength : int = 16, defaultSetup : bool = True):
         assert type(bitLength) is int
         assert bitLength >= 1
+
+        assert type(defaultSetup) is bool
         
         self.bitLength : int = bitLength #the length of the registers in bits
 
@@ -334,11 +336,10 @@ class CPUsim:
         #the entire state information for registers, program pointers, etc, should be stored as one memory unit for simplicity
 
         #convinence added stuff for 'works out of the box' functionality
-        self.configAddRegister('r', bitLength, 8) #standard registers
-        self.configAddRegister('m', bitLength, 32) #standard memory
-
-        self.configAddFlag('carry')
-        #self.configAddFlag('overflow')
+        if defaultSetup:
+            self.configAddRegister('r', bitLength, 8) #standard registers
+            self.configAddRegister('m', bitLength, 32) #standard memory
+            self.configAddFlag('carry')
 
         self.configSetDisplay(self.DisplaySimpleAndClean())
         self.configSetInstructionSet(self.InstructionSetDefault())
