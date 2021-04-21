@@ -415,26 +415,26 @@ class CPUsim:
         self._namespace : dict = {}
 
         #adds special registers that are required
-        self.configAddRegister('imm', bitLength, 1024) #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
-        self.lastState['imm'] = {}
+        self.configConfigRegister('pc', 0, bitLength, note="SPECIAL") #program counter, it's a list for better consistancy with the other registers
+        for i in range(1024): 
+            self.configConfigRegister('imm', i, bitLength, note="SPECIAL") #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
         self.state['imm'] = {}
-
-        self.configAddRegister('pc', bitLength, 1) #program counter, it's a list for better consistancy with the other registers
+        self.lastState['imm'] = {}
         
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
         #the entire state information for registers, program pointers, etc, should be stored as one memory unit for simplicity
-
-        #convinence added stuff for 'works out of the box' functionality
-        if defaultSetup:
-            self.configAddRegister('r', bitLength, 8) #standard registers
-            self.configAddRegister('m', bitLength, 32) #standard memory
-            self.configAddFlag('carry')
 
         self.configSetDisplay(self.DisplaySimpleAndClean())
         self.configSetInstructionSet(self.InstructionSetDefault())
         self.configSetParser(self.ParseDefault({}))
 
         self.configSetPostCycleFunction(self._postCycleUserDefault)
+
+        #convinence added stuff for 'works out of the box' functionality
+        if defaultSetup:
+            self.configAddRegister('r', bitLength, 8) #standard registers
+            self.configAddRegister('m', bitLength, 32) #standard memory
+            self.configAddFlag('carry')
 
         #engine stuff?
         self.lastState, self.state = self.userPostCycle(self.state)
@@ -686,11 +686,6 @@ class CPUsim:
 
         return self.state[t1][t2]
 
-    def lazy(self, code : str):
-        """NotImplimented
-        decodes and executes a single instruction line"""
-        pass
-
     def _postCycleUserDefault(self, currentState : dict) -> Tuple[dict, dict]: #TODO this needs a redesign, should be more functional/modular
         """Takes in a dictionary currentState, returns a tuple containing two dictionaries representing the oldState and the newState, respectivly.
 
@@ -706,21 +701,6 @@ class CPUsim:
         newState['imm'] = {} 
 
         return (oldState, newState)
-
-    def _postCycleEngine(self):
-        """Prototype
-        runs at the end of each execution cycle, meant to handle engine level stuff. Should also run checks to verify the integrity of self.state"""
-        self.engine["cycle"] += 1
-        
-        '''#TODO
-        assert state and last state have the same keys (except for immediate values/registers)
-        assert state and last state registers have int values
-            assert those values are positive
-        assert all state variables are the correct type (dict)
-        '''
-
-        #for i in self.state.keys():
-        #    assert all([type(j) is int for j in self.state[i]])
 
     #==================================================================================================================
 
@@ -779,6 +759,11 @@ class CPUsim:
             self.state["pc"][0] = self.engine["labels"]["__main"]
 
         logging.info(debugHelper(inspect.currentframe()) + "Program Counter set to " + hex(self.state["pc"][0]))
+
+    def lazy(self, code : str):
+        """NotImplimented
+        decodes and executes a single instruction line"""
+        pass
 
     def run(self, cycleLimit = 1024):
         """Prototype
@@ -953,6 +938,21 @@ class CPUsim:
                 return stack[0]
             else:
                 return tuple(stack)
+
+    def _postCycleEngine(self):
+        """Prototype
+        runs at the end of each execution cycle, meant to handle engine level stuff. Should also run checks to verify the integrity of self.state"""
+        self.engine["cycle"] += 1
+        
+        '''#TODO
+        assert state and last state have the same keys (except for immediate values/registers)
+        assert state and last state registers have int values
+            assert those values are positive
+        assert all state variables are the correct type (dict)
+        '''
+
+        #for i in self.state.keys():
+        #    assert all([type(j) is int for j in self.state[i]])
         
     class compileDefault:
         """a working prototype, provides functions that take in an execution tree, and return a programs instruction list, memory array, etc"""
@@ -961,6 +961,7 @@ class CPUsim:
             self.instructionSet = instructionSet
             self.directives = directives
 
+        '''
         def compileOld(self, oldState, config, executionTree : "Node") -> Tuple[List["Node"], List[int], Dict[str, int]]:
             #assumes the instruction array is register array "m"
             
@@ -980,6 +981,7 @@ class CPUsim:
             #TODO scan for directives, process directives.
 
             return instructionArray, memoryArray, labels
+        '''
 
         def compile(self, config : dict, executionTree : "Node", parseLabels : Dict[str, "Node"]) -> Tuple[List["Node"], List[int], Dict[str, int]]:
             """Takes in in a dict containing the config information of registers, A node representing an execution tree, and parseLabels a dict (where key is the label, and value is a line number).
@@ -1208,6 +1210,14 @@ class CPUsim:
 
             self.nameSpace = nameSpace
             self.alias = alias
+
+        def update(
+            self, 
+            instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Args"], None]], 
+            directives : dict,
+            tokenAlias : Dict[str, str]
+            ):
+            pass
 
         class Node:
             """A data class for storing information in a tree like structure. 
