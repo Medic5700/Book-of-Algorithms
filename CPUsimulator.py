@@ -29,7 +29,102 @@ Getting Started:
     refer to "def multiply2" for an example of a possible use case.
     refer to "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
 
-    #TODO: put API list here
+    class CPUsim
+        <=  Setting Up =======================================================>
+        def configSetDisplay                                Allows loading a different display interface (default loads 'class DisplaySimpleAndClean')
+        def configSetInstructionSet                         Allows loading a different instruction set (default loads 'class InstructionSetDefault')
+        def configSetParser                                 Allows loading a different parser (default loads 'class ParseDefault')
+        def configSetPostCycleFunction                      Allows changing the function that executes after every cycle (default loads 'def _postCycleUserDefault')
+        def configAddRegister                               Adds x amount of registers with 'key' name
+        def configAddFlag                                   Adds a flag register with 'index' name
+        def configConfigRegister                            Adds or modifies a specific register (key/index pair), and it's properties
+        def inject                                          Writes a number directly to a register
+        def extract                                         Get a number directly from a register
+        def _postCycleUserDefault                           The function that executes after every cycle (loaded by default), copies new state to old state, resets 'flag' registers, etc]
+
+        <=  Running Code =====================================================>
+        def linkAndLoad                                     Takes in source code, 'compiles' it, loads it into memory
+        def run                                             Runs code (use after 'def linkAndLoad')
+        def lazy                        #not implimented    Takes in source code, 'compiles' it, runs it (without loading it into main memory)                         
+
+        class compileDefault
+            def compile
+
+        <=  Available Displays ===============================================>
+        class DisplaySimpleAndClean                         The default display, simple and clean for showing execution statuses and register values
+            def runtime                                     Runs after every cycle, displays status of registers
+            def postrun                                     Runs after execution has halted
+        class DisplaySilent                                 Basically displays nothing
+            def runtime
+            def postrun
+
+        <=  Parser Stuff =====================================================>
+        class ParseDefault                                  Contains the tools to build a customized assembly parser. Turns assemble source code into a parse tree.
+            class Node                                      A parse tree Node
+                var type
+                var token
+                var child
+                var parent
+                var nodePrevious
+                var nodeNext
+                var lineNum
+                var charNum
+                def append
+                def copyInfo
+                def copyDeep
+                def replace
+                def remove
+            def parseCode                                   Takes assembly source code, turns it into a parse tree. See 'class RiscVParser' for customization example.
+            def _tokenize                                   The inital tokenizer
+            def ruleCastInts                                The below are a collection of rules that manipulate the parse tree, indirectly 'parsing' the source code
+            def ruleCastHex
+            def ruleRemoveEmptyLines
+            def ruleRemoveLeadingWhitespace
+            def ruleStringSimple
+            def ruleFilterLineComments
+            def ruleContainer
+            def ruleFindLabels
+            def ruleLabelNamespace
+            def ruleRemoveToken
+            def ruleSplitLines
+            def ruleSplitTokens
+            def ruleNestContainersIntoInstructions
+            def ruleLowerCase
+            def ruleApplyAlias
+            
+        <=  Instruction Definition Stuff =====================================>
+        class InstructionSetDefault                         A simplified instruction set implimentation
+            var instructionSet
+            var stats
+            var directives
+            def __init__                                    This is where the instruction set is 'mapped' to keywords and arguments. See 'class RiscVISA.__init__' for an advanced example
+            def redirect                                    
+            def enforceImm
+            def opNop                                       The below are a number of base instructions that came be put together to make an instruction set
+            def opAdd
+            def opAND
+            def opOR
+            def opXOR
+            def opJump
+            def opShiftL
+            def opShiftR
+            def opHalt                      #Still figuring out syscalls
+
+    <=  Example Partial Implimentation of RiscV ==============================>
+    class RiscV                                             A more advanced example of creating a custom CPU
+        var CPU                                             Contains an initialized instance of 'class CPUsim'
+        def __init__                                        Sets up the CPU registers and memory and stuff
+        def postCycle
+        class RiscVISA
+            var instructionSet
+            var stats
+            var directives
+            def __init__                                    An advanced example of a customized instruction set
+            def opSetLessThan                               A customized instruction
+        class RiscVParser                                   A customized parser for loading RiscV like assembly code
+            def parseCode                                   The customized parser
+            def ruleContainerTokensFollowingInstruction     A customized rule
+
 """
 
 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
@@ -462,6 +557,8 @@ class CPUsim:
         #TODO make this function use configConfigRegister() to create registers to centralize default values
         assert type(name) is str
         assert len(name) >= 1
+        #assert all([i in ([chr(j) for j in range(128) if chr(j).islower()] + [chr(j) for j in range(128) if chr(j).isdigit()] + ['_']) for i in list(name)]) #does the same as str.isidrentifier()
+        assert name.isidentifier()
 
         assert type(bitlength) is int 
         assert bitlength > 0
@@ -482,6 +579,8 @@ class CPUsim:
         calls self.configConfigRegister()"""
         assert type(name) is str
         assert len(name) >= 1
+        #assert all([i in ([chr(j) for j in range(128) if chr(j).islower()] + [chr(j) for j in range(128) if chr(j).isdigit()] + ['_']) for i in list(name)]) #does the same as str.isidrentifier()
+        assert name.isidentifier()
 
         self.configConfigRegister('flag', name.lower(), bitlength=1)
 
@@ -494,10 +593,13 @@ class CPUsim:
         """
         assert type(register) is str
         assert len(register) >= 1
+        #assert all([i in ([chr(j) for j in range(128) if chr(j).islower()] + [chr(j) for j in range(128) if chr(j).isdigit()] + ['_']) for i in list(name)]) #does the same as str.isidrentifier()
+        assert register.isidentifier()
 
         assert type(index) is int or type(index) is str
         assert (True if index >= 0 else False) if type(index) is int else True
         assert (True if len(index) >= 1 else False) if type(index) is str else True
+        assert (True if index.isidentifier() else False) if type(index) is str else True
 
         assert type(bitlength) is type(None) or type(bitlength) is int
         assert (True if bitlength >= 1 else False) if type(bitlength) is int else True
@@ -505,7 +607,7 @@ class CPUsim:
         assert type(show) is type(None) or type(show) is bool
 
         assert type(note) is type(None) or type(note) is str
-        assert (True if 0 <= len(note) <= 16 else False) if type(note) is str else True
+        assert (True if 0 <= len(note) <= 32 else False) if type(note) is str else True
 
         assert type(alias) is type(None) or type(alias) is list
         #assert (True if len(alias) >= 1 else False) if type(alias) is list else False #'alias' should allow for an empty list
@@ -725,7 +827,7 @@ class CPUsim:
     class _registerObject: #TODO this is a short cut
         def __init__(self, key, index):
             self.key : str = key
-            self.index : "str/int" = index
+            self.index : str or int = index
 
     def _evaluateNested(self, tree : "Node") -> Tuple["Object"]:
         #logging.info(debugHelper(inspect.currentframe()) + "Recurse\n" + str(tree))
@@ -2183,9 +2285,11 @@ class CPUsim:
             return root
 
         def ruleFilterBlockComments(self, tree : Node, character : dict = {}) -> Node:
+            #TODO
             pass
 
         def ruleFindDirectives(self, tree : Node, directives : dict) -> Node:
+            #TODO
             pass
 
         def parseCode(self, sourceCode : str) -> Tuple[Node, Dict[str, Node]]:
@@ -2296,7 +2400,7 @@ class CPUsim:
     #==================================================================================================================
 
     class InstructionSetDefault:
-        """A non-functional mockup of what an instructionset definition could look like
+        """A simplified instruction set implimentation, along with a number of base instructions to help build an instruction set.
         
         Note: uses 'carry' flag, but doesn't need that flag to run. IE: will use 'carry' flag if present
         Note: instruction functions do not 'see' immediate values, they instead see an index of register 'imm' (IE: immediate values are filtered out before instructions are called)
@@ -2322,7 +2426,7 @@ class CPUsim:
 
             self.directives : dict = {}
 
-        def redirect(self, redirection : str, register : str, index : "str/int") -> Tuple[str, int]:
+        def redirect(self, redirection : str, register : str, index : str or int) -> Tuple[str, int]:
             """Takes in redirection as a pointer to the memory array to access, and a register index pair. Returns a key index pair corrispoding to redirection as key, index as value stored in register[index]"""
             assert type(redirection) is str
             assert type(register) is str
@@ -2528,6 +2632,7 @@ class CPUsim:
             engine["run"] = False
 
         def dirString(self, config) -> List[int]:
+            #TODO
             pass
 
 class RiscV:
@@ -2573,6 +2678,7 @@ class RiscV:
         #CPU.configAddRegister("m", 8, 2**16, show=False)
         CPU.configAddRegister("m", 8, 2**4, show=False)
         
+        #TODO remove this, impliment aliasing properly
         #not implimented: after tokenization, should replace the token arg1 with (arg2 tokonized again). NOT A STRING FIND AND REPLACE
         #configAddAlias() should be for simple token replacement AND NOTHING MORE
         CPU.configAddAlias("zero",  "x[00]") #always zero
@@ -2609,38 +2715,38 @@ class RiscV:
         CPU.configAddAlias("t5",    "x[30]")
         CPU.configAddAlias("t6",    "x[31]")
 
-        CPU.configConfigRegister('x',  0, note="zero",  alias=["zero"])         #always zero
-        CPU.configConfigRegister('x',  1, note="r1",    alias=["r1"])           #call return address
-        CPU.configConfigRegister('x',  2, note="sp",    alias=["sp"])           #stack pointer
-        CPU.configConfigRegister('x',  3, note="gp",    alias=["gp"])           #global pointer
-        CPU.configConfigRegister('x',  4, note="tp",    alias=["tp"])           #thread pointer
-        CPU.configConfigRegister('x',  5, note="t0",    alias=["t0"])           #t0-t6 temporary registers
-        CPU.configConfigRegister('x',  6, note="t1",    alias=["t1"])
-        CPU.configConfigRegister('x',  7, note="t2",    alias=["t2"])
-        CPU.configConfigRegister('x',  8, note="s0",    alias=["s0", "fp"])     #s0-s11 saved registers, note the two different mappings for x[08] = fp = s0
-        CPU.configConfigRegister('x',  9, note="s1",    alias=["s1"])
-        CPU.configConfigRegister('x', 10, note="a0",    alias=["a0"])           #a0-a7 function arguments
-        CPU.configConfigRegister('x', 11, note="a1",    alias=["a1"])
-        CPU.configConfigRegister('x', 12, note="a2",    alias=["a2"])
-        CPU.configConfigRegister('x', 13, note="a3",    alias=["a3"])
-        CPU.configConfigRegister('x', 14, note="a4",    alias=["a4"])
-        CPU.configConfigRegister('x', 15, note="a5",    alias=["a5"])
-        CPU.configConfigRegister('x', 16, note="a6",    alias=["a6"])
-        CPU.configConfigRegister('x', 17, note="a7",    alias=["a7"])
-        CPU.configConfigRegister('x', 18, note="s2",    alias=["s2"])
-        CPU.configConfigRegister('x', 19, note="s3",    alias=["s3"])
-        CPU.configConfigRegister('x', 20, note="s4",    alias=["s4"])
-        CPU.configConfigRegister('x', 21, note="s5",    alias=["s5"])
-        CPU.configConfigRegister('x', 22, note="s6",    alias=["s6"])
-        CPU.configConfigRegister('x', 23, note="s7",    alias=["s7"])
-        CPU.configConfigRegister('x', 24, note="s8",    alias=["s8"])
-        CPU.configConfigRegister('x', 25, note="s9",    alias=["s9"])
-        CPU.configConfigRegister('x', 26, note="s10",   alias=["s10"])
-        CPU.configConfigRegister('x', 27, note="s11",   alias=["s11"])
-        CPU.configConfigRegister('x', 28, note="t3",    alias=["t3"])
-        CPU.configConfigRegister('x', 29, note="t4",    alias=["t4"])
-        CPU.configConfigRegister('x', 30, note="t5",    alias=["t5"])
-        CPU.configConfigRegister('x', 31, note="t6",    alias=["t6"])
+        CPU.configConfigRegister('x',  0, alias=["zero"],     note="Zero")                  #always zero
+        CPU.configConfigRegister('x',  1, alias=["r1"],       note="call return address")   #call return address
+        CPU.configConfigRegister('x',  2, alias=["sp"],       note="stack pointer")         #stack pointer
+        CPU.configConfigRegister('x',  3, alias=["gp"],       note="global pointer")        #global pointer
+        CPU.configConfigRegister('x',  4, alias=["tp"],       note="thread pointer")        #thread pointer
+        CPU.configConfigRegister('x',  5, alias=["t0"],       note="temp")                  #t0-t6 temporary registers
+        CPU.configConfigRegister('x',  6, alias=["t1"],       note="temp")
+        CPU.configConfigRegister('x',  7, alias=["t2"],       note="temp")
+        CPU.configConfigRegister('x',  8, alias=["s0", "fp"], note="saved")                 #s0-s11 saved registers, note the two different mappings for x[08] = fp = s0
+        CPU.configConfigRegister('x',  9, alias=["s1"],       note="saved")
+        CPU.configConfigRegister('x', 10, alias=["a0"],       note="function args")         #a0-a7 function arguments
+        CPU.configConfigRegister('x', 11, alias=["a1"],       note="function args")
+        CPU.configConfigRegister('x', 12, alias=["a2"],       note="function args")
+        CPU.configConfigRegister('x', 13, alias=["a3"],       note="function args")
+        CPU.configConfigRegister('x', 14, alias=["a4"],       note="function args")
+        CPU.configConfigRegister('x', 15, alias=["a5"],       note="function args")
+        CPU.configConfigRegister('x', 16, alias=["a6"],       note="function args")
+        CPU.configConfigRegister('x', 17, alias=["a7"],       note="function args")
+        CPU.configConfigRegister('x', 18, alias=["s2"],       note="saved")
+        CPU.configConfigRegister('x', 19, alias=["s3"],       note="saved")
+        CPU.configConfigRegister('x', 20, alias=["s4"],       note="saved")
+        CPU.configConfigRegister('x', 21, alias=["s5"],       note="saved")
+        CPU.configConfigRegister('x', 22, alias=["s6"],       note="saved")
+        CPU.configConfigRegister('x', 23, alias=["s7"],       note="saved")
+        CPU.configConfigRegister('x', 24, alias=["s8"],       note="saved")
+        CPU.configConfigRegister('x', 25, alias=["s9"],       note="saved")
+        CPU.configConfigRegister('x', 26, alias=["s10"],      note="saved")
+        CPU.configConfigRegister('x', 27, alias=["s11"],      note="saved")
+        CPU.configConfigRegister('x', 28, alias=["t3"],       note="temp")
+        CPU.configConfigRegister('x', 29, alias=["t4"],       note="temp")
+        CPU.configConfigRegister('x', 30, alias=["t5"],       note="temp")
+        CPU.configConfigRegister('x', 31, alias=["t6"],       note="temp")
         
         CPU.configSetPostCycleFunction(self.postCycle)
         CPU.configSetInstructionSet(self.RiscVISA())
