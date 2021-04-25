@@ -1,11 +1,9 @@
 """
 By: Medic5700
-An implementation of an CPU simulator to allow a better and standardized way to illistrate bitwise instructions in lowlevel algorithms.
-This project is geared towards demonstrating algorithms, and therefor generalizes a lot of stuff. IE: bitLength is settable, instruction words are one memroy element big, etc
+An implementation of a Meta CPU simulator Engine to allow a better and standardized way to create a customized CPU and ISA to illistrate bitwise instructions in lowlevel algorithms.
+This project is geared towards demonstrating algorithms, and therefor generalizes a lot of details. EX: bitLength is settable, instruction words are one memroy element big, etc
 
-IE: I needed something for a super dumb/special use case of demonstrating how a low level operation/algorithm works (memory error correction)
-    without using a weird workaround (having a seperate 8-bit memory and 1-bit parity array vs creating a cpu with 9-bit memory)
-    in a reliable and extensable way (making a cpu simulator that can be used for multiple algorithms)
+IE: I want to try a different assembly algorithm with a custom instruction set, and a specific memory layout.
 
 Development Stack:
     Python 3.8 or greater
@@ -16,20 +14,26 @@ Goals:
     Allows for creating and testing a CPU 'instruction set' at a high level.
     There is enough functionality to be a teaching tool.
         Allow easy creation of instruction sets for teaching/documentation/instructional purposes. 
-            IE: this is everything this CPU instruction does and interacts with in these 15 lines of source code
+            IE: this is everything this specific CPU instruction does and interacts with in these 15 lines of source code
         Includes a customizable (if unstable) parser to allow for parsing multiple different low level assembly languages.
             This allows for simulating old CPUs, like the 6502 with native source code.
-            Holy Hell this is very far outside the box compaired to how parsers should work.
+            Holy Hell this is very outside the box compaired to how parsers should work.
     Allow for meaningfull compairisons between various low level algorithms on the same architectures using various metrics (memory accesses, energy usage, etc)
     Allow for meaningfull compairisons between various architectures running the same algorithms using various metrics (energy usage, execution cycles, etc)
     A modular simulator where various things can be swapped in and out. IE: swapping in a different instruction set, different 'displays', different memory configurations, etc.
 
 Getting Started:
     Note: this is a prototype, so the entire API is in flux
-    refer to "def multiply2" for an example of a possible use case.
+    refer to "def multiply2" for a simple example of a possible use case.
     refer to "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
 
     class CPUsim
+        var state                                           Contains the current registers, stored as 2-dimension dictionary IE: state["registers"][0] = register 0
+        var lastState                                       Contains the state of the registers from the last cycle. Structure is same as 'state'
+        var config                                          Contains meta information on every register (bitlength, aliases, notes, show?). stored as 3-dimension dictionary IE: config["r"][0]["bitlength"] = bitlength of register r0
+        var stats                      #not implimented
+        var engine                     #partially implimented
+
         <=  Setting Up =======================================================>
         def configSetDisplay                                Allows loading a different display interface (default loads 'class DisplaySimpleAndClean')
         def configSetInstructionSet                         Allows loading a different instruction set (default loads 'class InstructionSetDefault')
@@ -59,7 +63,7 @@ Getting Started:
             def postrun
 
         <=  Parser Stuff =====================================================>
-        class ParseDefault                                  Contains the tools to build a customized assembly parser. Turns assemble source code into a parse tree.
+        class ParseDefault                                  Contains the tools to build a customized (and partially flawed) assembly parser. Turns assembly source code into a parse tree.
             class Node                                      A parse tree Node
                 var type
                 var token
@@ -74,14 +78,14 @@ Getting Started:
                 def copyDeep
                 def replace
                 def remove
-            def parseCode                                   Takes assembly source code, turns it into a parse tree. See 'class RiscVParser' for customization example.
+            def parseCode                                   Takes assembly source code, uses a series of rules to turn it into a parse tree. See 'class RiscVParser' for customization example.
             def _tokenize                                   The inital tokenizer
             def ruleCastInts                                The below are a collection of rules that manipulate the parse tree, indirectly 'parsing' the source code
             def ruleCastHex
             def ruleRemoveEmptyLines
             def ruleRemoveLeadingWhitespace
-            def ruleStringSimple
-            def ruleFilterLineComments
+            def ruleStringSimple                            Known issue: due to the structure of the parser, there is no way to combine this rule and 'def ruleFilterLineComments' without 'z-fighting'. Would require new rule that handles string AND comments together.
+            def ruleFilterLineComments                      Known issue: due to the structure of the parser, there is no way to combine this rule and 'def ruleStringSimple' without 'z-fighting'. Would require new rule that handles string AND comments together.
             def ruleContainer
             def ruleFindLabels
             def ruleLabelNamespace
@@ -124,6 +128,13 @@ Getting Started:
         class RiscVParser                                   A customized parser for loading RiscV like assembly code
             def parseCode                                   The customized parser
             def ruleContainerTokensFollowingInstruction     A customized rule
+
+    #TODO document main execution loop
+
+    #TODO Stack:
+        Create test suite
+        Rebuild DisplaySimpleAndClean
+        Test NOT logic instruction
 
 """
 
@@ -179,11 +190,13 @@ class CPUsim:
 
     '''Random Design Notes:
 
-    Issues/TODO:
+    Issues/#TODO:
         Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
         configSetInstructionSet() should autofill stats datastructer for any unfilled in data. (but should also show a warning)
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
+            program counter should be already incrimented before instruction is executed, so instruction doesn't have to change the program counter unless needed (like a jump)
+        create instruction helper that takes in a number and creates a 'imm' value
         Note: Use Big Endian, it's convention in most cases
             If an array pointer points to a specific byte in a four byte word, does it point to the big side or little side (Big Endian points to the big side)
         Load upper immediate needs to be a thing
@@ -258,7 +271,7 @@ class CPUsim:
             }
             self.instructionSet: dict = {
                 #implimenting NAND as a linear combination of AND and NOT instructions. Node: The engine should treat this as one instruction executing, with one memory access
-                #Note: this is a further case where the instruction functions should not be altering the PC by themselves. #TODO
+                #Note: this is a further case where the instruction functions should not be altering the PC by themselves.
                 "nand" : Single(
                     (lambda z1, z2, z3, z4,   des, a, b       : self.opAnd(z1, z2, z3, z4,        des, a, b     )),
                     (lambda z1, z2, z3, z4,   des             : self.opNot(z2, z2, z3, z4,        des, des      )) #Notice "self.opNot(z2, z2, z3, z4, " has the nextState 'z2' as both the lastState and nextState
@@ -286,7 +299,7 @@ class CPUsim:
                     """
                 )
             }
-            self.instructionSet: dict = {
+            self.instructionSet : dict = {
                 #'repeat' (1 byte) prefix, 'moveString' (1 byte) instruction, with registers EDI (extended implicid source) defined, ESI (extended implicid destination) defined, ECX (implicid count register)
                 #   Allows copying an arbitry length string from ESI memory pointer to EDI memory pointer of ECX string length
                 "repeatMoveString" : Single(
@@ -297,6 +310,14 @@ class CPUsim:
                 )
             }
             #is a double indirect load possible? IE: take a register 'r=255' as a pointer, load the memory address 'm255=64' of the pointer, use that as a pointer to load another memory address 'm64=Whatever'
+            self.instructionSet : dict = {
+                "multiplyAccumulate" :  lambda z1, z2, z3, z4, des, a, des      : 
+                                        [ #the order of evaluation possibly isn't defined?
+                                            self.opMul(z1, z1, z3, z4,          des, a, b),
+                                            self.opAdd(z1, z2, z3, z4,          des, a, b)
+                                        ]
+                                        
+            }
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -418,7 +439,7 @@ class CPUsim:
         self.configConfigRegister('pc', 0, bitLength, note="SPECIAL") #program counter, it's a list for better consistancy with the other registers
         for i in range(1024): 
             self.configConfigRegister('imm', i, bitLength, note="SPECIAL") #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
-        self.state['imm'] = {}
+        self.state['imm'] = {}  #clears all immediate indexes, will be dynamically generated when needed
         self.lastState['imm'] = {}
         
         #self.state['stack'] = [None for i in range(memoryAmount)] #stores stack data #FUTURE
@@ -536,7 +557,7 @@ class CPUsim:
 
         self._computeNamespace()
 
-    def configSetPostCycleFunction(self, postCycle : Callable[[dict], Tuple[dict, dict]]):
+    def configSetPostCycleFunction(self, postCycle : Callable[[Dict[str, Dict[str or int, int]]], Tuple[Dict[str, Dict[str or int, int]], Dict[str, Dict[str or int, int]]]]):
         """Takes in a function that is executed after every execution cycle.
 
         Function must take in a dictionary currentState representing the current state
@@ -554,7 +575,6 @@ class CPUsim:
         """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state
         
         calls self.configConfigRegister()"""
-        #TODO make this function use configConfigRegister() to create registers to centralize default values
         assert type(name) is str
         assert len(name) >= 1
         #assert all([i in ([chr(j) for j in range(128) if chr(j).islower()] + [chr(j) for j in range(128) if chr(j).isdigit()] + ['_']) for i in list(name)]) #does the same as str.isidrentifier()
@@ -642,6 +662,7 @@ class CPUsim:
         if show != None:
             self.config[register.lower()][index]['show']            = show
         if alias != None:
+            #TODO remove 'aliases' from master 'aliases' list... once I create said list
             self.config[register.lower()][index]['alias']           = []
             for i in alias:
                 self.config[register.lower()][index]['alias'].append(i)
@@ -667,7 +688,6 @@ class CPUsim:
         t1 = key.lower()
         t2 = index.lower() if type(index) is str else index
 
-        #TODO check if key/index pair is in state before assigning value
         self.state[t1][t2] = value & (2**self.config[t1][t2]['bitlength']-1)
 
         self._displayRuntime()
@@ -686,7 +706,7 @@ class CPUsim:
 
         return self.state[t1][t2]
 
-    def _postCycleUserDefault(self, currentState : dict) -> Tuple[dict, dict]: #TODO this needs a redesign, should be more functional/modular
+    def _postCycleUserDefault(self, currentState : Dict[str, Dict[str or int, int]]) -> Tuple[Dict[str, Dict[str or int, int]], Dict[str, Dict[str or int, int]]]:
         """Takes in a dictionary currentState, returns a tuple containing two dictionaries representing the oldState and the newState, respectivly.
 
         resets all required registers and flags between instructions, copies current state into lastState"""
@@ -1131,8 +1151,10 @@ class CPUsim:
             self.sleep(delay)
             self.lastTime = self.timer()
 
-        def postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None): #TODO
+        def postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
             """When CPU execution HALTS, displays information about execution stats, etc"""
+            #TODO
+
             print("CPU Halted")
 
     class DisplaySilent:
@@ -1142,9 +1164,11 @@ class CPUsim:
             pass
 
         def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
+            """An intentionally empty definition, that will display nothing to the screen"""
             pass
 
         def postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
+            """An intentionally empty definition, that will display nothing to the screen"""
             pass
 
     class DisplayInstruction:
@@ -2047,8 +2071,6 @@ class CPUsim:
         def ruleSplitTokens(self, tree : Node, tokenType : str = "line", splitToken : str = "\n", recurse : bool = True) -> Node:
             """Takes in a Node Tree of arbitrary depth. Returns a Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited, and in containers.
 
-            #TODO should be implemented more elegently
-
             Case 1: splitToken = "\n"
             Node
                 'test'
@@ -2160,7 +2182,6 @@ class CPUsim:
                         temp = i.copyDeep()
                     root.append(temp)
             
-
             return root
 
         def ruleNestContainersIntoInstructions(self, tree : Node, nameSpace : dict, recurse : bool = True) -> Node:
@@ -2305,25 +2326,6 @@ class CPUsim:
         def parseCode(self, sourceCode : str) -> Tuple[Node, Dict[str, Node]]:
             """Takes a string of code, returns a parsed instruction tree
             
-            Applies following rules to sourceCode, in order:
-                tokenizes
-                finds strings
-                filter out line comments
-                lowercase everything
-                remove leading whitespace
-                remove empty lines
-                find labels and return
-                find stuff in nameSpace, change node type to reflect it
-                remove spaces
-                remove tabs
-                remove commas #TODO this should actually be a split line
-                cast ints
-                cast hex
-                process containers ([{brackets}])
-
-                set containers as children of previous token iff previous token is in namespace
-
-                split lines
             """
             assert type(sourceCode) is str
             
@@ -2399,9 +2401,6 @@ class CPUsim:
                     i += 1
             logging.debug(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
 
-            #root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
-            #logging.debug(debugHelper(inspect.currentframe()) + "remove commas #TODO: " + "\n" + str(root))
-
             root = self.ruleSplitTokens(root, "argument", ',', True)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
 
@@ -2447,7 +2446,8 @@ class CPUsim:
         def enforceImm(self, registerTuple : Tuple[str, int]) -> Tuple[str, int]:
             """Takes in a register key index pair. Returns a register key index pair iff key is 'imm' for immediate. Raises an Exception otherwise
             
-            #TODO should also be able to limit the size of the immediate value. IE: imm < 2**12"""
+            #TODO this should be replaced with a more generic function that allows for restricting access to a specific register. IE: The 'add' instruction destination can only be 'accumulate' register
+            """
             assert type(registerTuple) is tuple and len(registerTuple) == 2 
             assert type(registerTuple[0]) is str and (type(registerTuple[0]) is int or type(registerTuple[0]) is str) 
 
@@ -2495,7 +2495,7 @@ class CPUsim:
             b1, b2 = b
             des1, des2 = des
 
-            newState[des1][des2] = oldState[a1][a2] & oldState[b1][b2] #performs the bitwise and operation
+            newState[des1][des2] = oldState[a1][a2] & oldState[b1][b2] #performs the bitwise AND operation
 
             newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
@@ -2514,7 +2514,7 @@ class CPUsim:
             b1, b2 = b
             des1, des2 = des
 
-            newState[des1][des2] = oldState[a1][a2] | oldState[b1][b2] #performs the bitwise and operation
+            newState[des1][des2] = oldState[a1][a2] | oldState[b1][b2] #performs the bitwise OR operation
 
             newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
@@ -2533,7 +2533,7 @@ class CPUsim:
             b1, b2 = b
             des1, des2 = des
 
-            newState[des1][des2] = oldState[a1][a2] ^ oldState[b1][b2] #performs the bitwise and operation
+            newState[des1][des2] = oldState[a1][a2] ^ oldState[b1][b2] #performs the bitwise XOR operation
 
             newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
@@ -2677,6 +2677,9 @@ class RiscV:
             https://rvemu.app/                          #The webapp
             https://github.com/d0iasm/rvemu-for-book
             https://book.rvemu.app/index.html           #A book about writing a RISC-V emulator
+        https://www.youtube.com/watch?v=hF3sp-q3Zmk
+            RISC-V is trying to launch an open-hardware revolution | Upscaled
+            
     """
     
     def __init__(self):
@@ -2789,9 +2792,9 @@ class RiscV:
             self.instructionSet : dict = {
                 #arithmetic (add, add immidiate, subtract, load upper immediate, add upper immediate to PC)
                 "add"   : self.opAdd,
-                "addi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAdd(z1, z2, z3, z4,        des, a, self.enforceImm(imm))), #note: no enforcement of imm being an immediate value
+                "addi"  : (lambda z1, z2, z3, z4,   des, a, imm     : self.opAdd(z1, z2, z3, z4,        des, a, self.enforceImm(imm))),
                 #"sub"   : None,
-                #"lui"   : None,
+                #"lui"   : None,       #TODO load upper immediate needs to be implimented via instruction composition in series. IE: mergeImm(lastState, immRegister) -> adds '_upperImmediate' with 'immRegister', THEN is does the operation 'addi'
                 #"auipc" : None,
 
                 #logical
@@ -2806,7 +2809,7 @@ class RiscV:
                 "beq"   : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "==", pointer, a, b)), 
                 "bne"   : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "!=", pointer, a, b)), 
                 #"blt"   : None, #opJump doesn't handle signed compairisons
-                #"bge"   : None,  
+                #"bge"   : None, #opJump doesn't handle signed compairisons
                 "bltu"  : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       "<", pointer, a, b)), 
                 "bgeu"  : (lambda z1, z2, z3, z4,   a, b, pointer   : self.opJump(z1, z2, z3, z4,       ">=", pointer, a, b)), 
 
@@ -2820,7 +2823,7 @@ class RiscV:
 
                 #compare (set less than, set less than immediate, set less that unsigned, set less that immediate unsigned)
                 #"slt"   : None, #signed compairsons for opSetLessThen is not implimented
-                #"slti"  : None,
+                #"slti"  : None, #signed compairsons for opSetLessThen is not implimented
                 "sltu"  : (lambda z1, z2, z3, z4,   des, a, b       : self.opSetLessThan(z1, z2, z3, z4,     des, a, b, False)),
                 "sltiu" : (lambda z1, z2, z3, z4,   des, a, imm     : self.opSetLessThan(z1, z2, z3, z4,     des, a, self.enforceImm(imm), False)),
 
@@ -2849,7 +2852,7 @@ class RiscV:
             "sbu"   - Store byte unsigned
             "shu"   - Store half unsigned
 
-            #fence
+            #fence      #Deals with out-of-order execution
             "fence"
             "fence.i"
 
@@ -2864,7 +2867,7 @@ class RiscV:
             '''
 
             #for energy and latency, 1 is normalized to 1-ish logic gates-ish
-            #length is unused, but is for the assembler to compute how much memory it takes, 1 is 1 byte (don't know all the edge cases that could break a simple assignment like this)
+            #length is unused, but is for the assembler to compute how much memory each instruction takes, 1 is 1 byte (don't know all the edge cases that could break a simple assignment like this)
             self.stats : dict = {
                 #arithmetic (add, add immidiate, subtract, load upper immediate, add upper immediate to PC)
                 "add"   : {"energy"         : 5 * 32,   "latency"       : 3 * 32,   "cycles"        : 1,        "length"        : 4,    "executionUnit" : "int"},
@@ -2946,25 +2949,6 @@ class RiscV:
         def parseCode(self, sourceCode : str) -> Tuple["Node", Dict[str, "Node"]]:
             """Takes a string of code, returns a parsed instruction tree
             
-            Applies following rules to sourceCode, in order:
-                tokenizes
-                finds strings
-                filter out line comments
-                lowercase everything
-                remove leading whitespace
-                remove empty lines
-                find labels and return
-                find stuff in nameSpace, change node type to reflect it
-                remove spaces
-                remove tabs
-                remove commas #TODO this should actually be a split line
-                cast ints
-                cast hex
-                process containers ([{brackets}])
-
-                set containers as children of previous token iff previous token is in namespace
-
-                split lines
             """
             assert type(sourceCode) is str
             
@@ -3039,9 +3023,6 @@ class RiscV:
                 else:
                     i += 1
             logging.debug(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
-
-            #root = self.ruleRemoveToken(root, ",") #TODO this needs to be replaced with a proper way to seperate arguments
-            #logging.debug(debugHelper(inspect.currentframe()) + "remove commas #TODO: " + "\n" + str(root))
 
             temp = root.copyInfo()
             for i in root.child:

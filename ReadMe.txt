@@ -4,6 +4,6 @@ Ranges from ways to implement multiplication in microcode-like environments to v
 Uses Python3 for consistancy, focus is on understandability instead of efficentcy or being tied to a particular architecture (results will vary).
 
 Development Stack:
-	Windows 10	/	Ubuntu
-	Windows Terminal/	default Terminal #specifying this because some terminals don't support ANSI properly (like default powershell terminal on windows)
-	Python v3.8
+    Windows 10 or Ubuntu
+    Python 3.8 or greater
+    A terminal that supports ANSI (IE: default Ubuntu Terminal or the "Windows Terminal" app for Windows)
