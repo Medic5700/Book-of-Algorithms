@@ -3,10 +3,10 @@ By: Medic5700
 An implementation of a Meta CPU simulator Engine to allow a better and standardized way to create a customized CPU and ISA to illistrate bitwise instructions in lowlevel algorithms.
 This project is geared towards demonstrating algorithms, and therefor generalizes a lot of details. EX: bitLength is settable, instruction words are one memroy element big, etc
 
-IE: I want to try a different assembly algorithm with a custom instruction set, and a specific memory layout.
+IE: I want to try and directly compair different assembly algorithms with a custom instruction set, and a specific memory layout.
 
 Development Stack:
-    Python 3.8 or greater
+    Python 3.8 or greater (required for variable annotations support)
     A terminal that supports ANSI (IE: default Ubuntu Terminal or the "Windows Terminal" app for Windows)
 
 Goals:
@@ -22,7 +22,7 @@ Goals:
     Allow for meaningfull compairisons between various architectures running the same algorithms using various metrics (energy usage, execution cycles, etc)
     A modular simulator where various things can be swapped in and out. IE: swapping in a different instruction set, different 'displays', different memory configurations, etc.
 
-Getting Started:
+Getting Started: <=====================================================================================================
     Note: this is a prototype, so the entire API is in flux
     refer to "def multiply2" for a simple example of a possible use case.
     refer to "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
@@ -114,7 +114,7 @@ Getting Started:
             def opShiftR
             def opHalt                      #Still figuring out syscalls
 
-    <=  Example Partial Implimentation of RiscV ==============================>
+    <=  Example Partial Implimentation of RiscV ==============================> #Work in progress
     class RiscV                                             A more advanced example of creating a custom CPU
         var CPU                                             Contains an initialized instance of 'class CPUsim'
         def __init__                                        Sets up the CPU registers and memory and stuff
@@ -129,13 +129,64 @@ Getting Started:
             def parseCode                                   The customized parser
             def ruleContainerTokensFollowingInstruction     A customized rule
 
+Execution Loop:
     #TODO document main execution loop
 
-    #TODO Stack:
-        Create test suite
-        Rebuild DisplaySimpleAndClean
-        Test NOT logic instruction
+Data Structures:
+    #TODO include stuff on datastructures
 
+Test Cases to impliment:
+    These test cases are various ways the CPU should be able to stretch and require functionality that should be implimented.
+    Dafault
+        Meant for teaching or just 'jumping right it'
+        Not meant to be complex
+        All defaults should be geared towards 'just working'
+        #TODO
+            load and store instructions
+    RISCV
+        A real world example and usecase
+        Due to the multiple versions, can demonstrait how instructions and configurations can be 'added' for each version
+        Has a robust (if confusing) ecosystem and toolchains
+        #TODO
+            proper alias handling
+    Subleq
+        A single instruction language
+        http://mazonka.com/subleq/
+        https://en.wikipedia.org/wiki/One-instruction_set_computer#Subtract_and_branch_if_less_than_or_equal_to_zero
+        Kind of what CPUSimulator was built for, quickly prototyping stuff like this
+        Has an actual toolchain that can compile C into assembly (IE: a list of tuples of three numbers representing operands)
+    6502
+        An old CPU from the Commador64 and CommanderX16 (opensource modern almost emulator/reimagining)
+        A real world example, and an iconic processor
+        An interesting memory layout where the first 512? bytes are accessable faster then the rest of memory
+        It is simple enough where it is feasable to make it
+        Has inturupts (Raises an inturupt at 60Hz for timekeeping)
+        https://github.com/commanderx16/x16-emulator
+    Brainfuck
+        A simple and weird programming language, simple enough to be implimented here
+        https://en.wikipedia.org/wiki/Brainfuck
+        https://esolangs.org/wiki/Brainfuck
+        has input and output, a good test for making devices/input/output/etc
+        Program is stored in seperate memory, a good test for loading programs into not main memory
+        The defaultDisplay will need to somehow highlight the individual characters in the instruction line
+        #TODO
+            impliment character tokenizer in default parser
+            impliment IO instruction subsystems (IE: devices, instruction operations, etc)
+    TIS-100
+        It's a made up processor from a puzzle game (or similar name)
+        Has multiple CPUs interacting together, which is a good test case for that kind of functionality
+        Fairly simple instruction set
+        The individual CPUs can be 'blocked' by full input/output buffers, which is a unique functionality
+        This kind of idea is an idea I've had for a long time, and how to scale it up
+
+        
+#TODO Stack:
+    Create test suite
+    Rebuild DisplaySimpleAndClean
+    Test NOT logic instruction
+    create instruction helper that allows adding an immediate register (IE: you put in a number, and it passes out an immediate register address, AND adds an immediate register)
+    allow ISA instructions to be referenced by a list. IE: ("add", "#") and ("add", "$") for the 6502 processor, shows two different addressing modes for the "add" instruction
+    change 'charNum' to 'colNum' in parser, add change add 'charNum' as source code number (IE: the char number of input string, not char number of that line in input string)
 """
 
 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
@@ -318,6 +369,37 @@ class CPUsim:
                                         ]
                                         
             }
+        Devices, SysCalls, Inturupts, and Input/Output:
+            Should syscalls and devices be in their own interchangable modules? Yes
+            Should syscalls and devices be together? Maybe?
+            What are SysCalls?
+                Part of the instruction set, referenced (but not defined) in class InstructionSetDefault.__init__(), IE: 'halt'
+                Can redirect the instruction pointer to an OS function, where it executes instructions then returns
+                Can be a system inturupt, which then redirects the instruction pointer to an OS function
+                Can it be blocking (of CPUSim)? Yes
+                    EX: input from keyboard
+                Can it take in data from a predefined initialied array? No
+                    EX: simulate keyboard input by reading from a file
+                    Should be done via a device, where it can be better controled.
+                It is a context switch to the OS
+                    (Will need to read up on the priviliged RISCV instruction set)
+            What is a Device?
+                Some hardware thing that interfaces with the CPU but is not part of the CPU
+                    IE: The Device is simulated AFTER the execution of an instruction (both inside the main execution loop)
+                Can it be blocking (of CPUSim)? Yes
+                    EX: input from keyboard
+                Can it take in data from a predefined initialized array? Yes
+                    EX: simulate keyboard input by reading from a file
+                    The Device can be initialized at module Instantiation
+                Can devices generate inturupts? Yes
+                Should devices have full access to memory? Yes
+                    A video display might use a memory range as a video buffer. And the 'user program' reads and writes to that memory range to manipualte video
+                    EX: the way the Commador64/CommanderX16 handles video
+            What is an Inturupt?
+                Something that 'inturupts' the 'user program' to handle some event, then returns to the 'user program'
+                Can the CPU send an 'inturupt' to a device? Maybe?
+                    It would simplify activating and deactivating stuff like a keyboard input. Then the device would write back data via memory?
+                Inturupts should be stored in the State['Engine'], for modular access by instructions
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -681,7 +763,16 @@ class CPUsim:
         value >= 0
         Does not increment the simulatition"""
         assert type(key) is str
+        assert len(key) >= 1
+        assert key.isidentifier()
+        assert key in self.state.keys()
+
         assert type(index) is int or type(index) is str
+        assert (True if index >= 0 else False) if type(index) is int else True
+        assert (True if len(index) >= 1 else False) if type(index) is str else True
+        assert (True if index.isidentifier() else False) if type(index) is str else True
+        assert index in self.state[key.lower()].keys()
+
         assert type(value) is int
         assert value >= 0
 
@@ -697,7 +788,15 @@ class CPUsim:
     def extract(self, key : str, index : int or str) -> int:
         """Takes in a key index pair representing a specific register. Returns an int representing the value stored in that register"""
         assert type(key) is str
+        assert len(key) >= 1
+        assert key.isidentifier()
+        assert key in self.state.keys()
+
         assert type(index) is int or type(index) is str
+        assert (True if index >= 0 else False) if type(index) is int else True
+        assert (True if len(index) >= 1 else False) if type(index) is str else True
+        assert (True if index.isidentifier() else False) if type(index) is str else True
+        assert index in self.state[key.lower()].keys()
 
         t1 = key.lower()
         t2 = index.lower() if type(index) is str else index
@@ -2324,8 +2423,49 @@ class CPUsim:
             pass
 
         def parseCode(self, sourceCode : str) -> Tuple[Node, Dict[str, Node]]:
-            """Takes a string of code, returns a parsed instruction tree
+            """Takes a string of source code, returns a parsed instruction tree
             
+            Takes source code of the form:
+                #This is a comment, non-functional example code
+                label1:     add(r[0],r[0],r[0])
+                            and(r[1],r[2],r[0]) #Another comment
+                label2:     jump(label1)
+            Returns:
+                None                                        :Root           1       lineNum=None    charNum=None
+                    None                                    :Line           2       lineNum=2       charNum=31
+                        'add'                               :Namespace      3       lineNum=2       charNum=31
+                            '('                             :Container      4       lineNum=2       charNum=31
+                                None                        :Argument       5       lineNum=2       charNum=33
+                                    'r'                     :Namespace      6       lineNum=2       charNum=33
+                                        '['                 :Container      7       lineNum=2       charNum=33
+                                            0               :Int            8       lineNum=2       charNum=35
+                                None                        :Argument       5       lineNum=2       charNum=38
+                                    'r'                     :Namespace      6       lineNum=2       charNum=38
+                                        '['                 :Container      7       lineNum=2       charNum=38
+                                            0               :Int            8       lineNum=2       charNum=40
+                                None                        :Argument       5       lineNum=2       charNum=43
+                                    'r'                     :Namespace      6       lineNum=2       charNum=43
+                                        '['                 :Container      7       lineNum=2       charNum=43
+                                            0               :Int            8       lineNum=2       charNum=45
+                    None                                    :Line           2       lineNum=3       charNum=31
+                        'and'                               :Namespace      3       lineNum=3       charNum=31
+                            '('                             :Container      4       lineNum=3       charNum=31
+                                None                        :Argument       5       lineNum=3       charNum=33
+                                    'r'                     :Namespace      6       lineNum=3       charNum=33
+                                        '['                 :Container      7       lineNum=3       charNum=33
+                                            1               :Int            8       lineNum=3       charNum=35
+                                None                        :Argument       5       lineNum=3       charNum=38
+                                    'r'                     :Namespace      6       lineNum=3       charNum=38
+                                        '['                 :Container      7       lineNum=3       charNum=38
+                                            2               :Int            8       lineNum=3       charNum=40
+                                None                        :Argument       5       lineNum=3       charNum=43
+                                    'r'                     :Namespace      6       lineNum=3       charNum=43
+                                        '['                 :Container      7       lineNum=3       charNum=43
+                                            0               :Int            8       lineNum=3       charNum=45
+                    None                                    :Line           2       lineNum=4       charNum=32
+                        'jump'                              :Namespace      3       lineNum=4       charNum=32
+                            '('                             :Container      4       lineNum=4       charNum=32
+                                'label1'                    :Token          5       lineNum=4       charNum=39
             """
             assert type(sourceCode) is str
             
@@ -2443,13 +2583,16 @@ class CPUsim:
 
             return (redirection, register[index])
 
-        def enforceImm(self, registerTuple : Tuple[str, int]) -> Tuple[str, int]:
+        def enforceImm(self, registerTuple : Tuple[str, int], bitlength : int = None) -> Tuple[str, int]:
             """Takes in a register key index pair. Returns a register key index pair iff key is 'imm' for immediate. Raises an Exception otherwise
             
             #TODO this should be replaced with a more generic function that allows for restricting access to a specific register. IE: The 'add' instruction destination can only be 'accumulate' register
             """
             assert type(registerTuple) is tuple and len(registerTuple) == 2 
             assert type(registerTuple[0]) is str and (type(registerTuple[0]) is int or type(registerTuple[0]) is str) 
+
+            assert type(bitlength) is type(None) or type(bitlength) is int
+            assert (True if bitlength >= 1 else False) if type(bitlength) is int else True
 
             if registerTuple[0] != "imm":
                 raise Exception("Expected immediate value, got register instead")
@@ -2684,12 +2827,14 @@ class RiscV:
     
     def __init__(self):
         #when initalizing this class making an instance of this class, initalizing this class should return a CPUsim() object
+        memorySize = 2**4
+        xLength = None #TODO look up the name for the bitlength of the ISA from documentation
 
         CPU = CPUsim(32, defaultSetup=False)
         CPU.configAddRegister("pc", 32, 1) #explicidly set the Program Counter to 32-bit
         CPU.configAddRegister("x", 32, 32)
-        #CPU.configAddRegister("m", 8, 2**16, show=False)
-        CPU.configAddRegister("m", 8, 2**4, show=False)
+        #CPU.configAddRegister("m", 8, memorySize, show=False)
+        CPU.configAddRegister("m", 8, memorySize, show=False)
         
         #TODO remove this, impliment aliasing properly
         #not implimented: after tokenization, should replace the token arg1 with (arg2 tokonized again). NOT A STRING FIND AND REPLACE
@@ -2728,38 +2873,44 @@ class RiscV:
         CPU.configAddAlias("t5",    "x[30]")
         CPU.configAddAlias("t6",    "x[31]")
 
-        CPU.configConfigRegister('x',  0, alias=["zero"],     note="Zero")                  #always zero
-        CPU.configConfigRegister('x',  1, alias=["r1"],       note="call return address")   #call return address
-        CPU.configConfigRegister('x',  2, alias=["sp"],       note="stack pointer")         #stack pointer
-        CPU.configConfigRegister('x',  3, alias=["gp"],       note="global pointer")        #global pointer
-        CPU.configConfigRegister('x',  4, alias=["tp"],       note="thread pointer")        #thread pointer
-        CPU.configConfigRegister('x',  5, alias=["t0"],       note="temp")                  #t0-t6 temporary registers
-        CPU.configConfigRegister('x',  6, alias=["t1"],       note="temp")
-        CPU.configConfigRegister('x',  7, alias=["t2"],       note="temp")
-        CPU.configConfigRegister('x',  8, alias=["s0", "fp"], note="saved")                 #s0-s11 saved registers, note the two different mappings for x[08] = fp = s0
-        CPU.configConfigRegister('x',  9, alias=["s1"],       note="saved")
-        CPU.configConfigRegister('x', 10, alias=["a0"],       note="function args")         #a0-a7 function arguments
-        CPU.configConfigRegister('x', 11, alias=["a1"],       note="function args")
-        CPU.configConfigRegister('x', 12, alias=["a2"],       note="function args")
-        CPU.configConfigRegister('x', 13, alias=["a3"],       note="function args")
-        CPU.configConfigRegister('x', 14, alias=["a4"],       note="function args")
-        CPU.configConfigRegister('x', 15, alias=["a5"],       note="function args")
-        CPU.configConfigRegister('x', 16, alias=["a6"],       note="function args")
-        CPU.configConfigRegister('x', 17, alias=["a7"],       note="function args")
-        CPU.configConfigRegister('x', 18, alias=["s2"],       note="saved")
-        CPU.configConfigRegister('x', 19, alias=["s3"],       note="saved")
-        CPU.configConfigRegister('x', 20, alias=["s4"],       note="saved")
-        CPU.configConfigRegister('x', 21, alias=["s5"],       note="saved")
-        CPU.configConfigRegister('x', 22, alias=["s6"],       note="saved")
-        CPU.configConfigRegister('x', 23, alias=["s7"],       note="saved")
-        CPU.configConfigRegister('x', 24, alias=["s8"],       note="saved")
-        CPU.configConfigRegister('x', 25, alias=["s9"],       note="saved")
-        CPU.configConfigRegister('x', 26, alias=["s10"],      note="saved")
-        CPU.configConfigRegister('x', 27, alias=["s11"],      note="saved")
-        CPU.configConfigRegister('x', 28, alias=["t3"],       note="temp")
-        CPU.configConfigRegister('x', 29, alias=["t4"],       note="temp")
-        CPU.configConfigRegister('x', 30, alias=["t5"],       note="temp")
-        CPU.configConfigRegister('x', 31, alias=["t6"],       note="temp")
+        CPU.configConfigRegister('_upper', 0, bitlength=32,     note="upper immediate")         
+
+        CPU.configConfigRegister('x',  0, alias=["zero"],       note="Zero")                    #always zero
+        CPU.configConfigRegister('x',  1, alias=["r1"],         note="call return address")     #call return address
+        CPU.configConfigRegister('x',  2, alias=["sp"],         note="stack pointer")           #stack pointer
+        CPU.configConfigRegister('x',  3, alias=["gp"],         note="global pointer")          #global pointer
+        CPU.configConfigRegister('x',  4, alias=["tp"],         note="thread pointer")          #thread pointer
+        CPU.configConfigRegister('x',  5, alias=["t0"],         note="temp")                    #t0-t6 temporary registers
+        CPU.configConfigRegister('x',  6, alias=["t1"],         note="temp")
+        CPU.configConfigRegister('x',  7, alias=["t2"],         note="temp")
+        CPU.configConfigRegister('x',  8, alias=["s0", "fp"],   note="saved")                   #s0-s11 saved registers, note the two different mappings for x[08] = fp = s0
+        CPU.configConfigRegister('x',  9, alias=["s1"],         note="saved")
+        CPU.configConfigRegister('x', 10, alias=["a0"],         note="function args")           #a0-a7 function arguments
+        CPU.configConfigRegister('x', 11, alias=["a1"],         note="function args")
+        CPU.configConfigRegister('x', 12, alias=["a2"],         note="function args")
+        CPU.configConfigRegister('x', 13, alias=["a3"],         note="function args")
+        CPU.configConfigRegister('x', 14, alias=["a4"],         note="function args")
+        CPU.configConfigRegister('x', 15, alias=["a5"],         note="function args")
+        CPU.configConfigRegister('x', 16, alias=["a6"],         note="function args")
+        CPU.configConfigRegister('x', 17, alias=["a7"],         note="function args")
+        CPU.configConfigRegister('x', 18, alias=["s2"],         note="saved")
+        CPU.configConfigRegister('x', 19, alias=["s3"],         note="saved")
+        CPU.configConfigRegister('x', 20, alias=["s4"],         note="saved")
+        CPU.configConfigRegister('x', 21, alias=["s5"],         note="saved")
+        CPU.configConfigRegister('x', 22, alias=["s6"],         note="saved")
+        CPU.configConfigRegister('x', 23, alias=["s7"],         note="saved")
+        CPU.configConfigRegister('x', 24, alias=["s8"],         note="saved")
+        CPU.configConfigRegister('x', 25, alias=["s9"],         note="saved")
+        CPU.configConfigRegister('x', 26, alias=["s10"],        note="saved")
+        CPU.configConfigRegister('x', 27, alias=["s11"],        note="saved")
+        CPU.configConfigRegister('x', 28, alias=["t3"],         note="temp")
+        CPU.configConfigRegister('x', 29, alias=["t4"],         note="temp")
+        CPU.configConfigRegister('x', 30, alias=["t5"],         note="temp")
+        CPU.configConfigRegister('x', 31, alias=["t6"],         note="temp")
+
+        CPU.inject('x', 2, memorySize)  #sets stackpointer to end of memory range, Reference: https://book.rvemu.app/hardware-components/01-cpu.html#registers
+        #CPU.configConfigRegister('status', 'cycle', 0)
+        #CPU.configConfigRegister('status', 'time', 0)
         
         CPU.configSetPostCycleFunction(self.postCycle)
         CPU.configSetInstructionSet(self.RiscVISA())
@@ -2949,6 +3100,105 @@ class RiscV:
         def parseCode(self, sourceCode : str) -> Tuple["Node", Dict[str, "Node"]]:
             """Takes a string of code, returns a parsed instruction tree
             
+            Takes source code of the form:
+                # Multiplies two number together using shift and add
+                # Inputs: a0 (x10), a2 (x12)
+                # Outputs: a3 (x13)
+                # [register mappping from other program]: r0 => a0 (x10), r1 => a1 (x11), t0 => a2 (x12), t1 => a3 (x13)
+                loop:   beq     a0, 0, end          #note: the destination pointer is the third argument, where in the previous example it was the first argument
+                        andi    a1, a0, 1
+                        bne     a1, 1, temp
+                        add     a3, a2, a3
+                temp:   slli    a2, a2, 1           #can't use zero as a label, it's a register (x0)
+                        srli    a0, a0, 1
+                        beq     zero, zero, loop    #a psudoinstruction for an unconditional jump
+                end:    halt                        #this is a jurry-rigged instruction for 'halt' because I haven't figured out how to implement system calls yet
+            Returns:
+                None                                        :Root           1       lineNum=None    charNum=None
+                    None                                    :Line           2       lineNum=5       charNum=31
+                        'beq'                               :Namespace      3       lineNum=5       charNum=31
+                            None                            :Argument       4       lineNum=5       charNum=38
+                                'x'                         :Namespace      5       lineNum=5       charNum=38
+                                    '['                     :Container      6       lineNum=5       charNum=38
+                                        10                  :Int            7       lineNum=5       charNum=38
+                            None                            :Argument       4       lineNum=5       charNum=41
+                                0                           :Int            5       lineNum=5       charNum=41
+                            None                            :Argument       4       lineNum=5       charNum=46
+                                'end'                       :Token          5       lineNum=5       charNum=46
+                    None                                    :Line           2       lineNum=6       charNum=32
+                        'andi'                              :Namespace      3       lineNum=6       charNum=32
+                            None                            :Argument       4       lineNum=6       charNum=38
+                                'x'                         :Namespace      5       lineNum=6       charNum=38
+                                    '['                     :Container      6       lineNum=6       charNum=38
+                                        11                  :Int            7       lineNum=6       charNum=38
+                            None                            :Argument       4       lineNum=6       charNum=42
+                                'x'                         :Namespace      5       lineNum=6       charNum=42
+                                    '['                     :Container      6       lineNum=6       charNum=42
+                                        10                  :Int            7       lineNum=6       charNum=42
+                            None                            :Argument       4       lineNum=6       charNum=45
+                                1                           :Int            5       lineNum=6       charNum=45
+                    None                                    :Line           2       lineNum=7       charNum=31
+                        'bne'                               :Namespace      3       lineNum=7       charNum=31
+                            None                            :Argument       4       lineNum=7       charNum=38
+                                'x'                         :Namespace      5       lineNum=7       charNum=38
+                                    '['                     :Container      6       lineNum=7       charNum=38
+                                        11                  :Int            7       lineNum=7       charNum=38
+                            None                            :Argument       4       lineNum=7       charNum=41
+                                1                           :Int            5       lineNum=7       charNum=41
+                            None                            :Argument       4       lineNum=7       charNum=47
+                                'temp'                      :Token          5       lineNum=7       charNum=47
+                    None                                    :Line           2       lineNum=8       charNum=31
+                        'add'                               :Namespace      3       lineNum=8       charNum=31
+                            None                            :Argument       4       lineNum=8       charNum=38
+                                'x'                         :Namespace      5       lineNum=8       charNum=38
+                                    '['                     :Container      6       lineNum=8       charNum=38
+                                        13                  :Int            7       lineNum=8       charNum=38
+                            None                            :Argument       4       lineNum=8       charNum=42
+                                'x'                         :Namespace      5       lineNum=8       charNum=42
+                                    '['                     :Container      6       lineNum=8       charNum=42
+                                        12                  :Int            7       lineNum=8       charNum=42
+                            None                            :Argument       4       lineNum=8       charNum=46
+                                'x'                         :Namespace      5       lineNum=8       charNum=46
+                                    '['                     :Container      6       lineNum=8       charNum=46
+                                        13                  :Int            7       lineNum=8       charNum=46
+                    None                                    :Line           2       lineNum=9       charNum=32
+                        'slli'                              :Namespace      3       lineNum=9       charNum=32
+                            None                            :Argument       4       lineNum=9       charNum=38
+                                'x'                         :Namespace      5       lineNum=9       charNum=38
+                                    '['                     :Container      6       lineNum=9       charNum=38
+                                        12                  :Int            7       lineNum=9       charNum=38
+                            None                            :Argument       4       lineNum=9       charNum=42
+                                'x'                         :Namespace      5       lineNum=9       charNum=42
+                                    '['                     :Container      6       lineNum=9       charNum=42
+                                        12                  :Int            7       lineNum=9       charNum=42
+                            None                            :Argument       4       lineNum=9       charNum=45
+                                1                           :Int            5       lineNum=9       charNum=45
+                    None                                    :Line           2       lineNum=10      charNum=32
+                        'srli'                              :Namespace      3       lineNum=10      charNum=32
+                            None                            :Argument       4       lineNum=10      charNum=38
+                                'x'                         :Namespace      5       lineNum=10      charNum=38
+                                    '['                     :Container      6       lineNum=10      charNum=38
+                                        10                  :Int            7       lineNum=10      charNum=38
+                            None                            :Argument       4       lineNum=10      charNum=42
+                                'x'                         :Namespace      5       lineNum=10      charNum=42
+                                    '['                     :Container      6       lineNum=10      charNum=42
+                                        10                  :Int            7       lineNum=10      charNum=42
+                            None                            :Argument       4       lineNum=10      charNum=45
+                                1                           :Int            5       lineNum=10      charNum=45
+                    None                                    :Line           2       lineNum=11      charNum=31
+                        'beq'                               :Namespace      3       lineNum=11      charNum=31
+                            None                            :Argument       4       lineNum=11      charNum=40
+                                'x'                         :Namespace      5       lineNum=11      charNum=40
+                                    '['                     :Container      6       lineNum=11      charNum=40
+                                        0                   :Int            7       lineNum=11      charNum=40
+                            None                            :Argument       4       lineNum=11      charNum=46
+                                'x'                         :Namespace      5       lineNum=11      charNum=46
+                                    '['                     :Container      6       lineNum=11      charNum=46
+                                        0                   :Int            7       lineNum=11      charNum=46
+                            None                            :Argument       4       lineNum=11      charNum=52
+                                'loop'                      :Token          5       lineNum=11      charNum=52
+                    None                                    :Line           2       lineNum=12      charNum=32
+                        'halt'                              :Namespace      3       lineNum=12      charNum=32
             """
             assert type(sourceCode) is str
             
