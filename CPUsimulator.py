@@ -27,6 +27,7 @@ Getting Started: <==============================================================
     refer to "def multiply2" for a simple example of a possible use case.
     refer to "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
 
+API
     class CPUsim
         var state                                           Contains the current registers, stored as 2-dimension dictionary IE: state["registers"][0] = register 0
         var lastState                                       Contains the state of the registers from the last cycle. Structure is same as 'state'
@@ -109,6 +110,7 @@ Getting Started: <==============================================================
             def opAND
             def opOR
             def opXOR
+            def opNOT
             def opJump
             def opShiftL
             def opShiftR
@@ -2562,6 +2564,7 @@ class CPUsim:
                 "and"   : self.opAND,
                 "or"    : self.opOR,
                 "xor"   : self.opXOR,
+                "not"   : self.opNOT,
                 "jumpeq": (lambda z1, z2, z3, z4,   pointer, a, b     : self.opJump(z1, z2, z3, z4,       "==", pointer, a, b)),
                 "jumpne": (lambda z1, z2, z3, z4,   pointer, a, b     : self.opJump(z1, z2, z3, z4,       "!=", pointer, a, b)),
                 "jump"  : (lambda z1, z2, z3, z4,   pointer           : self.opJump(z1, z2, z3, z4,       "goto", pointer)),
@@ -2679,6 +2682,25 @@ class CPUsim:
             newState[des1][des2] = oldState[a1][a2] ^ oldState[b1][b2] #performs the bitwise XOR operation
 
             newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+
+            newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
+
+        def opNOT(self, oldState, newState, config, engine, des, a):
+            """performs operation NOT on register a, stores result in register des"""
+            assert type(des) is tuple and len(des) == 2 
+            assert type(des[0]) is str and (type(des[0]) is int or type(des[0]) is str)
+            assert type(a) is tuple and len(a) == 2 
+            assert type(a[0]) is str and (type(a[0]) is int or type(a[0]) is str) 
+
+            a1, a2 = a
+            des1, des2 = des
+
+            inputNumber = oldState[a1][a2] & (2**config[des1][des2]['bitlength'] - 1) #Cuts down number to correct bitlength BEFORE converting it
+            bitArray = [inputNumber >> i & 1 for i in range(config[des1][des2]['bitlength'] - 1, -1, -1)] #converts to bit array
+            bitArray = [not i for i in bitArray] #performs the bitwise NOT operation
+            result = sum([bit << (len(bitArray) - 1 - i) for i, bit in enumerate(bitArray)]) #converts bit array back into a number
+            
+            newState[des1][des2] = result
 
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
