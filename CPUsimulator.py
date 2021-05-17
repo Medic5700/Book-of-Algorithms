@@ -3360,77 +3360,96 @@ class RiscV:
 
             return root
 
-def multiply2(a : int, b : int, bitlength : int = 8) -> int:
-    """Takes in two unsigned integers, a, b -> returns an integer a*b
 
-    bitlength is the size of the numbers/architecture, in bits
 
-    This is a real world use case
-    """
-    assert type(a) is int
-    assert type(b) is int
-    assert type(bitlength) is int
-    assert bitlength >= 1
-    assert 0 <= a < 2**bitlength
-    assert 0 <= b < 2**bitlength
-
-    #configure memory
-    t = [0 for j in range(2)]
-    r = [0 for i in range(2)]
+class TestDefault:
+    textGreen : str = "\u001b[32m" #forground green
+    textRed : str = "\u001b[31m" #forground red
+    textEnd : str = "\u001b[0m" #resets ANSI colours and formatting
     
-    t[0] = a
-    r[0] = b
+    def __init__(self):
+        try:
+            self.testProgram1()
+        except:
+            pass
 
-    #A python algorithm that multiplies two numbers together
-    while(r[0] != 0):
-        r[1] = r[0] & 1
-        if r[1] == 1:
-            t[1] = t[0] + t[1]
-        t[0] = t[0] << 1
-        r[0] = r[0] >> 1
-        
-    resultPython = t[1]
+    def testCoreFunctions(self) -> bool:
+        pass
 
-    #the same algorithm, but using a generic assembly like algorithm
-    ALU = CPUsim(bitlength, defaultSetup=False) #bitlength
-    ALU.configSetDisplay(ALU.DisplaySimpleAndClean(0))
+    def testInstructions(self) -> bool:
+        pass
 
-    #configure memory
-    ALU.configAddRegister('r', bitlength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
-    ALU.configAddRegister('m', bitlength, 8, show=False) #the program is loaded into here
-    ALU.configAddRegister('t', bitlength * 2, 2) #note that the register bitlength is double the input register size
+    def _testProgram1(self, a : int, b : int, bitlength : int = 8, show=False) -> int:
+        CPU = CPUsim(bitlength, defaultSetup=False) #bitlength
+        if show==False:
+            CPU.configSetDisplay(CPU.DisplaySilent())
+        else:
+            CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0.5))
 
-    ALU.linkAndLoad('''
-                # Multiplies two numbers together
-                # Inputs: r[0], t[0]
-                # Output: t[1]
-                loop:   jumpEQ  (end, r[0], 0)
-                            and     (r[1], r[0], 1)
-                            jumpNE  (zero, r[1], 1)
-                                add     (t[1], t[0], t[1])
-                zero:       shiftL  (t[0], t[0])
-                            shiftR  (r[0], r[0])
-                            jump    (loop)
-                end:    halt
-                ''')
-    #loads arguments into correct registers
-    ALU.inject(key='t', index=0, value=a)
-    ALU.inject(key='r', index=0, value=b)
-    ALU.run()
-    resultALU = ALU.extract(key='t', index=1)
+        #configure memory
+        CPU.configAddRegister('r', bitlength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
+        CPU.configAddRegister('m', bitlength, 8, show=False) #the program is loaded into here
+        CPU.configAddRegister('t', bitlength * 2, 2) #note that the register bitlength is double the input register size
 
-    #sanity check
-    assert resultALU == a * b
-    assert resultPython == a * b
-    
-    return resultALU
+        CPU.linkAndLoad('''
+                    # Multiplies two numbers together
+                    # Inputs: r[0], t[0]
+                    # Output: t[1]
+                    loop:   jumpEQ  (end, r[0], 0)
+                                and     (r[1], r[0], 1)
+                                jumpNE  (zero, r[1], 1)
+                                    add     (t[1], t[0], t[1])
+                    zero:       shiftL  (t[0], t[0])
+                                shiftR  (r[0], r[0])
+                                jump    (loop)
+                    end:    halt
+                    ''')
+        #loads arguments into correct registers
+        CPU.inject(key='t', index=0, value=a)
+        CPU.inject(key='r', index=0, value=b)
+        CPU.run()
+        result = CPU.extract(key='t', index=1)
+
+        return result
+
+    def testProgram1(self) -> bool:
+        import random
+        for _ in range(10):
+            a = random.randint(0, 255)
+            b = random.randint(0, 255)
+            z = self._testProgram1(a, b, 8)
+
+            message = ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+            if a*b==z:
+                message = self.textGreen + "PASS".ljust(8) + self.textEnd + message
+            else:
+                message = self.textRed   + "FAIL".ljust(8) + self.textEnd + message
+            
+            print("    " + message)
+
+
+class TestRISCV:
+
+    def __init__(self):
+        pass
+
+    def testInstructions(self) -> bool:
+        pass
+
+    def testProgram1(self) -> bool:
+        pass
+
 
 if __name__ == "__main__":
+    logging.basicConfig(level = logging.CRITICAL) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
+
+    TestDefault()
+
     #set up debugging
-    logging.basicConfig(level = logging.INFO)
+    logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
     debugHighlight = lambda x : 1350 <= x <= 1500
 
-    result = multiply2(7, 3)
+    result = TestDefault._testProgram1(None, 8, 2, 8, True)
     print("multiply 7 * 3 =>".ljust(32, " ") + str(result) + "\t" + str(result == 7 * 3))
     print("===========================================================================================================")
     
@@ -3462,5 +3481,3 @@ if __name__ == "__main__":
     CPU.inject('x', 10, 7)
     CPU.inject('x', 12, 3)
     CPU.run()
-
-    
