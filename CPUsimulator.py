@@ -2853,6 +2853,8 @@ class RiscV:
         xLength = None #TODO look up the name for the bitlength of the ISA from documentation
 
         CPU = CPUsim(32, defaultSetup=False)
+        CPU.configSetDisplay(CPU.DisplaySilent()) #hides configuration steps from display
+
         CPU.configAddRegister("pc", 32, 1) #explicidly set the Program Counter to 32-bit
         CPU.configAddRegister("x", 32, 32)
         #CPU.configAddRegister("m", 8, memorySize, show=False)
@@ -2937,6 +2939,8 @@ class RiscV:
         CPU.configSetPostCycleFunction(self.postCycle)
         CPU.configSetInstructionSet(self.RiscVISA())
         CPU.configSetParser(self.RiscVParser())
+
+        CPU.configSetDisplay(CPU.DisplaySimpleAndClean())
 
         self.CPU = CPU
 
@@ -3363,15 +3367,26 @@ class RiscV:
 
 
 class TestDefault:
+
     textGreen : str = "\u001b[32m" #forground green
     textRed : str = "\u001b[31m" #forground red
     textEnd : str = "\u001b[0m" #resets ANSI colours and formatting
     
     def __init__(self):
+
+        print("< Running Test: TestDefault.testProgram1 ".ljust(80, "=") + ">")
+        testProgram1 : bool = False
         try:
-            self.testProgram1()
-        except:
-            pass
+            testProgram1 = self.testProgram1()
+        except Exception as errorMessage:
+            testProgram1 = False
+            print(self.textRed + "Critical Failure" + errorMessage + self.textEnd)
+        message = "TestDefault.testProgram1"
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd + message) if testProgram1 else (self.textRed   + "FAIL".ljust(8) + self.textEnd + message)
+        print(message)
+
+    def testDefault(self) -> bool:
+        pass
 
     def testCoreFunctions(self) -> bool:
         pass
@@ -3379,17 +3394,28 @@ class TestDefault:
     def testInstructions(self) -> bool:
         pass
 
-    def _testProgram1(self, a : int, b : int, bitlength : int = 8, show=False) -> int:
-        CPU = CPUsim(bitlength, defaultSetup=False) #bitlength
+    def _testProgram1(self, a : int, b : int, bitLength : int = 8, show : bool = False) -> int:
+        assert type(a) is int
+        assert a >= 0
+        
+        assert type(b) is int
+        assert b >= 0
+
+        assert type(bitLength) is int
+        assert bitLength > 0
+
+        assert type(show) is bool
+
+        CPU = CPUsim(bitLength, defaultSetup=False) #bitLength
         if show==False:
             CPU.configSetDisplay(CPU.DisplaySilent())
         else:
             CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0.5))
 
         #configure memory
-        CPU.configAddRegister('r', bitlength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
-        CPU.configAddRegister('m', bitlength, 8, show=False) #the program is loaded into here
-        CPU.configAddRegister('t', bitlength * 2, 2) #note that the register bitlength is double the input register size
+        CPU.configAddRegister('r', bitLength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
+        CPU.configAddRegister('m', bitLength, 8, show=False) #the program is loaded into here
+        CPU.configAddRegister('t', bitLength * 2, 2) #note that the register bitlength is double the input register size
 
         CPU.linkAndLoad('''
                     # Multiplies two numbers together
@@ -3414,70 +3440,137 @@ class TestDefault:
 
     def testProgram1(self) -> bool:
         import random
-        for _ in range(10):
-            a = random.randint(0, 255)
-            b = random.randint(0, 255)
-            z = self._testProgram1(a, b, 8)
 
-            message = ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
-            if a*b==z:
+        resultPassed = True
+        bitLength = 8
+        
+        for i in range(32):
+            if 0 <= i <= 7:
+                bitLength = 2
+            elif 8 <= i <= 15:
+                bitLength = 4
+            elif 16 <= i <= 23:
+                bitLength = 8
+            elif 24 <= i <= 31:
+                bitLength = 16
+            
+            a = random.randint(0, 2**bitLength - 1)
+            b = random.randint(0, 2**bitLength - 1)
+
+            try:
+                z = self._testProgram1(a, b, bitLength)
+            except Exception as errorMessage:
+                print(self.textRed + "Critical Failure" + errorMessage + self.textEnd)
+                z = None
+
+            message = ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+            if a*b == z:
                 message = self.textGreen + "PASS".ljust(8) + self.textEnd + message
             else:
                 message = self.textRed   + "FAIL".ljust(8) + self.textEnd + message
+                resultPassed = False
             
             print("    " + message)
 
+        return resultPassed
 
 class TestRISCV:
 
+    textGreen : str = "\u001b[32m" #forground green
+    textRed : str = "\u001b[31m" #forground red
+    textEnd : str = "\u001b[0m" #resets ANSI colours and formatting
+
     def __init__(self):
-        pass
+        
+        print("< Running Test: TestRISCV.testProgram1 ".ljust(80, "=") + ">")
+        testProgram1 : bool = False
+        try:
+            testProgram1 = self.testProgram1()
+        except Exception as errorMessage:
+            testProgram1 = False
+            print(self.textRed + "Critical Failure" + errorMessage + self.textEnd)
+        message = "TestRISCV.testProgram1"
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd + message) if testProgram1 else (self.textRed   + "FAIL".ljust(8) + self.textEnd + message)
+        print(message)
 
     def testInstructions(self) -> bool:
         pass
 
-    def testProgram1(self) -> bool:
-        pass
+    def _testProgram1(self, a : int, b : int, show : bool = False) -> int:
+        assert type(a) is int
+        assert a >= 0
+        
+        assert type(b) is int
+        assert b >= 0
 
+        assert type(show) is bool
+        
+        CPU = RiscV().CPU #a couple hundred lines of setup discribing (part of) a RiscV CPU
+        if show==False:
+            CPU.configSetDisplay(CPU.DisplaySilent())
+        else:
+            CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0.5))
+
+        CPU.linkAndLoad('''
+                        # Multiplies two number together using shift and add
+                        # Inputs: a0 (x10), a2 (x12)
+                        # Outputs: a3 (x13)
+                        # [register mappping from other program]: r0 => a0 (x10), r1 => a1 (x11), t0 => a2 (x12), t1 => a3 (x13)
+                        loop:   beq     a0, 0, end          #note: the destination pointer is the third argument, where in the previous example it was the first argument
+                                andi    a1, a0, 1
+                                bne     a1, 1, temp
+                                add     a3, a2, a3
+                        temp:   slli    a2, a2, 1           #can't use zero as a label, it's a register (x0)
+                                srli    a0, a0, 1
+                                beq     zero, zero, loop    #a psudoinstruction for an unconditional jump
+                        end:    halt                        #this is a jurry-rigged instruction for 'halt' because I haven't figured out how to implement system calls yet
+                        ''')
+        CPU.inject('x', 10, a)
+        CPU.inject('x', 12, b)
+        CPU.run()
+        result = CPU.extract('x', 13)
+        
+        return result
+
+    def testProgram1(self) -> bool:
+        import random
+        
+        resultPassed = True
+        
+        for _ in range(8):
+            a = random.randint(0, 2**8 - 1)
+            b = random.randint(0, 2**8 - 1)
+
+            try:
+                z = self._testProgram1(a, b)
+            except Exception as errorMessage:
+                print(self.textRed + "Critical Failure" + errorMessage + self.textEnd)
+                z = None
+
+            message = ("bitLength = " + str(32)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+            if a*b == z:
+                message = self.textGreen + "PASS".ljust(8) + self.textEnd + message
+            else:
+                message = self.textRed   + "FAIL".ljust(8) + self.textEnd + message
+                resultPassed = False
+            
+            print("    " + message)
+
+        return resultPassed
 
 if __name__ == "__main__":
     logging.basicConfig(level = logging.CRITICAL) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
 
     TestDefault()
+    TestRISCV()
 
     #set up debugging
     logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
     debugHighlight = lambda x : 1350 <= x <= 1500
 
-    result = TestDefault._testProgram1(None, 8, 2, 8, True)
-    print("multiply 7 * 3 =>".ljust(32, " ") + str(result) + "\t" + str(result == 7 * 3))
-    print("===========================================================================================================")
+    #print("".ljust(80, "="))
+    #TestDefault._testProgram1(None, 8, 2, 8, show=True)
+    #print("".ljust(80, "="))
+    #TestRISCV._testProgram1(None, 8, 2, show=True)
+    #print("".ljust(80, "="))
     
-    CPU = RiscV().CPU #a couple hundred lines of setup discribing (part of) a RiscV CPU
-    CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
-
-    """
-    CPU.linkAndLoad('''
-                        addi    a2, zero, 8
-                loop:   addi    a1, a1, 1
-                        bne     a1, a2, loop
-                        halt
-                    ''')
-    """
-    CPU.linkAndLoad('''
-                    # Multiplies two number together using shift and add
-                    # Inputs: a0 (x10), a2 (x12)
-                    # Outputs: a3 (x13)
-                    # [register mappping from other program]: r0 => a0 (x10), r1 => a1 (x11), t0 => a2 (x12), t1 => a3 (x13)
-                    loop:   beq     a0, 0, end          #note: the destination pointer is the third argument, where in the previous example it was the first argument
-                            andi    a1, a0, 1
-                            bne     a1, 1, temp
-                            add     a3, a2, a3
-                    temp:   slli    a2, a2, 1           #can't use zero as a label, it's a register (x0)
-                            srli    a0, a0, 1
-                            beq     zero, zero, loop    #a psudoinstruction for an unconditional jump
-                    end:    halt                        #this is a jurry-rigged instruction for 'halt' because I haven't figured out how to implement system calls yet
-                    ''')
-    CPU.inject('x', 10, 7)
-    CPU.inject('x', 12, 3)
-    CPU.run()
