@@ -1,5 +1,6 @@
 import random
 import time
+import CPUSimulator
 animationDelay = 0.05 #in seconds
 
 def visualize(registers, bitlength, operation="", endline=True, rh=[], sh=[]):
@@ -63,6 +64,71 @@ def multiply1(a, b, bitlength=8):
     assert z == a * b #sanity check
     return z
 
+def multiply2(a : int, b : int, bitlength : int = 8) -> int:
+    """Takes in two unsigned integers, a, b -> returns an integer a*b
+
+    bitlength is the size of the numbers/architecture, in bits
+
+    This is a real world use case
+    """
+    assert type(a) is int
+    assert type(b) is int
+    assert type(bitlength) is int
+    assert bitlength >= 1
+    assert 0 <= a < 2**bitlength
+    assert 0 <= b < 2**bitlength
+
+    #configure memory
+    t = [0 for j in range(2)]
+    r = [0 for i in range(2)]
+    
+    t[0] = a
+    r[0] = b
+
+    #A python algorithm that multiplies two numbers together
+    while(r[0] != 0):
+        r[1] = r[0] & 1
+        if r[1] == 1:
+            t[1] = t[0] + t[1]
+        t[0] = t[0] << 1
+        r[0] = r[0] >> 1
+        
+    resultPython = t[1]
+
+    #the same algorithm, but using a generic assembly like algorithm
+    ALU = CPUSimulator.CPUsim(bitlength, defaultSetup=False) #bitlength
+    ALU.configSetDisplay(ALU.DisplaySimpleAndClean(0.5))
+
+    #configure memory
+    ALU.configAddRegister('r', bitlength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
+    ALU.configAddRegister('m', bitlength, 8, show=False) #the program is loaded into here
+    ALU.configAddRegister('t', bitlength * 2, 2) #note that the register bitlength is double the input register size
+
+    ALU.linkAndLoad('''
+                # Multiplies two numbers together
+                # Inputs: r[0], t[0]
+                # Output: t[1]
+                loop:   jumpEQ  (end, r[0], 0)
+                            and     (r[1], r[0], 1)
+                            jumpNE  (zero, r[1], 1)
+                                add     (t[1], t[0], t[1])
+                zero:       shiftL  (t[0], t[0])
+                            shiftR  (r[0], r[0])
+                            jump    (loop)
+                end:    halt
+                ''')
+    #loads arguments into correct registers
+    ALU.inject(key='t', index=0, value=a)
+    ALU.inject(key='r', index=0, value=b)
+    ALU.run()
+    resultALU = ALU.extract(key='t', index=1)
+
+    #sanity check
+    assert resultALU == a * b
+    assert resultPython == a * b
+    
+    return resultALU
+
 if __name__ == "__main__":
     animationDelay = 0.5
 
@@ -71,4 +137,11 @@ if __name__ == "__main__":
         a = random.randint(0,255)
         b = random.randint(0,255)
         z = multiply1(a,b)
+        print("a = " + str(a), "b = " + str(b), "output = " + str(z), "\t", z == a*b)
+
+    print("showing multiply2 =========================================================================")
+    for i in range(10):
+        a = random.randint(0,255)
+        b = random.randint(0,255)
+        z = multiply2(a, b)
         print("a = " + str(a), "b = " + str(b), "output = " + str(z), "\t", z == a*b)
