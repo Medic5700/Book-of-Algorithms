@@ -149,6 +149,7 @@ Test Cases to impliment:
         A real world example and usecase
         Due to the multiple versions, can demonstrait how instructions and configurations can be 'added' for each version
         Has a robust (if confusing) ecosystem and toolchains
+        has psudo instructions (which should be handled at the parser level, not instruction ISA level)
         #TODO
             proper alias handling
     Subleq
@@ -220,7 +221,7 @@ def debugHelper(frame : "Frame Object") -> str:
     
     #textRed : str = "\u001b[31m" #forground red
     textTeal : str = "\u001b[96m" #forground teal
-    ANSIend : str = "\u001b[0m" #resets ANSI colours
+    ANSIend : str = "\u001b[0m" #resets ANSI colours and formatting
 
     line : str = ""
 
@@ -2558,7 +2559,7 @@ class CPUsim:
         """
 
         def __init__(self):
-            self.instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Arguments"], None]] = {
+            self.instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Arguments (Optional)"], None]] = {
                 "nop"   : self.opNop,
                 "add"   : self.opAdd,
                 "and"   : self.opAND,
@@ -3880,10 +3881,14 @@ class TestRISCV:
         return resultPassed
 
 if __name__ == "__main__":
+    #Module Tests
+    #reduce logging so console isn't spammed by data
     logging.basicConfig(level = logging.CRITICAL) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
 
     TestDefault()
     TestRISCV()
+
+
 
     #set up debugging
     logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
