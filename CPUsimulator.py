@@ -3367,6 +3367,7 @@ class RiscV:
 
 
 class TestDefault:
+    """Tests the CPUsim module"""
 
     textGreen : str = "\u001b[32m" #forground green
     textRed : str = "\u001b[31m" #forground red
@@ -3374,27 +3375,344 @@ class TestDefault:
     
     def __init__(self):
 
+        print("< Running Test: TestDefault.testDefault ".ljust(80, "=") + ">")
+        testDefault : bool = False
+        try:
+            testDefault = self.testDefault()
+        except Exception as errorMessage:
+            testDefault = False
+            print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if testDefault else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "TestDefault.testDefault"
+        print(message)
+
+        print("< Running Test: TestDefault.testInstructions ".ljust(80, "=") + ">")
+        testInstructions : bool = False
+        try:
+            testInstructions = self.testInstructions()
+        except Exception as errorMessage:
+            testInstructions = False
+            print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if testInstructions else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "TestDefault.testInstructions"
+        print(message)
+
         print("< Running Test: TestDefault.testProgram1 ".ljust(80, "=") + ">")
         testProgram1 : bool = False
         try:
             testProgram1 = self.testProgram1()
         except Exception as errorMessage:
             testProgram1 = False
-            print(self.textRed + "Critical Failure" + errorMessage + self.textEnd)
-        message = "TestDefault.testProgram1"
-        message = (self.textGreen + "PASS".ljust(8) + self.textEnd + message) if testProgram1 else (self.textRed   + "FAIL".ljust(8) + self.textEnd + message)
+            print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if testProgram1 else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "TestDefault.testProgram1"
         print(message)
 
     def testDefault(self) -> bool:
-        pass
+        """Tests CPUsim initial and default settings"""
+        #TODO test some more stuff
+        import random
+
+        localPassed_0 : bool = True
+
+        for bitLength in [4, 8, 16, 32, 64, 128]:
+            CPU = CPUsim(bitLength)
+            CPU.configSetDisplay(CPU.DisplaySilent())
+            localPassed_1 : bool = True
+
+            #testing memory
+            localPassed_2 : bool = True
+            r = [random.randint(0, 2**bitLength -1) for _ in range(8)]
+            for i, value in enumerate(r):
+                CPU.inject('r', i, value)
+                t1 :int = CPU.extract('r', i)
+                if value != t1:
+                    localPassed_0 = False
+                    localPassed_1 = False
+                    localPassed_2 = False
+            m = [random.randint(0, 2**bitLength -1) for _ in range(32)]
+            for i, value in enumerate(m):
+                CPU.inject('m', i, value)
+                t1 : int = CPU.extract('m', i)
+                if value != t1:
+                    localPassed_0 = False
+                    localPassed_1 = False
+                    localPassed_2 = False
+            message = ""
+            if localPassed_2:
+                message = self.textGreen + "PASS".ljust(8)
+            else:
+                message = self.textRed + "FAIL".ljust(8)
+                localPassed_0 = False
+                localPassed_1 = False
+            message += self.textEnd
+            message +=  ("bitLength = " + str(bitLength)).ljust(16) + "Memory OK"
+            print("".ljust(8) + message)
+
+            message = ""
+            if localPassed_1:
+                message = self.textGreen + "PASS".ljust(8)
+            else:
+                message = self.textRed + "FAIL".ljust(8)
+                localPassed_0 = False
+            message += self.textEnd
+            message +=  ("bitLength = " + str(bitLength)).ljust(16) + "CPU OK"
+            print("".ljust(4) + message)
+            
+        return localPassed_0
+            
+
 
     def testCoreFunctions(self) -> bool:
+        """Tests CPUsim core functions. IE: can registers be added, data injected into memory, etc"""
         pass
 
+    def _testInstructions(self, a : int, b : int, bitLength : int = 8, program : str = "halt") -> int:
+        """Helper function that creates an instance of CPUsim to run a given program, returns result integer"""
+        assert type(a) is int
+        assert a >= 0
+
+        assert type(b) is int
+        assert b >= 0
+
+        assert type(program) is str
+        assert len(program) > 0
+
+        assert type(bitLength) is int
+        assert bitLength > 0
+
+        CPU = CPUsim(bitLength, defaultSetup = False)
+        CPU.configSetDisplay(CPU.DisplaySilent())
+
+        CPU.configAddRegister('r', bitLength, 3)
+        CPU.configAddRegister('m', bitLength, 8, show=False)
+
+        CPU.linkAndLoad(program)
+
+        CPU.inject('r', 0, a)
+        CPU.inject('r', 1, b)
+        CPU.run()
+        result = CPU.extract('r', 2)
+
+        return result
+
     def testInstructions(self) -> bool:
+        """Tests the default instruction set of CPUsim, returns True if all tests pass"""
+        import random
+
+        resultPassed : bool = True
+
+        program = "add(r[2], r[0], r[1]) \n halt"
+        localPassed : bool = True
+        for _ in range(4):
+            for bitLength in [4, 8, 16]:
+                a : int = random.randint(0, 2**bitLength - 1)
+                b : int = random.randint(0, 2**bitLength - 1)
+                z : int = None
+
+                try:
+                    z = self._testInstructions(a, b, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    z = None
+                
+                message = ""
+                if ((a+b) % 2**bitLength) == z:
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    resultPassed = False
+                    localPassed = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+                message += repr(program)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "opAdd"
+        print("".ljust(4) + message)
+
+        program = "and(r[2], r[0], r[1]) \n halt"
+        localPassed : bool = True
+        for _ in range(4):
+            for bitLength in [4, 8, 16]:
+                a : int = random.randint(0, 2**bitLength - 1)
+                b : int = random.randint(0, 2**bitLength - 1)
+                z : int = None
+
+                try:
+                    z = self._testInstructions(a, b, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    z = None
+                
+                message = ""
+                if (a & b) == z:
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    resultPassed = False
+                    localPassed = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+                message += repr(program)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "opAnd"
+        print("".ljust(4) + message)
+
+        program = "or(r[2], r[0], r[1]) \n halt"
+        localPassed : bool = True
+        for _ in range(4):
+            for bitLength in [4, 8, 16]:
+                a : int = random.randint(0, 2**bitLength - 1)
+                b : int = random.randint(0, 2**bitLength - 1)
+                z : int = None
+
+                try:
+                    z = self._testInstructions(a, b, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    z = None
+                
+                message = ""
+                if (a | b) == z:
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    resultPassed = False
+                    localPassed = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+                message += repr(program)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "opOr"
+        print("".ljust(4) + message)
+
+        program = "xor(r[2], r[0], r[1]) \n halt"
+        localPassed : bool = True
+        for _ in range(4):
+            for bitLength in [4, 8, 16]:
+                a : int = random.randint(0, 2**bitLength - 1)
+                b : int = random.randint(0, 2**bitLength - 1)
+                z : int = None
+
+                try:
+                    z = self._testInstructions(a, b, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    z = None
+                
+                message = ""
+                if (a ^ b) == z:
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    resultPassed = False
+                    localPassed = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+                message += repr(program)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "opXor"
+        print("".ljust(4) + message)
+
+        program = "not(r[2], r[0]) \n halt"
+        localPassed : bool = True
+        for _ in range(4):
+            for bitLength in [4, 8, 16]:
+                a : int = random.randint(0, 2**bitLength - 1)
+                b : int = 0
+                z : int = None
+
+                try:
+                    z = self._testInstructions(a, b, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    z = None
+                
+                message = ""
+                if (a ^ (2**bitLength-1)) == z:
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    resultPassed = False
+                    localPassed = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+                message += repr(program)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "opNot"
+        print("".ljust(4) + message)
+
+        program = "shiftl(r[2], r[0]) \n halt"
+        localPassed : bool = True
+        for _ in range(4):
+            for bitLength in [16, 32, 64]:
+                a : int = random.randint(2**4 - 1, 2**8 - 1)
+                b : int = 0
+                z : int = None
+
+                try:
+                    z = self._testInstructions(a, b, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    z = None
+                
+                message = ""
+                if ((a << 1) & (2**bitLength - 1)) == z:
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    resultPassed = False
+                    localPassed = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+                message += repr(program)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "shiftL by 1"
+        print("".ljust(4) + message)
+
+        program = "shiftr(r[2], r[0]) \n halt"
+        localPassed : bool = True
+        for _ in range(4):
+            for bitLength in [16, 32, 64]:
+                a : int = random.randint(2**4 - 1, 2**8 - 1)
+                b : int = 0
+                z : int = None
+
+                try:
+                    z = self._testInstructions(a, b, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    z = None
+                
+                message = ""
+                if ((a >> 1) & (2**bitLength - 1)) == z:
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    resultPassed = False
+                    localPassed = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+                message += repr(program)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "shiftR by 1"
+        print("".ljust(4) + message)
+
+        return resultPassed
+
+    def testVLIW(self) -> bool:
+        """Tests that Very Long Instruction Word support is working correctly"""
         pass
 
     def _testProgram1(self, a : int, b : int, bitLength : int = 8, show : bool = False) -> int:
+        """A helper function that runs a multiplication program with various given inputs and settings, returns result integer"""
         assert type(a) is int
         assert a >= 0
         
@@ -3439,10 +3757,11 @@ class TestDefault:
         return result
 
     def testProgram1(self) -> bool:
+        """Runs a test program (multiplication) with various inputs and configurations, returns True if all tests pass"""
         import random
 
-        resultPassed = True
-        bitLength = 8
+        resultPassed : bool = True
+        bitLength : int = 8
         
         for i in range(32):
             if 0 <= i <= 7:
@@ -3454,13 +3773,14 @@ class TestDefault:
             elif 24 <= i <= 31:
                 bitLength = 16
             
-            a = random.randint(0, 2**bitLength - 1)
-            b = random.randint(0, 2**bitLength - 1)
+            a : int = random.randint(0, 2**bitLength - 1)
+            b : int = random.randint(0, 2**bitLength - 1)
+            z : int = None
 
             try:
                 z = self._testProgram1(a, b, bitLength)
             except Exception as errorMessage:
-                print(self.textRed + "Critical Failure" + errorMessage + self.textEnd)
+                print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
                 z = None
 
             message = ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
@@ -3488,7 +3808,7 @@ class TestRISCV:
             testProgram1 = self.testProgram1()
         except Exception as errorMessage:
             testProgram1 = False
-            print(self.textRed + "Critical Failure" + errorMessage + self.textEnd)
+            print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
         message = "TestRISCV.testProgram1"
         message = (self.textGreen + "PASS".ljust(8) + self.textEnd + message) if testProgram1 else (self.textRed   + "FAIL".ljust(8) + self.textEnd + message)
         print(message)
@@ -3535,16 +3855,17 @@ class TestRISCV:
     def testProgram1(self) -> bool:
         import random
         
-        resultPassed = True
+        resultPassed : bool = True
         
         for _ in range(8):
-            a = random.randint(0, 2**8 - 1)
-            b = random.randint(0, 2**8 - 1)
+            a : int = random.randint(0, 2**8 - 1)
+            b : int = random.randint(0, 2**8 - 1)
+            z : int = None
 
             try:
                 z = self._testProgram1(a, b)
             except Exception as errorMessage:
-                print(self.textRed + "Critical Failure" + errorMessage + self.textEnd)
+                print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
                 z = None
 
             message = ("bitLength = " + str(32)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
