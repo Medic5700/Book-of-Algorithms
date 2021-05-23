@@ -24,7 +24,7 @@ Goals:
 
 Getting Started: <=====================================================================================================
     Note: this is a prototype, so the entire API is in flux
-    refer to "def multiply2" for a simple example of a possible use case.
+    refer to "TestDefault._testProgram1" for a simple example of a possible use case.
     refer to "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
 
 API
@@ -117,6 +117,15 @@ API
             def opShiftR
             def opHalt                      #Still figuring out syscalls
 
+    <=  Testing defaults in Module ===========================================>
+    class TestDefault
+        def __init__
+        def testDefault                                     Tests that CPU is instatiated correctly
+        def _testInstructions                               Instantiates CPU and runs a test program to test individual instructions
+        def testInstruction                                 Tests instructions with various inputs and configurations
+        def _testProgram1                                   Instantiates a CPU and runs a test program (multiplication)
+        def testProgram1                                    Runs (multiplication) test program with various inputs in different configurations
+
     <=  Example Partial Implimentation of RiscV ==============================> #Work in progress
     class RiscV                                             A more advanced example of creating a custom CPU
         var CPU                                             Contains an initialized instance of 'class CPUsim'
@@ -131,6 +140,11 @@ API
         class RiscVParser                                   A customized parser for loading RiscV like assembly code
             def parseCode                                   The customized parser
             def ruleContainerTokensFollowingInstruction     A customized rule
+
+    class TestRISCV
+        def __init__
+        def _testProgram1                                   Instantiates a CPU and runs a test program (multiplication)
+        def testProgram1                                    Runs (multiplication) test program with various inputs in different configurations
 
 Execution Loop:
     #TODO document main execution loop
@@ -191,6 +205,7 @@ Test Cases to impliment:
     create instruction helper that allows adding an immediate register (IE: you put in a number, and it passes out an immediate register address, AND adds an immediate register)
     allow ISA instructions to be referenced by a list. IE: ("add", "#") and ("add", "$") for the 6502 processor, shows two different addressing modes for the "add" instruction
     change 'charNum' to 'colNum' in parser, add change add 'charNum' as source code number (IE: the char number of input string, not char number of that line in input string)
+    create function in instructionSet that turns a number into a binary array and vic-versa
 """
 
 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
@@ -240,7 +255,7 @@ def debugHelper(frame : "Frame Object") -> str:
     return line
 
 class CPUsim:
-    """A implimentation of a generic and abstract ALU/CPU mainly geared towards illistrating algorithms
+    """A implimentation of a generic and abstract CPU mainly geared towards illistrating algorithms
     """
 
     '''Random Design Notes:
@@ -404,6 +419,7 @@ class CPUsim:
                 Can the CPU send an 'inturupt' to a device? Maybe?
                     It would simplify activating and deactivating stuff like a keyboard input. Then the device would write back data via memory?
                 Inturupts should be stored in the State['Engine'], for modular access by instructions
+        
             
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
@@ -471,6 +487,7 @@ class CPUsim:
                 Only useful for simple instructions
         Instruction non-execution analysis utilities to better help calabrate instructions (IE: some utilities to help the user see energy use for each instruction in a graph before code is run)
         Support for virtual memory?
+        should CPUsim have 'checkpoints' that can be reverted to?
     '''
 
     def __init__(self, bitLength : int = 16, defaultSetup : bool = True):
@@ -3403,7 +3420,7 @@ class TestDefault:
             testDefault = self.testDefault()
         except Exception as errorMessage:
             testDefault = False
-            print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+            print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
         message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if testDefault else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
         message += "TestDefault.testDefault"
         print(message)
@@ -3414,9 +3431,20 @@ class TestDefault:
             testInstructions = self.testInstructions()
         except Exception as errorMessage:
             testInstructions = False
-            print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+            print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
         message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if testInstructions else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
         message += "TestDefault.testInstructions"
+        print(message)
+
+        print("< Running Test: TestDefault.testVLIW ".ljust(80, "=") + ">")
+        testVLIW : bool = False
+        try:
+            testVLIW = self.testVLIW()
+        except Exception as errorMessage:
+            testVLIW = False
+            print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if testVLIW else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "TestDefault.testVLIW"
         print(message)
 
         print("< Running Test: TestDefault.testProgram1 ".ljust(80, "=") + ">")
@@ -3425,7 +3453,7 @@ class TestDefault:
             testProgram1 = self.testProgram1()
         except Exception as errorMessage:
             testProgram1 = False
-            print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+            print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
         message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if testProgram1 else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
         message += "TestDefault.testProgram1"
         print(message)
@@ -3487,6 +3515,7 @@ class TestDefault:
 
     def testCoreFunctions(self) -> bool:
         """Tests CPUsim core functions. IE: can registers be added, data injected into memory, etc"""
+        #TODO
         pass
 
     def _testInstructions(self, a : int, b : int, bitLength : int = 8, program : str = "halt") -> int:
@@ -3526,8 +3555,8 @@ class TestDefault:
 
         program = "add(r[2], r[0], r[1]) \n halt"
         localPassed : bool = True
-        for _ in range(4):
-            for bitLength in [4, 8, 16]:
+        for bitLength in [4, 8, 16]:
+            for _ in range(8):
                 a : int = random.randint(0, 2**bitLength - 1)
                 b : int = random.randint(0, 2**bitLength - 1)
                 z : int = None
@@ -3535,7 +3564,7 @@ class TestDefault:
                 try:
                     z = self._testInstructions(a, b, bitLength, program)
                 except Exception as errorMessage:
-                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                     z = None
                 
                 message = ""
@@ -3584,8 +3613,8 @@ class TestDefault:
 
         program = "and(r[2], r[0], r[1]) \n halt"
         localPassed : bool = True
-        for _ in range(4):
-            for bitLength in [4, 8, 16]:
+        for bitLength in [4, 8, 16]:
+            for _ in range(8):
                 a : int = random.randint(0, 2**bitLength - 1)
                 b : int = random.randint(0, 2**bitLength - 1)
                 z : int = None
@@ -3593,7 +3622,7 @@ class TestDefault:
                 try:
                     z = self._testInstructions(a, b, bitLength, program)
                 except Exception as errorMessage:
-                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                     z = None
                 
                 message = ""
@@ -3613,8 +3642,8 @@ class TestDefault:
 
         program = "or(r[2], r[0], r[1]) \n halt"
         localPassed : bool = True
-        for _ in range(4):
-            for bitLength in [4, 8, 16]:
+        for bitLength in [4, 8, 16]:
+            for _ in range(8):
                 a : int = random.randint(0, 2**bitLength - 1)
                 b : int = random.randint(0, 2**bitLength - 1)
                 z : int = None
@@ -3622,7 +3651,7 @@ class TestDefault:
                 try:
                     z = self._testInstructions(a, b, bitLength, program)
                 except Exception as errorMessage:
-                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                     z = None
                 
                 message = ""
@@ -3642,8 +3671,8 @@ class TestDefault:
 
         program = "xor(r[2], r[0], r[1]) \n halt"
         localPassed : bool = True
-        for _ in range(4):
-            for bitLength in [4, 8, 16]:
+        for bitLength in [4, 8, 16]:
+            for _ in range(8):
                 a : int = random.randint(0, 2**bitLength - 1)
                 b : int = random.randint(0, 2**bitLength - 1)
                 z : int = None
@@ -3651,7 +3680,7 @@ class TestDefault:
                 try:
                     z = self._testInstructions(a, b, bitLength, program)
                 except Exception as errorMessage:
-                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                     z = None
                 
                 message = ""
@@ -3671,8 +3700,8 @@ class TestDefault:
 
         program = "not(r[2], r[0]) \n halt"
         localPassed : bool = True
-        for _ in range(4):
-            for bitLength in [4, 8, 16]:
+        for bitLength in [4, 8, 16]:
+            for _ in range(8):
                 a : int = random.randint(0, 2**bitLength - 1)
                 b : int = 0
                 z : int = None
@@ -3680,7 +3709,7 @@ class TestDefault:
                 try:
                     z = self._testInstructions(a, b, bitLength, program)
                 except Exception as errorMessage:
-                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                     z = None
                 
                 message = ""
@@ -3700,8 +3729,8 @@ class TestDefault:
 
         program = "shiftl(r[2], r[0]) \n halt"
         localPassed : bool = True
-        for _ in range(4):
-            for bitLength in [16, 32, 64]:
+        for bitLength in [16, 32, 64]:
+            for _ in range(8):
                 a : int = random.randint(2**4 - 1, 2**8 - 1)
                 b : int = 0
                 z : int = None
@@ -3709,7 +3738,7 @@ class TestDefault:
                 try:
                     z = self._testInstructions(a, b, bitLength, program)
                 except Exception as errorMessage:
-                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                     z = None
                 
                 message = ""
@@ -3729,8 +3758,8 @@ class TestDefault:
 
         program = "shiftr(r[2], r[0]) \n halt"
         localPassed : bool = True
-        for _ in range(4):
-            for bitLength in [16, 32, 64]:
+        for bitLength in [16, 32, 64]:
+            for _ in range(8):
                 a : int = random.randint(2**4 - 1, 2**8 - 1)
                 b : int = 0
                 z : int = None
@@ -3738,7 +3767,7 @@ class TestDefault:
                 try:
                     z = self._testInstructions(a, b, bitLength, program)
                 except Exception as errorMessage:
-                    print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                     z = None
                 
                 message = ""
@@ -3831,7 +3860,7 @@ class TestDefault:
             try:
                 z = self._testProgram1(a, b, bitLength)
             except Exception as errorMessage:
-                print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                 z = None
 
             message = ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
@@ -3859,12 +3888,13 @@ class TestRISCV:
             testProgram1 = self.testProgram1()
         except Exception as errorMessage:
             testProgram1 = False
-            print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+            print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
         message = "TestRISCV.testProgram1"
         message = (self.textGreen + "PASS".ljust(8) + self.textEnd + message) if testProgram1 else (self.textRed   + "FAIL".ljust(8) + self.textEnd + message)
         print(message)
 
     def testInstructions(self) -> bool:
+        #TODO
         pass
 
     def _testProgram1(self, a : int, b : int, show : bool = False) -> int:
@@ -3916,7 +3946,7 @@ class TestRISCV:
             try:
                 z = self._testProgram1(a, b)
             except Exception as errorMessage:
-                print(self.textRed + "Critical Failure" + str(errorMessage) + self.textEnd)
+                print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                 z = None
 
             message = ("bitLength = " + str(32)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
