@@ -123,6 +123,8 @@ API
         def testDefault                                     Tests that CPU is instatiated correctly
         def _testInstructions                               Instantiates CPU and runs a test program to test individual instructions
         def testInstruction                                 Tests instructions with various inputs and configurations
+        def _testVLIW
+        def testVLIW
         def _testProgram1                                   Instantiates a CPU and runs a test program (multiplication)
         def testProgram1                                    Runs (multiplication) test program with various inputs in different configurations
 
@@ -3787,9 +3789,70 @@ class TestDefault:
 
         return resultPassed
 
+    def _testVLIW(self, inject : List[int], bitLength : int = 8, program : str = "halt") -> List[int]:
+        """Helper function that creates an instance of CPUsim to run a given program, returns result array"""
+        assert type(inject) is list
+        assert len(inject) > 0
+        assert type(all([type(i) is int for i in inject]))
+
+        assert type(program) is str
+        assert len(program) > 0
+
+        assert type(bitLength) is int
+        assert bitLength > 0
+
+        CPU = CPUsim(bitLength, defaultSetup = False)
+        CPU.configSetDisplay(CPU.DisplaySilent())
+
+        CPU.configAddRegister('r', bitLength, 8)
+        CPU.configAddRegister('m', bitLength, 8, show=False)
+
+        CPU.linkAndLoad(program)
+
+        for i, j in enumerate(inject):
+            CPU.inject('r', i, j)
+        
+        CPU.run()
+        result = [CPU.extract('r', i) for i in range(8)]
+
+        return result
+
     def testVLIW(self) -> bool:
-        """Tests that Very Long Instruction Word support is working correctly"""
-        pass
+        """Tests that VLIW (Very Long Instruction Word support) is working correctly"""
+        import random
+
+        localPassed_0 : bool = True
+
+        program = "add(r[4], r[0], r[1]), add(r[5], r[2], r[3]) \n halt"
+        localPassed_1 : bool = True
+        for bitLength in [4, 8, 16]:
+            for _ in range(4):
+                inArray : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(4)]
+                outArray : List[int] = None
+
+                try:
+                    outArray = self._testVLIW(inArray, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
+                    outArray = None
+                
+                message = ""
+                if (((inArray[0] + inArray[1]) % 2**bitLength) == outArray[4]) and (((inArray[2] + inArray[3]) % 2**bitLength) == outArray[5]):
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    localPassed_0 = False
+                    localPassed_1 = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("inArray = " + str(inArray)).ljust(80) +  ("outArray = " + str(outArray)).ljust(80)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed_1 else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "opAdd" + "    " + repr(program)
+        print("".ljust(4) + message)
+
+        #raise Exception
+
+        return localPassed_0
 
     def _testProgram1(self, a : int, b : int, bitLength : int = 8, show : bool = False) -> int:
         """A helper function that runs a multiplication program with various given inputs and settings, returns result integer"""
