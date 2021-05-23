@@ -108,6 +108,7 @@ API
             def opNop                                       The below are a number of base instructions that came be put together to make an instruction set
             def opAdd
             def opMultiply
+            def opTwosCompliment
             def opAND
             def opOR
             def opXOR
@@ -2583,6 +2584,7 @@ class CPUsim:
                 "nop"   : self.opNop,
                 "add"   : self.opAdd,
                 "mult"  : self.opMultiply,
+                "twos"  : self.opTwosCompliment,
                 "and"   : self.opAND,
                 "or"    : self.opOR,
                 "xor"   : self.opXOR,
@@ -2668,6 +2670,36 @@ class CPUsim:
             newState[des1][des2] = result
 
             newState['pc'][0] = oldState['pc'][0] + 1
+
+        def opTwosCompliment(self, oldState, newState, config, engine, des, a):
+            """performs Twos COmpliment on register a, stores result in register des"""
+            assert type(des) is tuple and len(des) == 2 
+            assert type(des[0]) is str and (type(des[0]) is int or type(des[0]) is str)
+            assert type(a) is tuple and len(a) == 2 
+            assert type(a[0]) is str and (type(a[0]) is int or type(a[0]) is str) 
+
+            a1, a2 = a
+            des1, des2 = des
+
+            inputNumber = oldState[a1][a2] & (2**config[des1][des2]['bitlength'] - 1) #Cuts down number to correct bitlength BEFORE converting it
+            bitArray = [inputNumber >> i & 1 for i in range(config[des1][des2]['bitlength'] - 1, -1, -1)] #converts to bit array, index 0 is most significant bit
+            bitArray = [not i for i in bitArray] #performs the bitwise NOT operation
+            result = sum([bit << (len(bitArray) - 1 - i) for i, bit in enumerate(bitArray)]) #converts bit array back into a number
+            result += 1
+            result = result & (2**config[des1][des2]['bitlength'] - 1)
+
+            ''' #this way, the 0 index is least significant bit
+            t1 = a & ((2**bitLength) - 1)
+            t1 = [t1 >> i & 1 for i in range(bitLength)] #index 0 is least significant bit
+            t1 = [not i for i in t1]
+            t1 = sum([bit << i for i, bit in enumerate(t1)])
+            t1 = t1 + 1
+            t1 = t1 & (2**bitLength - 1)
+            '''
+
+            newState[des1][des2] = result
+
+            newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
             
         def opAND(self, oldState, newState, config, engine, des, a, b):
             """performs operation AND between registers a and b, stores result in des"""
@@ -3611,6 +3643,42 @@ class TestDefault:
                 print("".ljust(8) + message)
         message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
         message += "opMult"
+        print("".ljust(4) + message)
+
+        program = "twos(r[2], r[0]) \n halt"
+        localPassed : bool = True
+        for bitLength in [4, 8, 16, 32, 64]:
+            for _ in range(8):
+                a : int = random.randint(0, 2**(bitLength - 1) - 1)
+                b : int = 0
+                z : int = None
+
+                try:
+                    z = self._testInstructions(a, b, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
+                    z = None
+                
+                t1 = a & ((2**bitLength) - 1)
+                t1 = [t1 >> i & 1 for i in range(bitLength)] #index 0 is least significant bit
+                t1 = [not i for i in t1]
+                t1 = sum([bit << i for i, bit in enumerate(t1)])
+                t1 = t1 + 1
+                t1 = t1 & (2**bitLength - 1)
+
+                message = ""
+                if t1 == z:
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    resultPassed = False
+                    localPassed = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16)
+                message += repr(program)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "opTwosCompliment"
         print("".ljust(4) + message)
 
         program = "and(r[2], r[0], r[1]) \n halt"
