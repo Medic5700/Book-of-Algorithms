@@ -3918,7 +3918,32 @@ class TestDefault:
         message += "opAdd" + "    " + repr(program)
         print("".ljust(4) + message)
 
-        #raise Exception
+        program = "add(r[2], r[0], r[1]), and(r[3], r[0], r[1]), or(r[4], r[0], r[1]), xor(r[5], r[0], r[1]) \n halt"
+        localPassed_1 : bool = True
+        for bitLength in [4, 8, 16]:
+            for _ in range(4):
+                inArray : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(2)]
+                outArray : List[int] = None
+
+                try:
+                    outArray = self._testVLIW(inArray, bitLength, program)
+                except Exception as errorMessage:
+                    print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
+                    outArray = None
+                
+                message = ""
+                if (((inArray[0] + inArray[1]) % 2**bitLength) == outArray[2]) and (inArray[0] & inArray[1] == outArray[3]) and (inArray[0] | inArray[1] == outArray[4]) and (inArray[0] ^ inArray[1] == outArray[5]):
+                    message = self.textGreen + "PASS".ljust(8)
+                else:
+                    message = self.textRed + "FAIL".ljust(8)
+                    localPassed_0 = False
+                    localPassed_1 = False
+                message += self.textEnd
+                message += ("bitLength = " + str(bitLength)).ljust(16) + ("inArray = " + str(inArray)).ljust(80) +  ("outArray = " + str(outArray)).ljust(80)
+                print("".ljust(8) + message)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if localPassed_1 else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "opAdd" + "    " + repr(program)
+        print("".ljust(4) + message)
 
         return localPassed_0
 
