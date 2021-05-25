@@ -125,7 +125,7 @@ API
         def _testInstructions                               Instantiates CPU and runs a test program to test individual instructions
         def testInstruction                                 Tests instructions with various inputs and configurations
         def _testVLIW
-        def testVLIW
+        def testVLIW                                        Tests VLIW (Very Long Instruction Word) support
         def _testProgram1                                   Instantiates a CPU and runs a test program (multiplication)
         def testProgram1                                    Runs (multiplication) test program with various inputs in different configurations
 
@@ -191,7 +191,6 @@ Test Cases to impliment:
         Program is stored in seperate memory, a good test for loading programs into not main memory
         The defaultDisplay will need to somehow highlight the individual characters in the instruction line
         #TODO
-            impliment character tokenizer in default parser
             impliment IO instruction subsystems (IE: devices, instruction operations, etc)
     TIS-100
         It's a made up processor from a puzzle game (or similar name)
@@ -200,15 +199,13 @@ Test Cases to impliment:
         The individual CPUs can be 'blocked' by full input/output buffers, which is a unique functionality
         This kind of idea is an idea I've had for a long time, and how to scale it up
 
-        
 #TODO Stack:
-    Create test suite
     Rebuild DisplaySimpleAndClean
-    Test NOT logic instruction
     create instruction helper that allows adding an immediate register (IE: you put in a number, and it passes out an immediate register address, AND adds an immediate register)
-    allow ISA instructions to be referenced by a list. IE: ("add", "#") and ("add", "$") for the 6502 processor, shows two different addressing modes for the "add" instruction
-    change 'charNum' to 'colNum' in parser, add change add 'charNum' as source code number (IE: the char number of input string, not char number of that line in input string)
+    allow ISA instructions to be referenced by a list. IE: ("add", "#") and ("add", "$") for the 6502 processor, shows two different addressing modes for the "add" instruction?
+    change 'charNum' to 'colNum' in parser, add/change 'charNum' as source code number (IE: the char number of input string, not column number of that line in input string)
     create function in instructionSet that turns a number into a binary array and vic-versa
+    impliment character tokenizer in default parser
 """
 
 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
@@ -2653,7 +2650,7 @@ class CPUsim:
             newState['pc'][0] = oldState['pc'][0] + 1
 
         def opMultiply(self, oldState, newState, config, engine, des, a, b):
-            """adds registers a and b, stores result in des"""
+            """multiplys registers a and b, stores result in des"""
             assert type(des) is tuple and len(des) == 2 
             assert type(des[0]) is str and (type(des[0]) is int or type(des[0]) is str) 
             assert type(a) is tuple and len(a) == 2 
@@ -4118,13 +4115,10 @@ class TestRISCV:
 
 if __name__ == "__main__":
     #Module Tests
-    #reduce logging so console isn't spammed by data
+    #reduce logging so console isn't spammed by data from tests
     logging.basicConfig(level = logging.CRITICAL) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
-
     TestDefault()
     TestRISCV()
-
-
 
     #set up debugging
     logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
