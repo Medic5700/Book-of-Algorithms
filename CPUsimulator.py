@@ -31,7 +31,7 @@ API
     class CPUsim
         var state                                           Contains the current registers, stored as 2-dimension dictionary IE: state["registers"][0] = register 0
         var lastState                                       Contains the state of the registers from the last cycle. Structure is same as 'state'
-        var config                                          Contains meta information on every register (bitlength, aliases, notes, show?). stored as 3-dimension dictionary IE: config["r"][0]["bitlength"] = bitlength of register r0
+        var config                                          Contains meta information on every register (bitLength, aliases, notes, show?). stored as 3-dimension dictionary IE: config["r"][0]["bitLength"] = bitLength of register r0
         var stats                      #not implimented
         var engine                     #partially implimented
 
@@ -264,7 +264,7 @@ class CPUsim:
     '''Random Design Notes:
 
     Issues/#TODO:
-        Instruction functions should give warnings when input/output bitlengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
+        Instruction functions should give warnings when input/output bitLengths aren't compatible. IE: multiplying 2 8-bit numbers together should be stored in a 16-bit register
         configSetInstructionSet() should autofill stats datastructer for any unfilled in data. (but should also show a warning)
         ProgramCounter should be semi-indipendant from instruction functions (unless explicidly modified by instruction functions)(IE: not an automatic += 1 after every instruction executed)
             This would allow for representation of variable length instructions in 'memory'
@@ -677,8 +677,8 @@ class CPUsim:
 
         self.userPostCycle = postCycle
 
-    def configAddRegister(self, name : str, bitlength : int, amount : int, show : bool = True):
-        """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitlength. Adds and configures that memory to self.state
+    def configAddRegister(self, name : str, bitLength : int, amount : int, show : bool = True):
+        """takes in the name of the register/memory symbol to add, the amount of that symbol to add (can be zero for an empty array), and bitLength. Adds and configures that memory to self.state
         
         calls self.configConfigRegister()"""
         assert type(name) is str
@@ -686,8 +686,8 @@ class CPUsim:
         #assert all([i in ([chr(j) for j in range(128) if chr(j).islower()] + [chr(j) for j in range(128) if chr(j).isdigit()] + ['_']) for i in list(name)]) #does the same as str.isidrentifier()
         assert name.isidentifier()
 
-        assert type(bitlength) is int 
-        assert bitlength > 0
+        assert type(bitLength) is int 
+        assert bitLength > 0
 
         assert type(amount) is int 
         assert amount >= 0
@@ -695,7 +695,7 @@ class CPUsim:
         assert type(show) is bool
 
         for i in range(amount):
-            self.configConfigRegister(name.lower(), i, bitlength, show)
+            self.configConfigRegister(name.lower(), i, bitLength, show)
 
         self._computeNamespace()
 
@@ -708,11 +708,11 @@ class CPUsim:
         #assert all([i in ([chr(j) for j in range(128) if chr(j).islower()] + [chr(j) for j in range(128) if chr(j).isdigit()] + ['_']) for i in list(name)]) #does the same as str.isidrentifier()
         assert name.isidentifier()
 
-        self.configConfigRegister('flag', name.lower(), bitlength=1)
+        self.configConfigRegister('flag', name.lower(), bitLength=1)
 
         self._computeNamespace()
 
-    def configConfigRegister(self, register : str, index : int or str, bitlength : int = None, show : bool = None, alias : List[str] = None, latencyCycles : int = None, energy : int = None, note : str = None, ):
+    def configConfigRegister(self, register : str, index : int or str, bitLength : int = None, show : bool = None, alias : List[str] = None, latencyCycles : int = None, energy : int = None, note : str = None, ):
         """Takes in a key/value pair representing a register/memory element, and takes in arguments for detailed configuration of that register/memory element
 
         if a key/value pair does not exist, it will be created
@@ -727,8 +727,8 @@ class CPUsim:
         assert (True if len(index) >= 1 else False) if type(index) is str else True
         assert (True if index.isidentifier() else False) if type(index) is str else True
 
-        assert type(bitlength) is type(None) or type(bitlength) is int
-        assert (True if bitlength >= 1 else False) if type(bitlength) is int else True
+        assert type(bitLength) is type(None) or type(bitLength) is int
+        assert (True if bitLength >= 1 else False) if type(bitLength) is int else True
 
         assert type(show) is type(None) or type(show) is bool
 
@@ -756,15 +756,15 @@ class CPUsim:
             self.lastState[register.lower()][index] = 0
             self.config[register.lower()][index]    = {}
 
-            self.config[register.lower()][index]['bitlength']       = 1
+            self.config[register.lower()][index]['bitLength']       = 1
             self.config[register.lower()][index]['show']            = True
             self.config[register.lower()][index]['alias']           = []
             self.config[register.lower()][index]['latencyCycles']   = 0
             self.config[register.lower()][index]['energy']          = 0
             self.config[register.lower()][index]['note']            = ""
 
-        if bitlength != None:
-            self.config[register.lower()][index]['bitlength']       = bitlength
+        if bitLength != None:
+            self.config[register.lower()][index]['bitLength']       = bitLength
         if show != None:
             self.config[register.lower()][index]['show']            = show
         if alias != None:
@@ -803,7 +803,7 @@ class CPUsim:
         t1 = key.lower()
         t2 = index.lower() if type(index) is str else index
 
-        self.state[t1][t2] = value & (2**self.config[t1][t2]['bitlength']-1)
+        self.state[t1][t2] = value & (2**self.config[t1][t2]['bitLength']-1)
 
         self._displayRuntime()
 
@@ -1195,7 +1195,7 @@ class CPUsim:
         def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
             """Executed after every instruction/cycle. Accesses/takes in all information about the engine, takes control of the screen to print information.
             
-            #TODO program counter does not take into account the config bitlength of the program counter"""
+            #TODO program counter does not take into account the config bitLength of the program counter"""
             
             screen : str = ""
             highlight : str = ""
@@ -1218,13 +1218,13 @@ class CPUsim:
             #handles the 'pc' register
             highlight = self.textRed if (oldState['pc'][0] != newState['pc'][0]) else ""
             lineRequired += "    " + "PC".ljust(8, ' ') \
-                + "[" + self.textGrey + "0x" + self.ANSIend + hex(oldState['pc'][0])[2:].rjust(config['pc'][0]['bitlength'] // 4, "0").upper() + "]" \
+                + "[" + self.textGrey + "0x" + self.ANSIend + hex(oldState['pc'][0])[2:].rjust(config['pc'][0]['bitLength'] // 4, "0").upper() + "]" \
                 + "\t" \
-                + "[" + self.textGrey + "0x" + self.ANSIend + highlight + hex(newState['pc'][0])[2:].rjust(config['pc'][0]['bitlength'] // 4, "0").upper() + self.ANSIend + "]" \
+                + "[" + self.textGrey + "0x" + self.ANSIend + highlight + hex(newState['pc'][0])[2:].rjust(config['pc'][0]['bitLength'] // 4, "0").upper() + self.ANSIend + "]" \
                 + "\n"
             for i in oldState['imm']: #handles the immidiate registers
                 lineRequired += "    " + ("imm[" + str(i) + "]").ljust(8, " ") \
-                    + "[" + self.textGrey + "0b" + self.ANSIend + self.textTeal + str(bin(oldState["imm"][i]))[2:].rjust(config["imm"][i]['bitlength'], "0") + self.ANSIend + "]" \
+                    + "[" + self.textGrey + "0b" + self.ANSIend + self.textTeal + str(bin(oldState["imm"][i]))[2:].rjust(config["imm"][i]['bitLength'], "0") + self.ANSIend + "]" \
                     + "\n"
             if 'flag' in oldState.keys():
                 for i in oldState["flag"].keys(): #handles the CPU flags
@@ -1258,9 +1258,9 @@ class CPUsim:
                         highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
 
                         lineRegisters += "    " + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
-                            + "[" + self.textGrey + "0b" + self.ANSIend + str(bin(oldState[i][j]))[2:].rjust(config[i][j]['bitlength'], "0") + "]" \
+                            + "[" + self.textGrey + "0b" + self.ANSIend + str(bin(oldState[i][j]))[2:].rjust(config[i][j]['bitLength'], "0") + "]" \
                             + "\t" \
-                            + "[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(newState[i][j]))[2:].rjust(config[i][j]['bitlength'], "0") + self.ANSIend + "]" \
+                            + "[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(newState[i][j]))[2:].rjust(config[i][j]['bitLength'], "0") + self.ANSIend + "]" \
                             + "\n"
 
             screen += lineOp
@@ -2610,7 +2610,7 @@ class CPUsim:
 
             return (redirection, register[index])
 
-        def enforceImm(self, registerTuple : Tuple[str, int], bitlength : int = None) -> Tuple[str, int]:
+        def enforceImm(self, registerTuple : Tuple[str, int], bitLength : int = None) -> Tuple[str, int]:
             """Takes in a register key index pair. Returns a register key index pair iff key is 'imm' for immediate. Raises an Exception otherwise
             
             #TODO this should be replaced with a more generic function that allows for restricting access to a specific register. IE: The 'add' instruction destination can only be 'accumulate' register
@@ -2618,8 +2618,8 @@ class CPUsim:
             assert type(registerTuple) is tuple and len(registerTuple) == 2 
             assert type(registerTuple[0]) is str and (type(registerTuple[0]) is int or type(registerTuple[0]) is str) 
 
-            assert type(bitlength) is type(None) or type(bitlength) is int
-            assert (True if bitlength >= 1 else False) if type(bitlength) is int else True
+            assert type(bitLength) is type(None) or type(bitLength) is int
+            assert (True if bitLength >= 1 else False) if type(bitLength) is int else True
 
             if registerTuple[0] != "imm":
                 raise Exception("Expected immediate value, got register instead")
@@ -2669,10 +2669,10 @@ class CPUsim:
 
             if 'flag' in newState.keys():
                 if 'carry' in newState['flag']:
-                    if newState[des1][des2] >= 2**config[des1][des2]['bitlength']:
+                    if newState[des1][des2] >= 2**config[des1][des2]['bitLength']:
                         newState['flag']['carry'] = 1
             
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1)
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitLength'] - 1)
 
             newState['pc'][0] = oldState['pc'][0] + 1
 
@@ -2690,7 +2690,7 @@ class CPUsim:
             des1, des2 = des
 
             result = n * m
-            result = result & (2**config[des1][des2]['bitlength'] -1)
+            result = result & (2**config[des1][des2]['bitLength'] -1)
             newState[des1][des2] = result
 
             newState['pc'][0] = oldState['pc'][0] + 1
@@ -2705,12 +2705,12 @@ class CPUsim:
             a1, a2 = a
             des1, des2 = des
 
-            inputNumber = oldState[a1][a2] & (2**config[des1][des2]['bitlength'] - 1) #Cuts down number to correct bitlength BEFORE converting it
-            bitArray = [inputNumber >> i & 1 for i in range(config[des1][des2]['bitlength'] - 1, -1, -1)] #converts to bit array, index 0 is most significant bit
+            inputNumber = oldState[a1][a2] & (2**config[des1][des2]['bitLength'] - 1) #Cuts down number to correct bitLength BEFORE converting it
+            bitArray = [inputNumber >> i & 1 for i in range(config[des1][des2]['bitLength'] - 1, -1, -1)] #converts to bit array, index 0 is most significant bit
             bitArray = [not i for i in bitArray] #performs the bitwise NOT operation
             result = sum([bit << (len(bitArray) - 1 - i) for i, bit in enumerate(bitArray)]) #converts bit array back into a number
             result += 1
-            result = result & (2**config[des1][des2]['bitlength'] - 1)
+            result = result & (2**config[des1][des2]['bitLength'] - 1)
 
             ''' #this way, the 0 index is least significant bit
             t1 = a & ((2**bitLength) - 1)
@@ -2740,7 +2740,7 @@ class CPUsim:
 
             newState[des1][des2] = oldState[a1][a2] & oldState[b1][b2] #performs the bitwise AND operation
 
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitLength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
@@ -2759,7 +2759,7 @@ class CPUsim:
 
             newState[des1][des2] = oldState[a1][a2] | oldState[b1][b2] #performs the bitwise OR operation
 
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitLength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
@@ -2778,7 +2778,7 @@ class CPUsim:
 
             newState[des1][des2] = oldState[a1][a2] ^ oldState[b1][b2] #performs the bitwise XOR operation
 
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1) #'cuts down' the result to something that fits in the register/memory location
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitLength'] - 1) #'cuts down' the result to something that fits in the register/memory location
 
             newState['pc'][0] = oldState['pc'][0] + 1 #incriments the program counter
 
@@ -2792,8 +2792,8 @@ class CPUsim:
             a1, a2 = a
             des1, des2 = des
 
-            inputNumber = oldState[a1][a2] & (2**config[des1][des2]['bitlength'] - 1) #Cuts down number to correct bitlength BEFORE converting it
-            bitArray = [inputNumber >> i & 1 for i in range(config[des1][des2]['bitlength'] - 1, -1, -1)] #converts to bit array
+            inputNumber = oldState[a1][a2] & (2**config[des1][des2]['bitLength'] - 1) #Cuts down number to correct bitLength BEFORE converting it
+            bitArray = [inputNumber >> i & 1 for i in range(config[des1][des2]['bitLength'] - 1, -1, -1)] #converts to bit array
             bitArray = [not i for i in bitArray] #performs the bitwise NOT operation
             result = sum([bit << (len(bitArray) - 1 - i) for i, bit in enumerate(bitArray)]) #converts bit array back into a number
             
@@ -2862,7 +2862,7 @@ class CPUsim:
 
             newState[des1][des2] = oldState[a1][a2] << amount
 
-            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitlength'] - 1)
+            newState[des1][des2] = newState[des1][des2] & (2**config[des1][des2]['bitLength'] - 1)
 
             newState['pc'][0] = oldState['pc'][0] + 1
 
@@ -2890,12 +2890,12 @@ class CPUsim:
             for i in range(amount):
                 t1 : int = 0
                 if arithmetic:
-                    t1 = 2 ** (config[a1][a2]['bitlength'] - 1)
+                    t1 = 2 ** (config[a1][a2]['bitLength'] - 1)
                     t1 = t1 & result
                 result = result >> 1
                 result = result | t1
 
-            result : int = result & (2**config[des1][des2]['bitlength'] - 1)
+            result : int = result & (2**config[des1][des2]['bitLength'] - 1)
 
             newState[des1][des2] = result
             newState['pc'][0] = oldState['pc'][0] + 1
@@ -2947,7 +2947,7 @@ class RiscV:
     def __init__(self):
         #when initalizing this class making an instance of this class, initalizing this class should return a CPUsim() object
         memorySize = 2**4
-        xLength = None #TODO look up the name for the bitlength of the ISA from documentation
+        xLength = None #TODO look up the name for the bitLength of the ISA from documentation
 
         CPU = CPUsim(32, defaultSetup=False)
         CPU.configSetDisplay(CPU.DisplaySilent()) #hides configuration steps from display
@@ -2994,7 +2994,7 @@ class RiscV:
         CPU.configAddAlias("t5",    "x[30]")
         CPU.configAddAlias("t6",    "x[31]")
 
-        CPU.configConfigRegister('_upper', 0, bitlength=32,     note="upper immediate")         
+        CPU.configConfigRegister('_upper', 0, bitLength=32,     note="upper immediate")         
 
         CPU.configConfigRegister('x',  0, alias=["zero"],       note="Zero")                    #always zero
         CPU.configConfigRegister('x',  1, alias=["r1"],         note="call return address")     #call return address
@@ -4042,9 +4042,9 @@ class TestDefault:
             CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0.5))
 
         #configure memory
-        CPU.configAddRegister('r', bitLength, 2) #namespace symbol, bitlength, register amount #will overwrite defaults
+        CPU.configAddRegister('r', bitLength, 2) #namespace symbol, bitLength, register amount #will overwrite defaults
         CPU.configAddRegister('m', bitLength, 8, show=False) #the program is loaded into here
-        CPU.configAddRegister('t', bitLength * 2, 2) #note that the register bitlength is double the input register size
+        CPU.configAddRegister('t', bitLength * 2, 2) #note that the register bitLength is double the input register size
 
         CPU.linkAndLoad('''
                     # Multiplies two numbers together
