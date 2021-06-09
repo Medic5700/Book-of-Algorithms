@@ -105,6 +105,9 @@ API
             def __init__                                    This is where the instruction set is 'mapped' to keywords and arguments. See 'class RiscVISA.__init__' for an advanced example
             def redirect                                    
             def enforceImm
+            def enforceRegisterAccess       #TODO
+            def int2bits
+            def bits2int
             def opNop                                       The below are a number of base instructions that came be put together to make an instruction set
             def opAdd
             def opMultiply
@@ -2622,6 +2625,30 @@ class CPUsim:
                 raise Exception("Expected immediate value, got register instead")
             return registerTuple
 
+
+        def int2bits(self, number : int, bitLength : int) -> List[int]:
+            """Takes a bitLength, and a number where ((0 - 2**bitLength) // 2 <= number < 2**bitLength). Returns a bit int array representing the number, zero index is least significant bit
+            
+            For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
+            """
+            assert type(bitLength) is int
+            assert bitLength > 0
+
+            assert type(number) is int
+            assert (0 - 2**bitLength) // 2 <= number < 2**bitLength
+
+            number = number & (2**bitLength - 1)
+            bitArray = [number >> i & 1 for i in range(bitLength)] #index 0 is least significant bit
+            return bitArray
+
+        def bits2int(self, bitArray : List[int or bool]) -> int:
+            """Takes in a bit (int or bool) array where zero index is least significant bit. Returns the positive number is represents"""
+            assert type(bitArray) is list
+            assert len(bitArray) > 0
+            assert all([(type(i) is int or type(i) is bool) for i in bitArray])
+
+            return sum([bit << i for i, bit in enumerate(bitArray)])
+
         def opNop(self, oldState, newState, config, engine):
             newState['pc'][0] = oldState['pc'][0] + 1
 
@@ -3456,6 +3483,17 @@ class TestDefault:
         message += "TestDefault.testDefault"
         print(message)
 
+        print("< Running Test: TestDefault.testInstructionSetDefault_helperFunctions ".ljust(80, "=") + ">")
+        testInstructionSetDefault_helperFunctions : bool = False
+        try:
+            testInstructionSetDefault_helperFunctions = self.testInstructionSetDefault_helperFunctions()
+        except Exception as errorMessage:
+            testInstructionSetDefault_helperFunctions = False
+            print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
+        message = (self.textGreen + "PASS".ljust(8) + self.textEnd) if testInstructionSetDefault_helperFunctions else (self.textRed   + "FAIL".ljust(8) + self.textEnd)
+        message += "TestDefault.testInstructionSetDefault_helperFunctions"
+        print(message)
+
         print("< Running Test: TestDefault.testInstructions ".ljust(80, "=") + ">")
         testInstructions : bool = False
         try:
@@ -3542,12 +3580,52 @@ class TestDefault:
             
         return localPassed_0
             
-
-
     def testCoreFunctions(self) -> bool:
         """Tests CPUsim core functions. IE: can registers be added, data injected into memory, etc"""
         #TODO
         pass
+
+    def testInstructionSetDefault_helperFunctions(self) -> bool:
+        """Tests helper functions in the defaultInstructionSet"""
+        localPassed_0 : bool = True
+
+        for bitLength in [4, 8, 16]:
+            localPassed_1 : bool = True
+            for i in range(2**bitLength):
+                bitArray = CPUsim.InstructionSetDefault.int2bits(None, i, bitLength)
+                number = CPUsim.InstructionSetDefault.bits2int(None, bitArray)
+
+                if i != number:
+                    localPassed_0 = False
+                    localPassed_1 = False
+
+            if localPassed_1:
+                message = self.textGreen + "PASS".ljust(8)
+            else:
+                message = self.textRed + "FAIL".ljust(8)
+            message += self.textEnd
+            message += ("bitLength = " + str(bitLength)).ljust(16) + "Positive Numbers".ljust(32) + "int -> int2bits -> bits2int -> int"
+            print("".ljust(8) + message)
+
+            localPassed_1 : bool = True
+            for i in range(0, 0 - (2**bitLength // 2), -1):
+                bitArray = CPUsim.InstructionSetDefault.int2bits(None, i, bitLength)
+                number = CPUsim.InstructionSetDefault.bits2int(None, bitArray)
+
+                if (2**bitLength + i) % 2**bitLength != number:
+                    localPassed_0 = False
+                    localPassed_1 = False
+                    print("".ljust(12) + ("i = " + str(i)).ljust(16) + ("bitarray = " + str(bitArray)).ljust(64) + ("result = " + str(number)).ljust(16))
+
+            if localPassed_1:
+                message = self.textGreen + "PASS".ljust(8)
+            else:
+                message = self.textRed + "FAIL".ljust(8)
+            message += self.textEnd
+            message += ("bitLength = " + str(bitLength)).ljust(16) + "Negative Numbers".ljust(32) + "int -> int2bits -> bits2int -> int"
+            print("".ljust(8) + message)
+
+        return localPassed_0
 
     def _testInstructions(self, a : int, b : int, bitLength : int = 8, program : str = "halt") -> int:
         """Helper function that creates an instance of CPUsim to run a given program, returns result integer"""
@@ -4114,11 +4192,19 @@ class TestRISCV:
         return resultPassed
 
 if __name__ == "__main__":
+    
     #Module Tests
     #reduce logging so console isn't spammed by data from tests
     logging.basicConfig(level = logging.CRITICAL) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
+
+    import time
+    startTime = time.time()
+
     TestDefault()
     TestRISCV()
+
+    print("tests completed in " + str(round(time.time() - startTime, 3)) + "seconds")
+    
 
     #set up debugging
     logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
