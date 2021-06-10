@@ -29,43 +29,43 @@ Getting Started: <==============================================================
 
 API
     class CPUsim
-        var state                                           Contains the current registers, stored as 2-dimension dictionary IE: state["registers"][0] = register 0
-        var lastState                                       Contains the state of the registers from the last cycle. Structure is same as 'state'
-        var config                                          Contains meta information on every register (bitLength, aliases, notes, show?). stored as 3-dimension dictionary IE: config["r"][0]["bitLength"] = bitLength of register r0
-        var stats                      #not implimented
-        var engine                     #partially implimented
+        *var state                                          Contains the current registers, stored as 2-dimension dictionary IE: state["registers"][0] = register 0
+        *var lastState                                      Contains the state of the registers from the last cycle. Structure is same as 'state'
+        *var config                                         Contains meta information on every register (bitLength, aliases, notes, show?). stored as 3-dimension dictionary IE: config["r"][0]["bitLength"] = bitLength of register r0
+        var stats                      #TODO not implimented
+        var engine                     #TODO partially implimented
 
         <=  Setting Up =======================================================>
-        def configSetDisplay                                Allows loading a different display interface (default loads 'class DisplaySimpleAndClean')
-        def configSetInstructionSet                         Allows loading a different instruction set (default loads 'class InstructionSetDefault')
-        def configSetParser                                 Allows loading a different parser (default loads 'class ParseDefault')
+        *def configSetDisplay                               Allows loading a different display interface (default loads 'class DisplaySimpleAndClean')
+        *def configSetInstructionSet                        Allows loading a different instruction set (default loads 'class InstructionSetDefault')
+        *def configSetParser                                Allows loading a different parser (default loads 'class ParseDefault')
         def configSetPostCycleFunction                      Allows changing the function that executes after every cycle (default loads 'def _postCycleUserDefault')
-        def configAddRegister                               Adds x amount of registers with 'key' name
+        *def configAddRegister                              Adds x amount of registers with 'key' name
         def configAddFlag                                   Adds a flag register with 'index' name
-        def configConfigRegister                            Adds or modifies a specific register (key/index pair), and it's properties
-        def inject                                          Writes a number directly to a register
-        def extract                                         Get a number directly from a register
+        *def configConfigRegister                           Adds or modifies a specific register (key/index pair), and it's properties
+        *def inject                                         Writes a number directly to a register
+        *def extract                                        Get a number directly from a register
         def _postCycleUserDefault                           The function that executes after every cycle (loaded by default), copies new state to old state, resets 'flag' registers, etc]
 
         <=  Running Code =====================================================>
-        def linkAndLoad                                     Takes in source code, 'compiles' it, loads it into memory
-        def run                                             Runs code (use after 'def linkAndLoad')
-        def lazy                        #not implimented    Takes in source code, 'compiles' it, runs it (without loading it into main memory)                         
+        *def linkAndLoad                                    Takes in source code, 'compiles' it, loads it into memory
+        *def run                                            Runs code (use after 'def linkAndLoad')
+        *def lazy                  #TODO not implimented    Takes in source code, 'compiles' it, runs it (without loading it into main memory)                         
 
         class compileDefault
             def compile
 
         <=  Available Displays ===============================================>
-        class DisplaySimpleAndClean                         The default display, simple and clean for showing execution statuses and register values
-            def runtime                                     Runs after every cycle, displays status of registers
+        *class DisplaySimpleAndClean                        The default display, simple and clean for showing execution statuses and register values
+            def runtime                                     Runs after every cycle, displays status/contents of registers
             def postrun                                     Runs after execution has halted
-        class DisplaySilent                                 Basically displays nothing
+        *class DisplaySilent                                Intentionally displays nothing
             def runtime
             def postrun
 
         <=  Parser Stuff =====================================================>
-        class ParseDefault                                  Contains the tools to build a customized (and partially flawed) assembly parser. Turns assembly source code into a parse tree.
-            class Node                                      A parse tree Node
+        *class ParseDefault                                 Contains the tools to build a customized (and partially flawed) assembly parser. Turns assembly source code into a parse tree.
+            *class Node                                     A parse tree Node
                 var type
                 var token
                 var child
@@ -79,7 +79,7 @@ API
                 def copyDeep
                 def replace
                 def remove
-            def parseCode                                   Takes assembly source code, uses a series of rules to turn it into a parse tree. See 'class RiscVParser' for customization example.
+            *def parseCode                                  Takes assembly source code, uses a series of rules to turn it into a parse tree. See 'class RiscVParser' for customization example.
             def _tokenize                                   The inital tokenizer
             def ruleCastInts                                The below are a collection of rules that manipulate the parse tree, indirectly 'parsing' the source code
             def ruleCastHex
@@ -98,11 +98,11 @@ API
             def ruleApplyAlias
             
         <=  Instruction Definition Stuff =====================================>
-        class InstructionSetDefault                         A simplified instruction set implimentation
-            var instructionSet
+        *class InstructionSetDefault                        A simplified instruction set implimentation
+            *var instructionSet
             var stats
             var directives
-            def __init__                                    This is where the instruction set is 'mapped' to keywords and arguments. See 'class RiscVISA.__init__' for an advanced example
+            *def __init__                                   This is where the instruction set is 'mapped' to keywords and arguments. See 'class RiscVISA.__init__' for an advanced example
             def redirect                                    
             def enforceImm
             def enforceRegisterAccess       #TODO
@@ -156,6 +156,37 @@ Execution Loop:
     #TODO document main execution loop
 
 Data Structures:
+    #register state datastructure
+    #state['key']['index'] = int(value)
+    #see 'def configConfigRegister' for full discription/initialization
+    var state : Dict[
+        var key : str,
+        Dict[
+            var index : str or int,
+            var value : int
+        ]
+    ]
+    state = {i : {j : 0 for j in ['index', 0]} for i in ['key']}
+
+    #register config datastructure
+    #config['key']['index']['property'] = value
+    #see 'def configConfigRegister' for full discription/initialization
+    var config : Dict[
+        var key : str,
+        Dict[
+            var index : str or int,
+            Dict[
+                -> 'bitLength' : str        = int
+                -> 'show' : str             = bool
+                -> 'alias' : str            = List[str]
+                -> 'latencyCycles' : str    = int
+                -> 'energy' : str           = int
+                -> 'note' : str             = str
+            ]
+        ]
+    ]
+    config = {i : {j : {'bitLength':1, 'show':True, 'alias':['str1','str2'], 'latencyCycle':0, 'energy':0, 'note':'note'} for j in ['index', 0]} for i in ['key']}
+
     #TODO include stuff on datastructures
 
 Test Cases to impliment:
@@ -209,6 +240,9 @@ Test Cases to impliment:
     change 'charNum' to 'colNum' in parser, add/change 'charNum' as source code number (IE: the char number of input string, not column number of that line in input string)
     create function in instructionSet that turns a number into a binary array and vic-versa
     impliment character tokenizer in default parser
+    impliment ISA helping function that allows selecting a 'bitrange' of a register. IE: take a 16-bit register, return the upper 8-bits (as a created immiedate register)
+    rewrite tests to use unittest module
+    change engine datastructure to store instructions for EVERY register, not just as a 'special' register array. Possibly make it it's own variable, like self.config
 """
 
 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
@@ -423,7 +457,6 @@ class CPUsim:
                     It would simplify activating and deactivating stuff like a keyboard input. Then the device would write back data via memory?
                 Inturupts should be stored in the State['Engine'], for modular access by instructions
         
-            
     references/notes:
         https://en.wikipedia.org/wiki/Very_long_instruction_word
             the instruction word contains multiple instruction for each individual execution unit, so less reliance on the CPU figuring out how to out of order execution
@@ -462,10 +495,10 @@ class CPUsim:
         parsing
             math operorators
             indentation
-            allowing accessing individual bytes in a register, IE: copy the lower 8 bits of a 64-bit register
+            allowing accessing individual bytes in a register, IE: copy the lower 8 bits of a 64-bit register without using a specific instruction to do it
         Reverse dirty bit for register file to impliment out of order super scaler execution
             IE: an instruction is run on dummy data at runtime to see what registers are accessed, and marked dirty.
-            Allowing multiple instructions to be queeued up without implimenting a complex dependency graph (a short cut)
+            Allowing multiple instructions to be queued up without implimenting a complex dependency graph (a short cut)
         ? allow instructions to override instruction annotations during runtime execution
             IE: an instruction uses a variable amount of energy dependent on the data processed. It can report the energy used during its execution
         Support for self-modifying code
