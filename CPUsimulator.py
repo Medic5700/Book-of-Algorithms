@@ -234,11 +234,9 @@ Test Cases to impliment:
         This kind of idea is an idea I've had for a long time, and how to scale it up
 
 #TODO Stack:
-    Rebuild DisplaySimpleAndClean
     create instruction helper that allows adding an immediate register (IE: you put in a number, and it passes out an immediate register address, AND adds an immediate register)
     allow ISA instructions to be referenced by a list. IE: ("add", "#") and ("add", "$") for the 6502 processor, shows two different addressing modes for the "add" instruction?
     change 'charNum' to 'colNum' in parser, add/change 'charNum' as source code number (IE: the char number of input string, not column number of that line in input string)
-    create function in instructionSet that turns a number into a binary array and vic-versa
     impliment character tokenizer in default parser
     impliment ISA helping function that allows selecting a 'bitrange' of a register. IE: take a 16-bit register, return the upper 8-bits (as a created immiedate register)
     rewrite tests to use unittest module
@@ -1220,84 +1218,173 @@ class CPUsim:
 
             self.animationDelay : int = animationDelay
 
-            self.textRed : str = "\u001b[31m" #forground red, meant for register writes
-            self.textTeal : str = "\u001b[96m" #forground teal, meant for register reads
+            self.textRed : str = "\u001b[31m" #forground red
+            self.textTeal : str = "\u001b[96m" #forground teal, meant for register activity
+            self.textGreen : str = "\u001b[92m" #forground green
             self.textGrey : str = "\u001b[90m" #forground grey
+            self.backDeepBlue : str = "\u001b[48;5;17m" #background deep blue
             self.ANSIend : str = "\u001b[0m" #resets ANSI colours
 
         def runtime(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
-            """Executed after every instruction/cycle. Accesses/takes in all information about the engine, takes control of the screen to print information.
+            """Executed after every instruction/cycle. Accesses/takes in all information about the engine, takes control of the terminal to print information."""
+
+            lineEngine : str = ""
+            lineEngine += "[Cycle " + str(engine["cycle"]).rjust(8, "0") + "]"
+            lineEngine += "\n"
+
+            #calculate column widths
+            registers : List[Tuple[str, str or int]] = []
+            maxWidths : Dict[str, int] = {
+                                            "key":3, #3 since 'imm' doesn't show up in every cycle
+                                            "index":0, 
+                                            "bitLength":0, 
+                                            "alias":0, 
+                                            "note":0}
+
+            for key in sorted(list(oldState.keys())):
+                for index in sorted(list(oldState[key].keys())):
+                    if config[key][index]["show"]:
+                        registers.append((key, index))
+
+                        if len(str(key)) > maxWidths["key"]:
+                            maxWidths["key"] = len(str(key))
+
+                        if len(str(index)) > maxWidths["index"]:
+                            maxWidths["index"] = len(str(index))
+
+                        if config[key][index]["bitLength"] > maxWidths["bitLength"]:
+                            maxWidths["bitLength"] = config[key][index]["bitLength"]
+
+                        if len(config[key][index]["alias"]) + sum([len(str(i)) for i in config[key][index]["alias"]]) > maxWidths["alias"]:
+                            maxWidths["alias"] = len(config[key][index]["alias"]) + sum([len(str(i)) for i in config[key][index]["alias"]])
+
+                        if len(config[key][index]["note"]) > maxWidths["note"]:
+                            maxWidths["note"] = len(config[key][index]["note"])
             
-            #TODO program counter does not take into account the config bitLength of the program counter"""
-            
-            screen : str = ""
-            highlight : str = ""
+            #add padding for seperator
+            for key in maxWidths.keys():
+                maxWidths[key] += 1
+            maxWidths["index"] += 2 #accounts for "[]"
+            maxWidths["bitLength"] += 4 #accounts for "[0b]"
 
-            #The program counter
-            lineOp : str = "0x" + hex(oldState['pc'][0])[2:].rjust(8, '0').upper() + "\t"
-            #handles the 'instruction' line (IE: the first line)
-            if engine["sourceCode"] != None and engine["sourceCodeLineNumber"] != None:
-                sourceCode = engine["sourceCode"].split("\n")
-                lineOp += "[line " + str(engine["sourceCodeLineNumber"]).rjust(4, "0") + "]" + "\t"
-                lineOp += sourceCode[engine["sourceCodeLineNumber"]].lstrip()
-            else:
-                lineOp += "No Instruction Found" #TODO
-            lineOp = lineOp.ljust(68, " ")
-            lineOp += "[Cycle " + str(engine["cycle"]).rjust(4, "0") + "]"
-            lineOp += "\n"
+            #ceil to nearest column using integer math
+            for key in maxWidths.keys():
+                maxWidths[key] += (4 - (maxWidths[key] % 4)) % 4 #the outer '%4' prevents adding an additional 4, adding a 0 instead
 
-            lineRequired : str = ""
+            #source code program counter
+            lineSource : str = ""
+            indent : int = 4
+            for key, index in [(key, index) for key, index in registers if key in ["pc"]]:
+                lineSource += "".ljust(indent)
 
-            #handles the 'pc' register
-            highlight = self.textRed if (oldState['pc'][0] != newState['pc'][0]) else ""
-            lineRequired += "    " + "PC".ljust(8, ' ') \
-                + "[" + self.textGrey + "0x" + self.ANSIend + hex(oldState['pc'][0])[2:].rjust(config['pc'][0]['bitLength'] // 4, "0").upper() + "]" \
-                + "\t" \
-                + "[" + self.textGrey + "0x" + self.ANSIend + highlight + hex(newState['pc'][0])[2:].rjust(config['pc'][0]['bitLength'] // 4, "0").upper() + self.ANSIend + "]" \
-                + "\n"
-            for i in oldState['imm']: #handles the immidiate registers
-                lineRequired += "    " + ("imm[" + str(i) + "]").ljust(8, " ") \
-                    + "[" + self.textGrey + "0b" + self.ANSIend + self.textTeal + str(bin(oldState["imm"][i]))[2:].rjust(config["imm"][i]['bitLength'], "0") + self.ANSIend + "]" \
-                    + "\n"
-            if 'flag' in oldState.keys():
-                for i in oldState["flag"].keys(): #handles the CPU flags
-                    highlight = self.textRed if (oldState["flag"][i] != newState["flag"][i]) else ""
-                    lineRequired += "    " + ("flag[" + str(i) + "]").ljust(16, " ") \
-                        + "[" + str(oldState["flag"][i]) + "]" \
-                        + "\t" \
-                        + "[" + highlight + str(newState["flag"][i]) + self.ANSIend + "]" \
-                        + "\n"
+                lineSource += self.backDeepBlue
 
+                lineSource += str(key).ljust(maxWidths["key"])
+
+                lineSource += ("[" + str(index) + "]").ljust(maxWidths["index"])
+
+                if len(config[key][index]["alias"]) != 0:
+                    lineSource += self.textGrey + ("[" + ",".join(config[key][index]["alias"]) + "]").ljust(maxWidths["alias"]) + self.ANSIend
+                else:
+                    lineSource += "".ljust(maxWidths["alias"])
+
+                lineSource += ("[" + self.textGrey + "0x" + self.ANSIend + self.backDeepBlue + str(hex(oldState[key][index]))[2:].rjust(config[key][index]["bitLength"] // 4, "0") + "]")\
+                                .ljust(maxWidths["bitLength"] + len(self.textGrey) + len(self.ANSIend) + len(self.backDeepBlue))
+
+                operation = engine["instructionArray"][oldState[key][index]]
+                if type(operation) is not type(None):
+                    sourceInstruction = engine["sourceCode"].split("\n")
+                    lineSource += ("[Line " + str(operation.lineNum).rjust(4, "0") + "]").ljust(maxWidths["bitLength"])
+                    lineSource += str(sourceInstruction[operation.lineNum]).strip()
+                else:
+                    lineSource += "Instruction Not Found"
+
+                lineSource += self.ANSIend + "\n"
+
+            #format special registers 'pc'
+            lineSpecialPC : str = ""
+            indent : int = 4
+            for key, index in [(key, index) for key, index in registers if key in ["pc"]]:
+                lineSpecialPC += "".ljust(indent)
+
+                lineSpecialPC += str(key).ljust(maxWidths["key"])
+
+                lineSpecialPC += ("[" + str(index) + "]").ljust(maxWidths["index"])
+
+                if len(config[key][index]["alias"]) != 0:
+                    lineSpecialPC += self.textGrey + ("[" + ",".join(config[key][index]["alias"]) + "]").ljust(maxWidths["alias"]) + self.ANSIend
+                else:
+                    lineSpecialPC += "".ljust(maxWidths["alias"])
+
+                highlight = ""
+                lineSpecialPC += ("[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(oldState[key][index]))[2:].rjust(config[key][index]["bitLength"], "0") + self.ANSIend + "]")\
+                                    .ljust(maxWidths["bitLength"] + len(self.textGrey) + len(highlight) + 2*len(self.ANSIend))
+
+                highlight = self.textTeal if (oldState[key][index] != newState[key][index]) else "" #TODO should check if memory read/written instead of just looking for a difference
+                lineSpecialPC += ("[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(newState[key][index]))[2:].rjust(config[key][index]["bitLength"], "0") + self.ANSIend + "]")\
+                                    .ljust(maxWidths["bitLength"] + len(self.textGrey) + len(highlight) + 2*len(self.ANSIend))
+
+                lineSpecialPC += self.textGrey + (config[key][index]["note"]).ljust(maxWidths["note"]) + self.ANSIend
+
+                lineSpecialPC += "\n"
+
+            #format special registers 'imm'
+            lineSpecialIMM : str = ""
+            indent : int = 4
+            for key, index in [(key, index) for key, index in registers if key in ["imm"]]:
+                lineSpecialIMM += "".ljust(indent)
+
+                lineSpecialIMM += str(key).ljust(maxWidths["key"])
+
+                lineSpecialIMM += ("[" + str(index) + "]").ljust(maxWidths["index"])
+
+                if len(config[key][index]["alias"]) != 0:
+                    lineSpecialIMM += self.textGrey + ("[" + ",".join(config[key][index]["alias"]) + "]").ljust(maxWidths["alias"]) + self.ANSIend
+                else:
+                    lineSpecialIMM += "".ljust(maxWidths["alias"])
+
+                highlight = self.textTeal
+                lineSpecialIMM += ("[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(oldState[key][index]))[2:].rjust(config[key][index]["bitLength"], "0") + self.ANSIend + "]")\
+                                    .ljust(maxWidths["bitLength"] + len(self.textGrey) + len(highlight) + 2*len(self.ANSIend))
+                lineSpecialIMM += "".ljust(maxWidths["bitLength"])
+
+                lineSpecialIMM += self.textGrey + (config[key][index]["note"]).ljust(maxWidths["note"]) + self.ANSIend
+
+                lineSpecialIMM += "\n"
+            #TODO pad 'imm' lines with trailing empty lines, since number of 'imm' registers varies
+
+            #format non-special registers
             lineRegisters : str = ""
+            indent : int = 4
+            for key, index in [(key, index) for key, index in registers if key not in ["pc", "imm"]]:
+                lineRegisters += "".ljust(indent)
 
-            #get keys, but exclude the 'special' keys
-            keys : "list[str]" = list(oldState.keys())
-            if "flag" in keys:
-                keys.remove("flag")
-            if "pc" in keys:
-                keys.remove("pc")
-            if "imm" in keys:
-                keys.remove("imm")
+                lineRegisters += str(key).ljust(maxWidths["key"])
 
-            for i in sorted(keys):
-                for j in sorted(list(oldState[i].keys())):
-                    if config[i][j]['show'] == True:
-                        highlight = ""
+                lineRegisters += ("[" + str(index) + "]").ljust(maxWidths["index"])
 
-                        ''' #this highlights the registers containing instructions with grey, but doesn't make the display more readable... should be used for another display class
-                        if engine["instructionArray"] != None and i == "m":
-                            highlight = self.textGrey if not (engine["instructionArray"][j] is None) else ""
-                        '''
-                        highlight = self.textRed if (oldState[i][j] != newState[i][j]) else highlight
+                if len(config[key][index]["alias"]) != 0:
+                    lineRegisters += self.textGrey + ("[" + ",".join(config[key][index]["alias"]) + "]").ljust(maxWidths["alias"]) + self.ANSIend
+                else:
+                    lineRegisters += "".ljust(maxWidths["alias"])
 
-                        lineRegisters += "    " + (str(i) + "[" + str(j) + "]").ljust(8, " ") \
-                            + "[" + self.textGrey + "0b" + self.ANSIend + str(bin(oldState[i][j]))[2:].rjust(config[i][j]['bitLength'], "0") + "]" \
-                            + "\t" \
-                            + "[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(newState[i][j]))[2:].rjust(config[i][j]['bitLength'], "0") + self.ANSIend + "]" \
-                            + "\n"
+                highlight = ""
+                lineRegisters += ("[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(oldState[key][index]))[2:].rjust(config[key][index]["bitLength"], "0") + self.ANSIend + "]")\
+                                    .ljust(maxWidths["bitLength"] + len(self.textGrey) + len(highlight) + 2*len(self.ANSIend))
 
-            screen += lineOp
-            screen += lineRequired
+                highlight = self.textTeal if (oldState[key][index] != newState[key][index]) else "" #TODO should check if memory read/written instead of just looking for a difference
+                lineRegisters += ("[" + self.textGrey + "0b" + self.ANSIend + highlight + str(bin(newState[key][index]))[2:].rjust(config[key][index]["bitLength"], "0") + self.ANSIend + "]")\
+                                    .ljust(maxWidths["bitLength"] + len(self.textGrey) + len(highlight) + 2*len(self.ANSIend))
+
+                lineRegisters += self.textGrey + (config[key][index]["note"]).ljust(maxWidths["note"]) + self.ANSIend
+
+                lineRegisters += "\n"
+
+            screen : str = ""
+            screen += lineEngine
+            screen += lineSource
+            screen += lineSpecialPC
+            screen += lineSpecialIMM
             screen += lineRegisters
 
             print(screen)
