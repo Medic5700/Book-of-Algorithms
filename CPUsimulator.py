@@ -22,9 +22,12 @@ Goals:
     Allow for meaningfull compairisons between various architectures running the same algorithms using various metrics (energy usage, execution cycles, etc)
     A modular simulator where various things can be swapped in and out. IE: swapping in a different instruction set, different 'displays', different memory configurations, etc.
 
+Quick Start: <=========================================================================================================
+#TODO
+
 Getting Started: <=====================================================================================================
     Note: this is a prototype, so the entire API is in flux
-    refer to "TestDefault._testProgram1" for a simple example of a possible use case.
+    refer to "TestDefault._testProgram1_defaultMultiply" for a simple example of a possible use case.
     refer to "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
 
 API
@@ -129,7 +132,7 @@ API
         def testInstruction                                 Tests instructions with various inputs and configurations
         def _testVLIW
         def testVLIW                                        Tests VLIW (Very Long Instruction Word) support
-        def _testProgram1                                   Instantiates a CPU and runs a test program (multiplication)
+        def _testProgram1_defaultMultiply                   Instantiates a CPU and runs a test program (multiplication)
         def testProgram1                                    Runs (multiplication) test program with various inputs in different configurations
 
     <=  Example Partial Implimentation of RiscV ==============================> #Work in progress
@@ -149,7 +152,7 @@ API
 
     class TestRISCV
         def __init__
-        def _testProgram1                                   Instantiates a CPU and runs a test program (multiplication)
+        def _testProgram1_RISCVMultiply                     Instantiates a CPU and runs a test program (multiplication)
         def testProgram1                                    Runs (multiplication) test program with various inputs in different configurations
 
 Execution Loop:
@@ -4142,7 +4145,7 @@ class TestDefault:
 
         return localPassed_0
 
-    def _testProgram1(self, a : int, b : int, bitLength : int = 8, show : bool = False) -> int:
+    def _testProgram1_defaultMultiply(self, a : int, b : int, bitLength : int = 8, show : bool = False) -> int:
         """A helper function that runs a multiplication program with various given inputs and settings, returns result integer"""
         assert type(a) is int
         assert a >= 0
@@ -4209,7 +4212,7 @@ class TestDefault:
             z : int = None
 
             try:
-                z = self._testProgram1(a, b, bitLength)
+                z = self._testProgram1_defaultMultiply(a, b, bitLength)
             except Exception as errorMessage:
                 print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                 z = None
@@ -4248,7 +4251,7 @@ class TestRISCV:
         #TODO
         pass
 
-    def _testProgram1(self, a : int, b : int, show : bool = False) -> int:
+    def _testProgram1_RISCVMultiply(self, a : int, b : int, show : bool = False) -> int:
         assert type(a) is int
         assert a >= 0
         
@@ -4295,7 +4298,7 @@ class TestRISCV:
             z : int = None
 
             try:
-                z = self._testProgram1(a, b)
+                z = self._testProgram1_RISCVMultiply(a, b)
             except Exception as errorMessage:
                 print(self.textRed + "Critical Failure : " + str(errorMessage) + self.textEnd)
                 z = None
