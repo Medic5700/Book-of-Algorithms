@@ -253,17 +253,19 @@ assert version[0] == 3 and version[1] >= 8
 
 import copy #copy.deepcopy() required because states are a nested dictionary, and need to be copied instead of referenced
 import functools #used for partial functions when executioning 'instruction operations'
-from typing import Any, Callable, Dict, List, Tuple #used for more complex annotation typing
+from typing import Any, Callable, Dict, List, Literal, Tuple #used for more complex annotation typing
+import unittest
+import random
 
 #debugging and logging stuff
 import logging
 import inspect #used for logging, also used to assertion testing
-debugHighlight = lambda _ : False #debugHighlight = lambda x : 322 <= x <= 565 #will highlight the debug lines between those number, or set to -1 to highlight nothing
+debugHighlight : Callable[[int], bool] = lambda _ : False #debugHighlight = lambda x : 322 <= x <= 565 #will highlight the debug lines between those number, or set to -1 to highlight nothing
 def debugHelper(frame : "Frame Object") -> str:
     """Takes in a frame object, returns a string representing debug location info (IE: the line number and container name of the debug call)
 
     Usage 
-        -> logging.debug(debugHelper(inspect.currentframe()) + "String")
+        -> logging.debug(debugHelper(inspect.currentframe()) + "String") #Can also use (.critical .fatal) .error (.warn .warning) .info .debug 
         -> DEBUG:root:<container>"remove"[0348]@line[0372] = String
     Used for easy debugging identification of a specific line
     No, you can't assign that code segment to a lambda function, because it will always return the location of the original lambda definition
@@ -272,6 +274,10 @@ def debugHelper(frame : "Frame Object") -> str:
         https://docs.python.org/3/library/inspect.html#types-and-members
     """
     assert inspect.isframe(frame)
+
+    global debugHighlight #Callable[[int], bool]
+    if 'debugHighlight' not in globals():
+        debugHighlight = lambda _ : False
     
     #textRed : str = "\u001b[31m" #forground red
     textTeal : str = "\u001b[96m" #forground teal
