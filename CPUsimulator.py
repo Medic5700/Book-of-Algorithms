@@ -4315,27 +4315,526 @@ class TestRISCV:
         return resultPassed
 
 if __name__ == "__main__":
+#====================================================================================================================== Testing and Verification
+
+class TestDefault(unittest.TestCase):
+    def testDefaultInitialization(self):
+        for bitLength in [4, 8, 16, 32, 64, 128]:
+            with self.subTest(i = bitLength):
+                CPU = CPUsim(bitLength)
+                CPU.configSetDisplay(CPU.DisplaySilent())
+
+                r : List[int] = [random.randint(0, 2**bitLength -1) for _ in range(8)]
+                for i, value in enumerate(r):
+                    CPU.inject('r', i, value)
+                    t1 : int = CPU.extract('r', i)
+                    self.assertEqual(value, t1, "testing registers")
+                m = [random.randint(0, 2**bitLength -1) for _ in range(32)]
+                for i, value in enumerate(m):
+                    CPU.inject('m', i, value)
+                    t1 : int = CPU.extract('m', i)
+                    self.assertEqual(value, t1, "testing memory")
+
+    #TODO test running an instruction
+
+    def testVLIW_oneInstructionType(self):
+        """Tests for VLIW (Very long instruction word) support, with one instruction type per line"""
+        program : str = "add(r[4], r[0], r[1]), add(r[5], r[2], r[3]) \n halt"
+
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                CPU = CPUsim(bitLength, defaultSetup = False)
+                CPU.configSetDisplay(CPU.DisplaySilent())
+
+                CPU.configAddRegister('r', bitLength, 8)
+                CPU.configAddRegister('m', bitLength, 8, show=False)
+
+                CPU.linkAndLoad(program)
+
+                a : List[int] = [random.randint(0, 2**(bitLength - 1) - 1) for _ in range(4)] #generates numbers that are half the max storable size of a register with the given bitLength
+
+                for i, j in enumerate(a):
+                    CPU.inject('r', i, j)
+                
+                CPU.run()
+                
+                self.assertEqual(
+                    a[0] + a[1],
+                    CPU.extract('r', 4),
+                    ("input = " + str(a)).ljust(32) + ("Expected = " + str(a[0] + a[1])).ljust(16) + ("Got = " + str(CPU.extract('r', 4)))
+                )
+                self.assertEqual(
+                    a[2] + a[3],
+                    CPU.extract('r', 5),
+                    ("input = " + str(a)).ljust(32) + ("Expected = " + str(a[2] + a[3])).ljust(16) + ("Got = " + str(CPU.extract('r', 5)))
+                )
     
-    #Module Tests
-    #reduce logging so console isn't spammed by data from tests
-    logging.basicConfig(level = logging.CRITICAL) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
+    def testVLIW_multipleInstructionType(self):
+        """Tests for VLIW (Very long instruction word) support, with multiple instruction types per line"""
+        program : str = "add(r[4], r[0], r[1]), and(r[5], r[0], r[1]), or(r[6], r[0], r[1]), xor(r[7], r[0], r[1]) \n halt"
 
-    import time
-    startTime = time.time()
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                CPU = CPUsim(bitLength, defaultSetup = False)
+                CPU.configSetDisplay(CPU.DisplaySilent())
 
-    TestDefault()
-    TestRISCV()
+                CPU.configAddRegister('r', bitLength, 8)
+                CPU.configAddRegister('m', bitLength, 8, show=False)
 
-    print("tests completed in " + str(round(time.time() - startTime, 3)) + "seconds")
+                CPU.linkAndLoad(program)
+
+                a : List[int] = [random.randint(0, 2**(bitLength - 1) - 1) for _ in range(2)] #generates numbers that are half the max storable size of a register with the given bitLength
+
+                for i, j in enumerate(a):
+                    CPU.inject('r', i, j)
+                
+                CPU.run()
+                
+                self.assertEqual(
+                    a[0] + a[1],
+                    CPU.extract('r', 4),
+                    ("input = " + str(a)).ljust(32) + ("Expected = " + str(a[0] + a[1])).ljust(16) + ("Got = " + str(CPU.extract('r', 4)))
+                )
+                self.assertEqual(
+                    a[0] & a[1],
+                    CPU.extract('r', 5),
+                    ("input = " + str(a)).ljust(32) + ("Expected = " + str(a[0] & a[1])).ljust(16) + ("Got = " + str(CPU.extract('r', 5)))
+                )
+                self.assertEqual(
+                    a[0] | a[1],
+                    CPU.extract('r', 6),
+                    ("input = " + str(a)).ljust(32) + ("Expected = " + str(a[0] | a[1])).ljust(16) + ("Got = " + str(CPU.extract('r', 6)))
+                )
+                self.assertEqual(
+                    a[0] ^ a[1],
+                    CPU.extract('r', 7),
+                    ("input = " + str(a)).ljust(32) + ("Expected = " + str(a[0] ^ a[1])).ljust(16) + ("Got = " + str(CPU.extract('r', 7)))
+                )
     
+class TestDefaultInstructionSet(unittest.TestCase):
+    def test_int2bits_bits2int(self):
+        """Tests int2bits and bits2 int against ALL NUMBERS POSSIBLE for a bitLength"""
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                for i in range(2**bitLength):
+                    with self.subTest(i = i):
+                        bitArray : List[int] = CPUsim.InstructionSetDefault.int2bits(None, i, bitLength) #since InstructionSetDefault is not initalized, have to pass in 'None' for 'self'
+                        result : int = CPUsim.InstructionSetDefault.bits2int(None, bitArray)
 
-    #set up debugging
+                        self.assertEqual(
+                            i, 
+                            result, 
+                            ("bitLength = " + str(bitLength)).ljust(16) + "Positive Numbers".ljust(32) + "int -> int2bits -> bits2int -> int"
+                        )
+
+    def test_int2bits_bits2int_negativeNumbers(self):
+        """Tests int2bits and bits2 int against ALL NUMBERS POSSIBLE for a bitLength"""
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                for i in range(0, 0 - (2**bitLength // 2), -1):
+                    with self.subTest(i = i):
+                        bitArray : List[int] = CPUsim.InstructionSetDefault.int2bits(None, i, bitLength) #since InstructionSetDefault is not initalized, have to pass in 'None' for 'self'
+                        result : int = CPUsim.InstructionSetDefault.bits2int(None, bitArray)
+
+                        self.assertEqual(
+                            (2**bitLength + i) % 2**bitLength, 
+                            result, 
+                            ("bitLength = " + str(bitLength)).ljust(16) + "Negative Numbers".ljust(32) + "int -> int2bits -> bits2int -> int"
+                        )
+
+    def _testInstructionHelper(self, a : int, b : int, bitLength : int = 8, program : str = "halt") -> int:
+        """Helper function that creates an instance of CPUsim to run a given program, returns result integer
+        
+        a, b are loaded into registers r[0], r[1], the result is loaded from register r[2]
+        meant to run simple two line programs to test individual instructions in the default instruction set
+        """
+        assert type(a) is int
+        assert a >= 0
+        assert type(b) is int
+        assert b >= 0
+        assert type(bitLength) is int
+        assert bitLength > 0
+        assert type(program) is str
+        assert len(program) > 0
+
+        CPU = CPUsim(bitLength, defaultSetup = False)
+        CPU.configSetDisplay(CPU.DisplaySilent())
+
+        CPU.configAddRegister('r', bitLength, 3)
+        CPU.configAddRegister('m', bitLength, 8, show=False)
+
+        CPU.linkAndLoad(program)
+
+        CPU.inject('r', 0, a)
+        CPU.inject('r', 1, b)
+        CPU.run()
+        result : int = CPU.extract('r', 2)
+
+        return result
+    
+    def testInstruction_opAdd(self):
+        """Test DefaultInstructionSet operation opAdd"""
+        program : str = "add(r[2], r[0], r[1]) \n halt"
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                #Inputs
+                a : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                b : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+
+                for a, b in zip(a,b):
+                    with self.subTest(a=a, b=b):
+                        z : int = self._testInstructionHelper(a, b, bitLength, program)
+
+                        self.assertEqual(
+                            (a+b) % 2**bitLength, 
+                            z,
+                            "opadd".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
+                        )
+    
+    def testInstruction_opMultiply(self):
+        """Test DefaultInstructionSet operation opMultiply"""
+        program : str = "mult(r[2], r[0], r[1]) \n halt"
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                #Inputs
+                a : List[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)]
+                b : List[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)]
+
+                for a, b in zip(a,b):
+                    with self.subTest(a=a, b=b):
+                        z : int = self._testInstructionHelper(a, b, bitLength, program)
+
+                        self.assertEqual(
+                            (a*b) % 2**bitLength, 
+                            z,
+                            "opMultiply".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
+                        )
+    
+    def testInstruction_opTwosCompliment(self):
+        """Test DefaultInstructionSet operation opTwosCompliment"""
+        program : str = "twos(r[2], r[0]) \n halt"
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                #Inputs
+                a : List[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)]
+                b : List[int] = [0 for _ in range(8)]
+
+                for a, b in zip(a,b):
+                    with self.subTest(a=a, b=b):
+                        z : int = self._testInstructionHelper(a, b, bitLength, program)
+
+                        #this is a similar algorithm used in opTwosCompliment, so... a little redundent
+                        t1 = a & ((2**bitLength) - 1)
+                        t1 = [t1 >> i & 1 for i in range(bitLength)] #index 0 is least significant bit
+                        t1 = [not i for i in t1]
+                        t1 = sum([bit << i for i, bit in enumerate(t1)])
+                        t1 = t1 + 1
+                        t1 = t1 & (2**bitLength - 1)
+
+                        self.assertEqual(
+                            t1, 
+                            z,
+                            "opTwosCompliment".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
+                        )
+
+    def testInstruction_opAnd(self):
+        """Test DefaultInstructionSet operation opAnd"""
+        program : str = "and(r[2], r[0], r[1]) \n halt"
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                #Inputs
+                a : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                b : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+
+                for a, b in zip(a,b):
+                    with self.subTest(a=a, b=b):
+                        z : int = self._testInstructionHelper(a, b, bitLength, program)
+
+                        self.assertEqual(
+                            a & b, 
+                            z,
+                            "opAnd".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
+                        )
+    
+    def testInstruction_opOr(self):
+        """Test DefaultInstructionSet operation opOr"""
+        program : str = "or(r[2], r[0], r[1]) \n halt"
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                #Inputs
+                a : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                b : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+
+                for a, b in zip(a,b):
+                    with self.subTest(a=a, b=b):
+                        z : int = self._testInstructionHelper(a, b, bitLength, program)
+
+                        self.assertEqual(
+                            a | b, 
+                            z,
+                            "opOr".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
+                        )
+    
+    def testInstruction_opXor(self):
+        """Test DefaultInstructionSet operation opXor"""
+        program : str = "xor(r[2], r[0], r[1]) \n halt"
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                #Inputs
+                a : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                b : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+
+                for a, b in zip(a,b):
+                    with self.subTest(a=a, b=b):
+                        z : int = self._testInstructionHelper(a, b, bitLength, program)
+
+                        self.assertEqual(
+                            a ^ b, 
+                            z,
+                            "opXor".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
+                        )
+    
+    def testInstruction_opNot(self):
+        """Test DefaultInstructionSet operation opNot"""
+        program : str = "not(r[2], r[0]) \n halt"
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                #Inputs
+                a : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                b : List[int] = [0 for _ in range(8)]
+
+                for a, b in zip(a,b):
+                    with self.subTest(a=a, b=b):
+                        z : int = self._testInstructionHelper(a, b, bitLength, program)
+
+                        self.assertEqual(
+                            a ^ (2**bitLength-1), 
+                            z,
+                            "opNot".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
+                        )
+    
+    def testInstruction_opShiftL(self):
+        """Test DefaultInstructionSet operation opShiftL"""
+        program : str = "shiftl(r[2], r[0]) \n halt"
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                #Inputs
+                a : List[int] = [random.randint(2**(bitLength//2 - 2) - 1, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
+                b : List[int] = [0 for _ in range(8)]
+                
+                for a, b in zip(a,b):
+                    with self.subTest(a=a, b=b):
+                        z : int = self._testInstructionHelper(a, b, bitLength, program)
+
+                        self.assertEqual(
+                            (a << 1) & (2**bitLength - 1), 
+                            z,
+                            "opShiftL".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
+                        )
+    
+    #TODO test multiple shiftL in a row
+
+    #TODO test more advanced shiftL
+
+    def testInstruction_opShiftR(self):
+        """Test DefaultInstructionSet operation opShiftR"""
+        program : str = "shiftr(r[2], r[0]) \n halt"
+        for bitLength in [4, 8, 16]:
+            with self.subTest(bitLength=bitLength):
+                #Inputs
+                a : List[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
+                b : List[int] = [0 for _ in range(8)]
+                
+                for a, b in zip(a,b):
+                    with self.subTest(a=a, b=b):
+                        z : int = self._testInstructionHelper(a, b, bitLength, program)
+
+                        self.assertEqual(
+                            (a >> 1) & (2**bitLength - 1), 
+                            z,
+                            "opShiftR".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
+                        )
+
+    #TODO test multiple shiftR in a row
+
+    #TODO test more advanced shiftR
+
+    #TODO test arithmatic shiftR
+
+class TestDefaultSimplePrograms(unittest.TestCase):
+    def testDefaultProgram_multiply1(self):
+        """Runs a 'multiply' program once"""
+        bitLength : int = 16
+        a : int = random.randint(0, 2**(bitLength) - 1)
+        b : int = random.randint(0, 2**(bitLength) - 1)
+
+        program : str = '''
+                            # Multiplies two numbers together
+                            # Inputs: r[0], t[0]
+                            # Output: t[1]
+                            loop:   jumpEQ  (end, r[0], 0)
+                                        and     (r[1], r[0], 1)
+                                        jumpNE  (zero, r[1], 1)
+                                            add     (t[1], t[0], t[1])
+                            zero:       shiftL  (t[0], t[0])
+                                        shiftR  (r[0], r[0])
+                                        jump    (loop)
+                            end:    halt
+                            '''
+        
+        CPU = CPUsim(bitLength, defaultSetup=False)
+        CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
+
+        #configure memory
+        CPU.configAddRegister('r', bitLength, 2) #namespace symbol, bitLength, register amount #will overwrite defaults
+        CPU.configAddRegister('m', bitLength, 8, show=False) #the program is loaded into here
+        CPU.configAddRegister('t', bitLength * 2, 2) #note that the register bitLength is double the input register size
+
+        CPU.linkAndLoad(program)
+
+        #loads arguments into correct registers
+        CPU.inject(key='t', index=0, value=a)
+        CPU.inject(key='r', index=0, value=b)
+        CPU.run()
+        result : int = CPU.extract(key='t', index=1)
+
+        self.assertEqual(
+            a * b,
+            result,
+            ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("Expected = " + str(a * b)).ljust(16) + ("Got = " + str(result)).ljust(16)
+        )
+
+    def testDefaultProgram_multiply2(self):
+        """Runs a 'multiply' program with various bitLengths and inputs"""
+        for bitLength in [2, 4, 8, 16, 32]:
+            with self.subTest(bitLength=bitLength):
+                a : List[int] = [random.randint(0, 2**(bitLength) - 1) for _ in range(8)]
+                b : List[int] = [random.randint(0, 2**(bitLength) - 1) for _ in range(8)]
+
+                for a, b in zip(a, b):
+                    with self.subTest(a=a, b=b):
+                        program : str = '''
+                                            # Multiplies two numbers together
+                                            # Inputs: r[0], t[0]
+                                            # Output: t[1]
+                                            loop:   jumpEQ  (end, r[0], 0)
+                                                        and     (r[1], r[0], 1)
+                                                        jumpNE  (zero, r[1], 1)
+                                                            add     (t[1], t[0], t[1])
+                                            zero:       shiftL  (t[0], t[0])
+                                                        shiftR  (r[0], r[0])
+                                                        jump    (loop)
+                                            end:    halt
+                                            '''
+                        
+                        CPU = CPUsim(bitLength, defaultSetup=False)
+                        CPU.configSetDisplay(CPU.DisplaySilent())
+
+                        #configure memory
+                        CPU.configAddRegister('r', bitLength, 2) #namespace symbol, bitLength, register amount #will overwrite defaults
+                        CPU.configAddRegister('m', bitLength, 8, show=False) #the program is loaded into here
+                        CPU.configAddRegister('t', bitLength * 2, 2) #note that the register bitLength is double the input register size
+
+                        CPU.linkAndLoad(program)
+
+                        #loads arguments into correct registers
+                        CPU.inject(key='t', index=0, value=a)
+                        CPU.inject(key='r', index=0, value=b)
+                        CPU.run()
+                        result : int = CPU.extract(key='t', index=1)
+
+                        self.assertEqual(
+                            a * b,
+                            result,
+                            ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("Expected = " + str(a * b)).ljust(16) + ("Got = " + str(result)).ljust(16)
+                        )
+
+    def testDefaultProgram_multiply3(self):
+        """Runs a 'multiply' program once, in a VLIW format. 
+        
+        Honestly, just wanted to see if it would run correctly"""
+        bitLength : int = 16
+        a : int = random.randint(0, 2**(bitLength) - 1)
+        b : int = random.randint(0, 2**(bitLength) - 1)
+
+        program : str = '''
+                            # Multiplies two numbers together
+                            # Inputs: r[0], t[0]
+                            # Output: t[1]
+                            loop:   jumpEQ  (end, r[0], 0)
+                                        and     (r[1], r[0], 1)
+                                        jumpNE  (zero, r[1], 1)
+                                            add     (t[1], t[0], t[1])
+                            zero:       shiftL  (t[0], t[0]), shiftR  (r[0], r[0]), jump    (loop)
+                            end:    halt
+                            '''
+        
+        CPU = CPUsim(bitLength, defaultSetup=False)
+        CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
+
+        #configure memory
+        CPU.configAddRegister('r', bitLength, 2) #namespace symbol, bitLength, register amount #will overwrite defaults
+        CPU.configAddRegister('m', bitLength, 8, show=False) #the program is loaded into here
+        CPU.configAddRegister('t', bitLength * 2, 2) #note that the register bitLength is double the input register size
+
+        CPU.linkAndLoad(program)
+
+        #loads arguments into correct registers
+        CPU.inject(key='t', index=0, value=a)
+        CPU.inject(key='r', index=0, value=b)
+        CPU.run()
+        result : int = CPU.extract(key='t', index=1)
+
+        self.assertEqual(
+            a * b,
+            result,
+            ("bitLength = " + str(bitLength)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("Expected = " + str(a * b)).ljust(16) + ("Got = " + str(result)).ljust(16)
+        )
+
+class TestRISCV(unittest.TestCase):
+    #TODO test initialization
+
+    #TODO test instructions
+
+    def testRISCVProgram_multiply1(self):
+        """Runs a 'multiply' program once"""
+        a : int = random.randint(0, 2**8 - 1)
+        b : int = random.randint(0, 2**8 - 1)
+
+        CPU = RiscV().CPU
+        CPU.configSetDisplay(CPU.DisplaySimpleAndClean(0))
+
+        program : str = """
+                            # Multiplies two numbers together using shift and add
+                            # Inputs: a0 (x10), a2 (x12)
+                            # Outputs: a3 (x13)
+                            # [register mappping from other program]: r0 => a0 (x10), r1 => a1 (x11), t0 => a2 (x12), t1 => a3 (x13)
+                            loop:   beq     a0, 0, end          #note: the destination pointer is the third argument, where in the previous example it was the first argument
+                                    andi    a1, a0, 1
+                                    bne     a1, 1, temp
+                                    add     a3, a2, a3
+                            temp:   slli    a2, a2, 1           #can't use zero as a label, it's a register (x0)
+                                    srli    a0, a0, 1
+                                    beq     zero, zero, loop    #a psudoinstruction for an unconditional jump
+                            end:    halt                        #this is a jurry-rigged instruction for 'halt' because I haven't figured out how to implement system calls yet
+                            """
+
+        CPU.linkAndLoad(program)
+
+        CPU.inject('x', 10, a)
+        CPU.inject('x', 12, b)
+        CPU.run()
+
+        result : int = CPU.extract('x', 13)
+
+    #TODO multiplication test program, but with multiple runs/parameters
+
+if __name__ == "__main__":
+    #Testing
+    logging.basicConfig(level = logging.INFO)
+    unittest.main(verbosity = 2, buffer = True, exit = False)
+    print("".ljust(80, "="))
+
     logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
-    debugHighlight = lambda x : 1350 <= x <= 1500
 
-    #print("".ljust(80, "="))
-    #TestDefault._testProgram1(None, 8, 2, 8, show=True)
-    #print("".ljust(80, "="))
-    #TestRISCV._testProgram1(None, 8, 2, show=True)
-    #print("".ljust(80, "="))
     
