@@ -27,10 +27,13 @@ Quick Start: <==================================================================
 
 Getting Started: <=====================================================================================================
     Note: this is a prototype, so the entire API is in flux
-    refer to "TestDefault._testProgram1_defaultMultiply" for a simple example of a possible use case.
+    refer to "def _testProgram1_defaultMultiply" for a simple example of a possible use case. (for a simuler example in RISCV, refer to "def _testProgram1_RISCVMultiply")
     refer to "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
 
 API
+#TODO
+
+API Detailed
     class CPUsim
         *var state                                          Contains the current registers, stored as 2-dimension dictionary IE: state["registers"][0] = register 0
         *var lastState                                      Contains the state of the registers from the last cycle. Structure is same as 'state'
@@ -53,7 +56,8 @@ API
         <=  Running Code =====================================================>
         *def linkAndLoad                                    Takes in source code, 'compiles' it, loads it into memory
         *def run                                            Runs code (use after 'def linkAndLoad')
-        *def lazy                  #TODO not implimented    Takes in source code, 'compiles' it, runs it (without loading it into main memory)                         
+        *def lazy                  #TODO not implimented    Takes in source code, 'compiles' it, runs it (without loading it into main memory)
+        def _postEngineTick                                 
 
         class compileDefault
             def compile
@@ -99,6 +103,8 @@ API
             def ruleNestContainersIntoInstructions
             def ruleLowerCase
             def ruleApplyAlias
+            def ruleFilterBlockComments             #TODO
+            def ruleFindDirectives                  #TODO   not sure if needed after engine rework
             
         <=  Instruction Definition Stuff =====================================>
         *class InstructionSetDefault                        A simplified instruction set implimentation
@@ -106,12 +112,13 @@ API
             var stats
             var directives
             *def __init__                                   This is where the instruction set is 'mapped' to keywords and arguments. See 'class RiscVISA.__init__' for an advanced example
+            def verifyMemoryLayout          #TODO           Called on instruction set import, to verify that the memory layout is valid for this instruction set (IE: it has 'r' registers, 'm' memory, etc)
             def redirect                                    
             def enforceImm
             def enforceRegisterAccess       #TODO
             def int2bits
             def bits2int
-            def opNop                                       The below are a number of base instructions that came be put together to make an instruction set
+            def opNop                                       The below are a number of base instructions that can be put together to make an instruction set
             def opAdd
             def opMultiply
             def opTwosCompliment
@@ -122,7 +129,7 @@ API
             def opJump
             def opShiftL
             def opShiftR
-            def opHalt                      #Still figuring out syscalls
+            def opHalt                      #TODO Still figuring out syscalls
 
     <=  Testing defaults in Module ===========================================>
     class TestDefault
@@ -235,6 +242,23 @@ Test Cases to impliment:
         Fairly simple instruction set
         The individual CPUs can be 'blocked' by full input/output buffers, which is a unique functionality
         This kind of idea is an idea I've had for a long time, and how to scale it up
+    Magic Square of Squares
+        A 3x3 grid where each square has a unique int that is squared. The sum of each row, column, and diagonal should be the same number
+            It's an unsolved math puzzle thing that has yet to be proved or disproved on wheather it's possible.
+            Can make multiple programs to try every int combination to use as an example of how different architectures use different amounts of energy
+            The goal of the program isn't to find the answer, but to help illustrate possible ways to find the lowest upper lower bound to the computational resources needed to check for said solution
+            A real world, if abstract, problem
+        algorithm test cases
+            RiscV
+            16-bit CPU
+            memory access intensive algorithm
+            int op only CPU
+            with/without branch prediction
+        CPUSim Feature Requirements
+            Energy tracking (for memory access, instruction fetching, computation, etc)
+            An implimented Modular Meta Memory Managment Unit (MMMMU) (for energy tracking of memory access, instruction fetching, cache hits, etc)
+            Speculative execution/branch prediction (having speculative execution with multiple execution units running could drastically change the energy profile of an algorithm)
+    #TODO a stack based CPU
 
 #TODO Stack:
     create instruction helper that allows adding an immediate register (IE: you put in a number, and it passes out an immediate register address, AND adds an immediate register)
@@ -244,6 +268,13 @@ Test Cases to impliment:
     impliment ISA helping function that allows selecting a 'bitrange' of a register. IE: take a 16-bit register, return the upper 8-bits (as a created immiedate register)
     rewrite tests to use unittest module
     change engine datastructure to store instructions for EVERY register, not just as a 'special' register array. Possibly make it it's own variable, like self.config
+    change variable name 'state' and 'oldState' to 'stateCurrent' and 'stateNew'
+    Change terminology of 'registers' to 'registers' and 'register banks' or 'register array'
+    Change terminology of 'cycle' to 'tick' with expected value of 1*10^10
+    Move Node class definition from Parser to main class
+
+
+
 """
 
 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
@@ -555,7 +586,7 @@ class CPUsim:
         self.engine["instructionArray"] : List["Nodes"] = None
         self.engine["sourceCode"] : str = None
         self.engine["sourceCodeLineNumber"] : int = None #TODO this should be an array of ints, to represent multiple instructions being executed
-        self.engine["cycle"] : int = 0
+        self.engine["tick"] : int = 0
 
         '''a bunch of variables that are required for proper functioning, but are reqired to be configured by config functions
         defined here for a full listing of all these variables
@@ -584,7 +615,7 @@ class CPUsim:
         #adds special registers that are required
         self.configConfigRegister('pc', 0, bitLength, note="SPECIAL") #program counter, it's a list for better consistancy with the other registers
         for i in range(1024): 
-            self.configConfigRegister('imm', i, bitLength, note="SPECIAL") #holds immidiate values, IE: litteral numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
+            self.configConfigRegister('imm', i, bitLength, note="SPECIAL") #holds immidiate values, IE: literal numbers stored in the instruction, EX: with "add 2,r0->r1", the '2' is stored in the instruction
         self.state['imm'] = {}  #clears all immediate indexes, will be dynamically generated when needed
         self.lastState['imm'] = {}
         
@@ -605,7 +636,7 @@ class CPUsim:
 
         #engine stuff?
         self.lastState, self.state = self.userPostCycle(self.state)
-        self._postCycleEngine()
+        self._postEngineTick()
 
     def _computeNamespace(self): #TODO this should serve a different function, updating namespaces throughout program WITHOUT using a centralized 'namespace' variable
         """computes the namespace of instructions, registers, etc for the CPU. Updates self._updateNameSpace : dict"""
@@ -847,7 +878,7 @@ class CPUsim:
 
         self._displayRuntime()
 
-        self._postCycleEngine()
+        self._postEngineTick()
 
     def extract(self, key : str, index : int or str) -> int:
         """Takes in a key index pair representing a specific register. Returns an int representing the value stored in that register"""
@@ -865,7 +896,7 @@ class CPUsim:
         t1 = key.lower()
         t2 = index.lower() if type(index) is str else index
 
-        self._postCycleEngine()
+        self._postEngineTick()
 
         return self.state[t1][t2]
 
@@ -962,10 +993,10 @@ class CPUsim:
         '''
         self._displayRuntime()
         self.lastState, self.state = self.userPostCycle(self.state)
-        self._postCycleEngine()
+        self._postEngineTick()
 
         self.engine["run"] = True
-        self.engine["cycle"] = 0
+        self.engine["tick"] = 0
 
         i = 0
         while i < cycleLimit:
@@ -988,7 +1019,7 @@ class CPUsim:
 
             self._displayRuntime()
             self.lastState, self.state = self.userPostCycle(self.state)
-            self._postCycleEngine()
+            self._postEngineTick()
 
         self._displayPostRun()
             
@@ -1122,10 +1153,10 @@ class CPUsim:
             else:
                 return tuple(stack)
 
-    def _postCycleEngine(self):
+    def _postEngineTick(self):
         """Prototype
         runs at the end of each execution cycle, meant to handle engine level stuff. Should also run checks to verify the integrity of self.state"""
-        self.engine["cycle"] += 1
+        self.engine["tick"] += 1
         
         '''#TODO
         assert state and last state have the same keys (except for immediate values/registers)
@@ -1238,7 +1269,7 @@ class CPUsim:
             """Executed after every instruction/cycle. Accesses/takes in all information about the engine, takes control of the terminal to print information."""
 
             lineEngine : str = ""
-            lineEngine += "[Cycle " + str(engine["cycle"]).rjust(8, "0") + "]"
+            lineEngine += "[TICK " + str(engine["tick"]).rjust(10, "0") + "]"
             lineEngine += "\n"
 
             #calculate column widths
@@ -2752,8 +2783,13 @@ class CPUsim:
 
             if registerTuple[0] != "imm":
                 raise Exception("Expected immediate value, got register instead")
+            if bitLength != None:
+                pass #TODO should also be able to limit the size of the immediate value. IE: imm < 2**12
+
             return registerTuple
 
+        def enforceRegisterAccess(self, registerTuple : Tuple[str, int], key : str = None, index : str = None) -> Tuple[str, int]:
+            pass #TODO
 
         def int2bits(self, number : int, bitLength : int) -> List[int]:
             """Takes a bitLength, and a number where ((0 - 2**bitLength) // 2 <= number < 2**bitLength). Returns a bit int array representing the number, zero index is least significant bit
