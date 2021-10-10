@@ -3645,40 +3645,693 @@ class TIS100:
 
 
 
+class InstructionSetDefault_Mockup:
+    """A Mockup of the default instruction set for future use
+    
+    A simplified instruction set implimentation, along with the building blocks for base instructions to help build an instruction set.
 
+    API: #TODO Update
+        class InstructionSetDefault
+            def __init__
+                var bitLength
+                var instructionSet
+                var instructionStats
+            def checkEnvironment
+            def enforceAccess
+            def int2bits
+            def bits2int
+            def opSyscall                               #TODO
+            def opNop
+            def opAdd
+            def opMultiply
+            def opTwosCompliment
+            def opAND
+            def opOR
+            def opXOR
+            def opNOT
+            def opJump
+            def opShiftL
+            def opShiftR
+            def opRotate
+    """
 
+    def __init__(self, bitLength=16):
+        """Initializes instruction set
 
+        bitLength is used to caluculate energy and latency of instructions.
+        """
+        assert type(bitLength) is int
+        assert bitLength >= 1
 
+        self.bitLength : int = bitLength
 
+        self.instructionSet :   Dict[
+                                    Tuple[str, ...],                                    #Instruction 'op-code', will automatically (#TODO) get converted to a Tuple on import
+                                    List[                                               #Instruction functions will automatically (#TODO) get converted to a list in import
+                                        Callable[
+                                            [
+                                                Callable[[str, int or str], int],   #MMMU read function
+                                                Callable[[str, int or str], None],  #MMMU write function
+                                                Callable[[str, int or str], dict],  #MMMU get config function
+                                                Dict[                                   #Engine Functions
+                                                    str,
+                                                    Callable[[Any], Any]                                                    
+                                                ],                                   
+                                                dict,                                   #Engine info
+                                                Tuple[str, str or int],                 #Optional Additional register arguments passed to instruction
+                                                Any],                                   #Optional Additional register arguments passed to instruction
+                                            None]
+                                    ]
+                                ] = {
+            "nop"       : self.opNop,
 
+            "add"       : self.opAdd,
+            "mult"      : self.opMultiply,
+            "twos"      : self.opTwosCompliment,
 
+            "and"       : self.opAND,
+            "or"        : self.opOR,
+            "xor"       : self.opXOR,
+            "not"       : self.opNOT,
 
+            "jumpeq"    : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer, a, b           : self.opJump(fRead, fWrite, fConfig, EFunc, EStatus,       "==", pointer, a, b)),
+            "jumpne"    : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer, a, b           : self.opJump(fRead, fWrite, fConfig, EFunc, EStatus,       "!=", pointer, a, b)),
+            "jump"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer                 : self.opJump(fRead, fWrite, fConfig, EFunc, EStatus,       "goto", pointer)),
 
-        CPU.linkAndLoad(program)
+            "shiftl"    : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a                  : self.opShiftL(fRead, fWrite, fConfig, EFunc, EStatus,     des, a, fWrite("imm", 0, 1))), #TODO #Allows adding an immediate value, and returns an immediate key/index pair
+            "shiftr"    : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a                  : self.opShiftR(fRead, fWrite, fConfig, EFunc, EStatus,     des, a, fWrite("imm", 0, 1), False)), #TODO #Allows adding an immediate value, and returns an immediate key/index pair
 
+            #TODO #This essentially makes a table-lookup to datastructure in another part of the CPU simulator where you can define what happens (IE: a direct function call, or a jump to an OS subroutine)
+            "halt"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer, a, b           : self.opSyscall(fRead, fWrite, fConfig, EFunc, EStatus,    "halt"))
+            #"halt"     : self.microcode(0xFFFF)    #TODO #This explicidly jumps to a predefined subroutine that is outside of the typical memory layout (IE: a special memory section kind of like how IMM registers is handled now)
 
+            #"addTest"  : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a, b               : self.opAdd(fRead, fWrite, fConfig, EFunc, EStatus,        des, ("m", fRead(a)), b))   #Indirect Memory Addressing
+        }
 
-                
+        #self.instructionStats is optional, and will be automatically (#TODO) filled in when loaded
+        #for energy and latency, 1 is normalized to 1-ish logic gates-ish
+        #length is unused, but is for the assembler to compute how much memory each instruction takes, 1 is 1 byte (don't know all the edge cases that could break a simple assignment like this)
+        self.instructionStats :     Dict[
+                                        Tuple[str, ...],
+                                        Dict[
+                                            Literal["energy", "latency", "cycles", "length", "executionUnit"],
+                                            int or str or Literal["none", "alu", "int", "float", "branch", "load", "vector"]
+                                        ]
+                                    ] = {
+            "nop"       : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "none"            },
 
+            "add"       : {"energy"         : 5 * bitLength,    "latency"       : 3 * bitLength,    "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
+            "mult"      : {"energy"         : (5*bitLength)**2, "latency"       : (4*bitLength)*2,  "cycles"        : bitLength,        "length"        : 4,                "executionUnit" : "alu"             },
+            "twos"      : {"energy"         : 6 * bitLength,    "latency"       : 3 * bitLength,    "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
 
+            "and"       : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
+            "or"        : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
+            "xor"       : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
+            "not"       : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
 
+            "jumpeq"    : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "branch"          },
+            "jumpne"    : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "branch"          },
+            "jump"      : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "branch"          },
 
+            "shiftl"    : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
+            "shiftr"    : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
 
+            "halt"      : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "none"            },
+        }
 
+    def checkEnvironment(self, funcRead : Callable[[str, str or int], int]) -> bool:
+        """Checks if the memory layout is compatible by attempting to read necissary elements from memory, returns true is compatible"""
+        assert callable(funcRead)
 
+        try:
+            funcRead(("r", 0))
+            funcRead(("m", 0))
+        except:
+            logging.info(debugHelper(inspect.currentframe()) + "InstructionSet not compatible with current Memory Layout")
+        
+    def int2bits(self, number : int, bitLength : int) -> List[int]:
+        """Takes a bitLength, and a number where ((0 - 2**bitLength) // 2 <= number < 2**bitLength). Returns a bit int array representing the number, zero index is least significant bit
+        
+        For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
+        """
+        assert type(bitLength) is int
+        assert bitLength > 0
+        assert type(number) is int
+        assert (0 - 2**bitLength) // 2 <= number < 2**bitLength
+
+        number = number & (2**bitLength - 1)
+        bitArray = [number >> i & 1 for i in range(bitLength)] #index 0 is least significant bit
+
+        return bitArray
+
+    def bits2int(self, bitArray : List[int or bool]) -> int:
+        """Takes in a bit (int or bool) array where zero index is least significant bit. Returns the positive number is represents"""
+        assert type(bitArray) is list
+        assert len(bitArray) > 0
+        assert all([(type(i) is int or type(i) is bool) for i in bitArray])
+
+        return sum([bit << i for i, bit in enumerate(bitArray)])
+
+    def microEnforceAccess(self, register : Tuple[str, str or int], key : str) -> Tuple[str, str or int]:
+        """returns register tuple iff register[0] matches key, raises exception otherwise"""
+        assert type(register) is tuple or type(register) is list
+        assert len(register) == 2
+        assert type(register[0]) is str and (type(register[1]) is int or type(register[1]) is str)
+
+        if key != register[0]:
+            raise Exception("Instruction not allowed access to specified register: " + str(key))
+        return register
+
+    def microSyscall(self,
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict,
+        operation : str):
+        """Takes in a string indicating what syscall to call, and passes that call to the engine"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+
+        assert type(operation) is str
+        assert len(str) != 0
+
+        engineFunc["syscall"](operation)
+
+    def microSelectBits(self,
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None],
+        registerA : Tuple[str, str or int],
+        bitStart : int, bitEnd: int) -> Tuple[str, str or int]:
+        """Takes a register, selects the bits starting at bitStart inclusive and ending at bitEnd inclusive. Takes result, adds it as an immediate register, returns the register address"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+
+        assert type(bitStart) is int
+        assert bitStart >= 0
+        assert type(bitEnd) is int
+        assert bitEnd >= 0
+        assert bitEnd >= bitStart
+
+        a : int = funcRead(registerA)
+        
+        a = a >> bitStart
+        a = a & (2 ** (bitEnd - bitStart + 1) - 1)
+
+        registerB = funcWrite("imm", 0, a)
+        return registerB
+
+    def opNop(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict):
+        """The 'No Operation' instruction, it does nothing"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        pass #Does nothing
+
+    def opAdd(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+        """Adds registerA and registerB, stores result in registerDestination"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+        assert type(registerB) is tuple or type(registerB) is list
+        assert len(registerB) == 2
+        assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+
+        a : int = funcRead(registerA)
+        b : int = funcRead(registerB)
+
+        bitLength : int = funcGetConfig(registerDestination)["bitLength"]
+
+        c : int = a + b
+        c = c & (2**bitLength - 1)
+
+        funcWrite(registerDestination, c)
+
+    def opMultiply(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+        """Multiplies registerA and registerB, stores result in registerDestination"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+        assert type(registerB) is tuple or type(registerB) is list
+        assert len(registerB) == 2
+        assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+
+        a : int = funcRead(registerA)
+        b : int = funcRead(registerB)
+
+        bitLength : int = funcGetConfig(registerDestination)["bitLength"]
+
+        c : int = a * b
+        c = c & (2**bitLength - 1)
+
+        funcWrite(registerDestination, c)
+
+    def opTwosCompliment(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int]):
+        """Takes value from registerA, performs twos compliment, stores result in registerDestination"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+
+        a : int = funcRead(registerA)
+
+        bitLength : int = funcGetConfig(registerDestination)["bitLength"]
+
+        inputNumber : int = a & (2**bitLength - 1) #Cuts down number to correct bitLength BEFORE converting it
+        bitArray : List[int] = [inputNumber >> i & 1 for i in range(bitLength)] #Converts to bit array, index 0 is least significant bit
+        bitArray : List[int] = [not i for i in bitArray] #performs the bitwise NOT operation
+        result : int = sum([bit << i for i, bit in enumerate(bitArray)])
+        result += 1
+
+        result = result & (2**bitLength - 1) #Cuts down number to correct bitLength again
+
+        funcWrite(registerDestination, result)
+
+    def opAND(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+        """Performs AND operation between registerA and registerB, stores result in registerDestination"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+        assert type(registerB) is tuple or type(registerB) is list
+        assert len(registerB) == 2
+        assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+
+        a : int = funcRead(registerA)
+        b : int = funcRead(registerB)
+
+        bitLength : int = funcGetConfig(registerDestination)["bitLength"]
+
+        c : int = a & b
+        c = c & (2**bitLength - 1)
+
+        funcWrite(registerDestination, c)
+
+    def opOR(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+        """Performs OR operation between registerA and registerB, stores result in registerDestination"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+        assert type(registerB) is tuple or type(registerB) is list
+        assert len(registerB) == 2
+        assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+
+        a : int = funcRead(registerA)
+        b : int = funcRead(registerB)
+
+        bitLength : int = funcGetConfig(registerDestination)["bitLength"]
+
+        c : int = a | b
+        c = c & (2**bitLength - 1)
+
+        funcWrite(registerDestination, c)
+
+    def opXOR(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+        """Performs XOR operation between registerA and registerB, stores result in registerDestination"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+        assert type(registerB) is tuple or type(registerB) is list
+        assert len(registerB) == 2
+        assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+
+        a : int = funcRead(registerA)
+        b : int = funcRead(registerB)
+
+        bitLength : int = funcGetConfig(registerDestination)["bitLength"]
+
+        c : int = a ^ b
+        c = c & (2**bitLength - 1)
+
+        funcWrite(registerDestination, c)
+
+    def opNot(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int]):
+        """Performs NOT operation on registerA, stores result in registerDesintation"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+
+        a : int = funcRead(registerA)
+
+        bitLength : int = funcGetConfig(registerDestination)["bitLength"]
+
+        inputNumber : int = a & (2**bitLength - 1) #Cuts down number to correct bitLength BEFORE converting it
+        bitArray : List[int] = [inputNumber >> i & 1 for i in range(bitLength)] #Converts to bit array, index 0 is least significant bit
+        bitArray = [not i for i in bitArray] #performs the bitwise NOT operation
+        result : int = sum([bit << i for i, bit in enumerate(bitArray)])
+
+        result = result & (2**bitLength - 1) #Cuts down number to correct bitLength again
+
+        funcWrite(registerDestination, result)
+
+    def opJump(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        mode : Literal["goto", "<", "<=", ">", ">=", "==", "!="],
+        gotoIndex : Tuple[str, str or int], registerA : Tuple[str, str or int] = None, registerB : Tuple[str, str or int] = None):
+        """Conditional jump to gotoIndex, conditional on mode, and optional registers a and b
+
+        #TODO needs to handle signed and unsigned ints
+
+        mode:
+            goto    - a simple jump without any condition testing, a and b must be set to None
+            <       - less than
+            <=      - less than or equal to
+            >       - greater than
+            >=      - greater than or equal to
+            ==      - equal
+            !=      - not equal
+        """
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(mode) is str
+        assert len(mode) > 0
+        mode = mode.lower()
+        assert mode in ("goto", "<", "<=", ">", ">=", "==", "!=")
+        assert type(gotoIndex) is tuple or type(gotoIndex) is list
+        assert len(gotoIndex) == 2
+        assert type(gotoIndex[0]) is str and (type(gotoIndex[1]) is int or type(gotoIndex[1]) is str)
+        if mode != "goto":
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+        else: #mode == "goto"
+            assert type(registerA) is type(None)
+            assert type(registerB) is type(None)
+        
+        pointer : int = funcRead(gotoIndex)
+        pc : List[str, int] = ("pc", 0)
+
+        if mode == "goto":
+            funcWrite(pc, pointer)
+        else:
+            a : int = funcRead(registerA)
+            b : int = funcRead(registerB)
+
+            if mode == "<" and a < b:
+                funcWrite(pc, pointer)
+            elif mode == "<=" and a <= b:
+                funcWrite(pc, pointer)
+            elif mode == ">" and a > b:
+                funcWrite(pc, pointer)
+            elif mode == ">=" and a >= b:
+                funcWrite(pc, pointer)
+            elif mode == "==" and a == b:
+                funcWrite(pc, pointer)
+            elif mode == "!=" and a != b:
+                funcWrite(pc, pointer)
+
+    def opShiftL(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerShiftOffset : Tuple[str, str or int]):
+        """Takes registerA, shifts left by amount registerShiftOffset, stores result in registerDestination
+        
+        will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
+            a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+        assert type(registerShiftOffset) is tuple or type(registerShiftOffset) is list
+        assert len(registerShiftOffset) == 2
+        assert type(registerShiftOffset[0]) is str and (type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str)
+
+        a : int = funcRead(registerA)
+        amount : int = funcRead(registerShiftOffset)
+        
+        bitLengthSource : int = funcGetConfig(registerA)["bitLength"]
+        bitLengthDestination : int = funcGetConfig(registerDestination)["bitLength"]
+
+        if amount > 8 * max(256, bitLengthSource, bitLengthDestination):
+            raise Exception("Instruction input 'registerShiftOffset' is too large to be valid")
+
+        result : int = a << amount
+
+        result = result & (2**bitLengthDestination - 1)
+
+        funcWrite(registerDestination, result)
+
+    def opShiftR(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerShiftOffset : Tuple[str, str or int], arithmetic : bool = False):
+        """Takes registerA, shifts it right by registerShiftOffset (performs arithmetic right shift if arithmetic == True), stores result in registerDestination
+        
+        If registerDestination bitLength is greater then registerA bitLength:
+            registerA most significant bit is extended to registerDestiantion bitLength AFTER arithmetic shift right
+        will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
+            a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly
+        """
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+        
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+        assert type(registerShiftOffset) is tuple or type(registerShiftOffset) is list
+        assert len(registerShiftOffset) == 2
+        assert type(registerShiftOffset[0]) is str and (type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str)
+        assert type(arithmetic) is bool
+
+        a : int = funcRead(registerA)
+        amount : int = funcRead(registerShiftOffset)
+
+        bitLengthSource : int = funcGetConfig(registerA)
+        bitLengthDestination : int = funcGetConfig(registerDestination)
+
+        if amount > 8 * max(256, bitLengthSource, bitLengthDestination):
+            raise Exception("Instruction input 'registerShiftOffset' is too large to be valid")
+
+        result : int = a
+        for i in range(amount): #shift a right WITHIN bitLengthSource
+            msb : int = 0
+            if arithmetic:
+                msb = 2**(bitLengthSource - 1) & result
+            result = result >> 1
+            result = result | msb
+
+        if bitLengthSource < bitLengthDestination: #Takes msb, and extends it out to larger bitLength bitLengthDestination if needed
+            msb : int = 2**(bitLengthSource - 1) & result
+            for i in range(bitLengthSource - 1, bitLengthDestination):
+                msb = msb | (msb << 1)
+            result = result | msb
+        
+        result = result & (2**bitLengthDestination - 1)
+
+        funcWrite(registerDestination, result)
+
+    def opRotate(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerShiftOffset : Tuple[str, str or int], leftOrRight : Literal["left", "right"]):
+        """Takes registerA, rotates bits left or right (depending on leftOrRight) by rigsterShiftOffset amount. Result is then trunked to fit into registerDestination
+        
+        will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
+            a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly"""
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+        assert type(registerShiftOffset) is tuple or type(registerShiftOffset) is list
+        assert len(registerShiftOffset) == 2
+        assert type(registerShiftOffset[0]) is str and (type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str)
+        assert type(leftOrRight) is str
+        assert leftOrRight in ("left", "right")
+
+        a : int = funcRead(registerA)
+        amount : int = funcRead(registerShiftOffset)
+
+        bitLengthSource : int = funcGetConfig(registerA)
+        bitLengthDestination: int = funcGetConfig(registerDestination)
+
+        if amount > 8 * max(256, bitLengthSource, bitLengthDestination):
+            raise Exception("Instruction input 'registerShiftOffset' is too large to be valid")
+
+        if leftOrRight == "right":
+            for i in range(amount):
+                lsb = a & 1
+                a = a >> 1
+                a = a | (lsb << (bitLengthSource - 1))
+        elif leftOrRight == "left":
+            for i in range(amount):
+                msb = a & (2**(bitLengthSource - 1))
+                a = a << 1
+                a = a | (1 if msb == 0 else 0)
+                a = a & (2**bitLengthSource - 1)
+        
+        result = a & (2**bitLengthDestination - 1)
+
+        funcWrite(registerDestination, result)
+
+    def opCopy(self, 
+        funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int],
+        trunkOrExtend : Literal["trunk", "extend"], multiElement : bool, bitsToCopy : int):
+        """Copies a value from registerA to registerDestination
+        
+        Use Cases:
+            copy register to register
+            copy byte to memory and vice versa
+            copy word to memory and vice versa
+            trunk or arithmatic extend value while copying
+        
+        #TODO
+        """
+        assert callable(funcRead)
+        assert callable(funcWrite)
+        assert callable(funcGetConfig)
+        assert type(engineFunc) is dict
+        assert all([callable(j) for _, j in engineFunc.items()])
+        assert type(engineStatus) is dict
+
+        assert type(registerDestination) is tuple or type(registerDestination) is list
+        assert len(registerDestination) == 2
+        assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+        assert type(registerA) is tuple or type(registerA) is list
+        assert len(registerA) == 2
+        assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+
+        assert type(trunkOrExtend) is str
+        assert len(trunkOrExtend) > 0
+        assert trunkOrExtend == "trunk" or trunkOrExtend == "extend"
+        assert type(multiElement) is bool
+        assert type(bitsToCopy) is int
+        assert bitsToCopy > 0
+
+        sourceBank : str = registerA[0]
+        sourceIndex : str or int = registerA[1]
+        sourceBitLength : int = funcGetConfig(registerA)
+
+        destinationBank : str = registerDestination[0]
+        destinationIndex : str or int = registerDestination[1]
+        destinationBitLength : int = funcGetConfig(registerDestination)
 
         
 
+        #TODO
+        raise Exception()
 
-
-
-
-        
-        
-        
-
-        
-        
+    
 
 
 #====================================================================================================================== Testing and Verification
