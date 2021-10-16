@@ -284,9 +284,12 @@ assert version[0] == 3 and version[1] >= 8
 
 import copy #copy.deepcopy() required because states are a nested dictionary, and need to be copied instead of referenced
 import functools #used for partial functions when executioning 'instruction operations'
-from typing import Any, Callable, Dict, List, Literal, Tuple #used for more complex annotation typing
 import unittest
 import random
+
+#Some stuff for more complex annotation typing
+from typing import Any, Callable, Dict, Generic, List, Literal, Tuple, TypeVar
+ParseNode = TypeVar("ParseNode") #A node used for containing source code parsing data.
 
 #debugging and logging stuff
 import logging
