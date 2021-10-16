@@ -4756,6 +4756,48 @@ class CPUsim_v4(Generic[ParseNode]):
                 #"addTest"  : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a, b               : self.opAdd(fRead, fWrite, fConfig, EFunc, EStatus,        des, ("m", fRead(a)), b))   #Indirect Memory Addressing
             }
 
+            self.instructionEnergy :    Dict[
+                                            Tuple[str, ...],
+                                            List[
+                                                Callable[
+                                                    [   #A list/tuple, bypasses python parser typing bug
+                                                        Callable[[str, int or str], int],       #MMMU read function
+                                                        Callable[[str, int or str], None],      #MMMU write function
+                                                        Callable[[str, int or str], dict],      #MMMU get config function
+                                                        Tuple[str, str or int],                 #Optional Additional register arguments passed to instruction
+                                                        Any
+                                                    ],
+                                                    Dict[                                       #Returns energy/latency info to engine for tabulation
+                                                        Literal["energy", "latency"],
+                                                        int
+                                                    ]
+                                                ]
+                                            ]
+                                        ] = {
+                "nop"       : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0}),
+
+                "add"       : self.engAdd_RippleCarry,
+                "mult"      : self.engMultiply,
+                "twos"      : (lambda fRead, fWrite, fConfig,       des, a                  : { "energy"    : self.engAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["energy"] + self.engNOT(fRead, fWrite, fConfig, des, a)["energy"], 
+                                                                                                "latency"   : self.engAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["latency"] + self.engNOT(fRead, fWrite, fConfig, des, a)["latency"]
+                                                                                                }),
+                "copy"      : self.engAND,
+
+                "and"       : self.engAND,
+                "or"        : self.engAND,
+                "xor"       : self.engAND,
+                "not"       : self.engNOT,
+
+                "jumpeq"    : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.engAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
+                "jumpne"    : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.engAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
+                "jump"      : (lambda fRead, fWrite, fConfig,       pointer                 : self.engNOT(fRead, fWrite, fConfig,            pointer, pointer)),
+
+                "shiftl"    : self.engNOT,
+                "shiftr"    : self.engNOT,
+
+                "halt"      : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0})
+            }
+
             """
             #self.instructionStats is optional, and will be automatically (#TODO) filled in when loaded
             #for energy and latency, 1 is normalized to 1-ish logic gates-ish
@@ -4788,6 +4830,36 @@ class CPUsim_v4(Generic[ParseNode]):
                 "halt"      : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "none"            },
             }
             """
+
+            #self.instructionStats is optional, and will be automatically (#TODO) filled in when loaded
+            #for energy and latency, 1 is normalized to 1-ish logic gates-ish
+            self.instructionStats :     Dict[
+                                            Tuple[str, ...],
+                                            Dict[
+                                                Literal["cycles", "executionUnit"],
+                                                None or int or str or Literal["none", "alu", "int", "float", "branch", "load", "vector"]
+                                            ]
+                                        ] = {
+                "nop"       : {"cycles"         : 1,                "executionUnit" : None              },
+
+                "add"       : {"cycles"         : 1,                "executionUnit" : "alu"             },
+                "mult"      : {"cycles"         : None,             "executionUnit" : "alu"             },
+                "twos"      : {"cycles"         : 1,                "executionUnit" : "alu"             },
+                "copy"      : {"cycles"         : 1,                "executionUnit" : "alu"             },
+
+                "and"       : {"cycles"         : 1,                "executionUnit" : "alu"             },
+                "or"        : {"cycles"         : 1,                "executionUnit" : "alu"             },
+                "xor"       : {"cycles"         : 1,                "executionUnit" : "alu"             },
+                "not"       : {"cycles"         : 1,                "executionUnit" : "alu"             },
+
+                "jumpeq"    : {"cycles"         : 1,                "executionUnit" : "branch"          },
+                "jumpne"    : {"cycles"         : 1,                "executionUnit" : "branch"          },
+                "jump"      : {"cycles"         : 1,                "executionUnit" : "branch"          },
+                "shiftl"    : {"cycles"         : 1,                "executionUnit" : "alu"             },
+                "shiftr"    : {"cycles"         : 1,                "executionUnit" : "alu"             },
+
+                "halt"      : {"cycles"         : 1,                "executionUnit" : None            },
+            }
 
         def checkEnvironment(self, funcRead : Callable[[str, str or int], int]) -> bool:
             """Checks if the memory layout is compatible by attempting to read necissary elements from memory, returns true is compatible"""
@@ -5313,6 +5385,207 @@ class CPUsim_v4(Generic[ParseNode]):
 
             funcWrite(registerDestination, result)
 
+        def opCopyElement(self, 
+            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int],
+            trunkOrExtend : Literal["trunk", "extend"] = 'trunk'):
+            """Copies a value from registerA to registerDestination
+            
+            if trunkOrExtend == 'trunk':
+                value from registerA is trunked to fit into registerDestination
+            elif trunkOrExtend == 'extend':
+                value from registerA is arithmatically extended to fit into registerDestination (IE: signed integer copy)
+            """
+            assert callable(funcRead)
+            assert callable(funcWrite)
+            assert callable(funcGetConfig)
+            assert type(engineFunc) is dict
+            assert all([callable(j) for _, j in engineFunc.items()])
+            assert type(engineStatus) is dict
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+
+            assert type(trunkOrExtend) is str
+            assert len(trunkOrExtend) > 0
+            assert trunkOrExtend == "trunk" or trunkOrExtend == "extend"
+
+            sourceBitLength : int = funcGetConfig(registerA)
+            destinationBitLength : int = funcGetConfig(registerDestination)
+
+            a : int = funcRead(registerA)
+            result : int = 0
+            
+            if trunkOrExtend == "trunk":
+                result = a & (2**destinationBitLength - 1)
+            elif trunkOrExtend == "extend":
+                msb : int = 2**(sourceBitLength - 1) & 1
+                result = a
+                for _ in range(destinationBitLength - sourceBitLength): #Takes msb, and extends it out to larger bitLength bitLengthDestination if needed
+                    msb = msb << 1
+                    result = result & msb
+                result = result & (2**destinationBitLength - 1)
+
+            funcWrite(registerDestination, result)
+
+        '''
+        def opCopy(self, 
+            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int],
+            trunkOrExtend : Literal["trunk", "extend"], multiElement : bool, bitsToCopy : int):
+            """Copies a value from registerA to registerDestination
+            
+            Use Cases:
+                copy register to register
+                copy byte to memory and vice versa
+                copy word to memory and vice versa
+                trunk or arithmatic extend value while copying
+            
+            #TODO
+            """
+            assert callable(funcRead)
+            assert callable(funcWrite)
+            assert callable(funcGetConfig)
+            assert type(engineFunc) is dict
+            assert all([callable(j) for _, j in engineFunc.items()])
+            assert type(engineStatus) is dict
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+
+            assert type(trunkOrExtend) is str
+            assert len(trunkOrExtend) > 0
+            assert trunkOrExtend == "trunk" or trunkOrExtend == "extend"
+            assert type(multiElement) is bool
+            assert type(bitsToCopy) is int
+            assert bitsToCopy > 0
+
+            sourceBank : str = registerA[0]
+            sourceIndex : str or int = registerA[1]
+            sourceBitLength : int = funcGetConfig(registerA)
+
+            destinationBank : str = registerDestination[0]
+            destinationIndex : str or int = registerDestination[1]
+            destinationBitLength : int = funcGetConfig(registerDestination)
+
+            #TODO
+        '''
+
+        def engAdd_RippleCarry(self, 
+            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
+            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]
+            ) -> Dict[Literal["energy", "latency"], int]:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of ripple carry add operation on those registers. Returns the energy and latency as a dictionary
+            
+            The value of the registers are not used, only the size of the registers
+            energy = 1 is normalized to one logic gate
+            latency = 1 is normalized to one logic gate
+            
+            Circuit used:
+            def (a, b, c_in) -> s, c_out:
+                s = ((a xor b) xor c_in)
+                c_out = (((a xor b) and c_in) or (a and b))
+                return s, c_out
+            """
+            assert callable(funcRead)
+            assert callable(funcWrite)
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+
+            bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB))
+
+            energy : int = bitLength * 5
+            latency : int = bitLength * 3
+
+            return {"energy" : energy, "latency" : latency}
+
+        def engAND(self, 
+            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
+            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]
+            ) -> Dict[Literal["energy", "latency"], int]:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
+            
+            The value of the registers are not used, only the size of the registers
+            energy = 1 is normalized to one logic gate
+            latency = 1 is normalized to one logic gate
+            
+            Circuit used:
+            def (a, b) -> x:
+                x = (a and b)
+                return x
+            """
+            assert callable(funcRead)
+            assert callable(funcWrite)
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+
+            bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB))
+
+            energy : int = bitLength
+            latency : int = 1
+
+            return {"energy" : energy, "latency" : latency}
+
+        def engNOT(self, 
+            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
+            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int]
+            ) -> Dict[Literal["energy", "latency"], int]:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
+            
+            The value of the registers are not used, only the size of the registers
+            energy = 1 is normalized to one logic gate
+            latency = 1 is normalized to one logic gate
+            
+            Circuit used:
+            def (a) -> x:
+                x = (not a)
+                return x
+            """
+            assert callable(funcRead)
+            assert callable(funcWrite)
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+
+            bitLength : int = funcGetConfig(registerA)
+
+            energy : int = bitLength
+            latency : int = 1
+
+            return {"energy" : energy, "latency" : latency}
+
+#====================================================================================================================== Main
 
 if __name__ == "__main__":
     #Testing
