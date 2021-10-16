@@ -3729,12 +3729,6 @@ class BrainFuck:
         CPU.configAddRegister('m', 8, 2**16, show=False)
         CPU.configAddRegister('data', 8, 30000, show=False)
 
-#====================================================================================================================== Prototype MMMU
-
-
-    
-
-
 #====================================================================================================================== Testing and Verification
 
 class TestDefault(unittest.TestCase):
@@ -5584,6 +5578,247 @@ class CPUsim_v4(Generic[ParseNode]):
             latency : int = 1
 
             return {"energy" : energy, "latency" : latency}
+
+    class MMMU:
+        """
+        MMMU requirements:
+            Modular Meta Memory Managment Unit
+            Must be able to support multiple cache pools
+                Must allow modification of pools (adding pools, resizing pools, changing algorithm of pools)
+            Must allow for memory 'versioning'. IE: an instruction is pipelined, and the memory is 'branched' for that instruction until it's commited or discarded.
+            Must allow for different algorithms to be used for moving/caching data between pools.
+                IE: L3 is an eviction cache, L1D is for data cache, L1I is for instructions cache, L2 uses round robin, etc...
+            Figure out weather it should be accessable as though it's a single large multidimensional python dictionary
+                It's probably better if that memory is accessed through a function instead of moving around massive arrays of diplicate data with each instruction call...
+                will be harder to learn to use if not implimented properly
+            Will require rewriting self.config and everything that goes with it
+
+        Terminoligy: #Because damnit I'll confuse myself if I don't put time into naming things right
+            Registers - Generic term used for Memory Elements that are registers implying most instructionSet instruction interact directly with these Memory Elements
+            Memory - Generic term used for Memory Elements that are not registers implying most instructionSet instructions can't directly access them
+            Transparient - Memory Elements that is directly addressable and accessable from an instruction context (EX: reading from DRAM)
+            Opauqe - Memory Elements that are not directly addressable and accessable from an instruction context (EX: reading from L2 Cache that then reads from DRAM, L2 Cache is not individually addressable from DRAM)
+            Memory Element - One individual memeory unit, comprised of multiple bits. The smallest amount of memory that is uniquely addressable.
+            Memory Pool - A collection of memory that shares a similar propertiy (IE: L1 cache). Does not need to have uniquely addressable Memory Elements accessable from 
+            Memory Bank - A logical seperation of memory addressing in namespace only. (EX: Registers and Memory might be addressed using 'r' and 'm' as different Memory Banks, but they both reside in the same Memory Pool)
+            Special Registers - Special system registers (EX: program counter, immediate registers, program counter Memory Bank pointer, Microcode Registers, etc) which act like regualr registers, but have special functionality and should be treated with attention and care
+            HyperThreadContext - Enables processing multiple threads at the same time without causing comflicts accessing Special Registers (the value seen is translated to a value relavent in that context) while still allowing access to the same Memory Pools
+                IE:
+                    Thread1 -> Special Registers, Registers, L1, DRAM
+                    Thread2 -> Special Registers, Registers, L1, DRAM
+                    Special Register values are unique to and only accessable by each thread
+                    Register values could be unique to and only accessable by each thread, or they could be shared.
+                    L1 and DRAM is shared between the threads
+
+
+        Possible API
+            class MMMU
+                def __init__
+
+                def createPool
+                def configPool
+                def connectPool
+
+                class pool                  #handles low level stuff of memory storage elements (IE: DRAM charge levels)
+                    def __init__
+                        var type
+                        var data
+
+                    def readReal            #reads a value, activates all stat tracking functions
+                    def writeReal           #writes a value, activates all stat tracking functions
+                    def readVirtual         #reads a value without stat tracking, meanly used for the display class, data integrity check, etc
+                    def writeVirtual        #wrotes a value without stat tracking, meanly used for overriding an writeReal. (IE: store a value in register R0, but R0 is hardwired to have a value of zero, like in RISCV)
+                    def readRaw             #reads a value directly from a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+                    def writeRaw            #writes a value directly to a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+
+                    def config
+
+                    def tick                #should TICK return a random number generator state value, so it can be restored in another branch?
+
+                class poolStack     #TODO
+                    def __init__
+                        var type
+                        var data
+
+                    def readReal            #reads a value, activates all stat tracking functions
+                    def writeReal           #writes a value, activates all stat tracking functions
+                    def readVirtual         #reads a value without stat tracking, meanly used for the display class, data integrity check, etc
+                    def writeVirtual        #wrotes a value without stat tracking, meanly used for overriding an writeReal. (IE: store a value in register R0, but R0 is hardwired to have a value of zero, like in RISCV)
+                    def readRaw             #reads a value directly from a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+                    def writeRaw            #writes a value directly to a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+
+                    def config
+
+                    def tick
+
+                class controller            #handles what caching algorithm to use, passes through cache misses, and bufferes IO to slower cache tiers, strictly abstract data handling (IE: reads bindary data from a pool, doesn't read analogue data to process from pool)
+                    def __init__
+
+                    def readReal            #reads a value, activates all stat tracking functions
+                    def writeReal           #writes a value, activates all stat tracking functions
+                    def readVirtual         #reads a value without stat tracking, meanly used for the display class, data integrity check, etc
+                    def writeVirtual        #wrotes a value without stat tracking, meanly used for overriding an writeReal. (IE: store a value in register R0, but R0 is hardwired to have a value of zero, like in RISCV)
+                    def readRaw             #reads a value directly from a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+                    def writeRaw            #writes a value directly to a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+
+                    def tick
+
+                    def setPool
+                    def setCacheMiss
+
+                class splitter              #handles incoming requists, and routes them to the correct pools/controllers
+                    def __init__
+
+                    def readReal            #reads a value, activates all stat tracking functions
+                    def writeReal           #writes a value, activates all stat tracking functions
+                    def readVirtual         #reads a value without stat tracking, meanly used for the display class, data integrity check, etc
+                    def writeVirtual        #wrotes a value without stat tracking, meanly used for overriding an writeReal. (IE: store a value in register R0, but R0 is hardwired to have a value of zero, like in RISCV)
+                    def readRaw             #reads a value directly from a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+                    def writeRaw            #writes a value directly to a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+
+                    def tick
+
+                class externalPassThrough   #used for connected memory pools from other threads into this processor
+                    def __init__
+
+                    def readReal            #reads a value, activates all stat tracking functions
+                    def writeReal           #writes a value, activates all stat tracking functions
+                    def readVirtual         #reads a value without stat tracking, meanly used for the display class, data integrity check, etc
+                    def writeVirtual        #wrotes a value without stat tracking, meanly used for overriding an writeReal. (IE: store a value in register R0, but R0 is hardwired to have a value of zero, like in RISCV)
+                    def readRaw             #reads a value directly from a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+                    def writeRaw            #writes a value directly to a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
+
+                    def tick
+
+                    def connectThread
+
+                class cacheAlgorithm
+                    def __init__
+
+                def tick
+
+                def lock
+                def unlock
+                def fork                    #creates a forked memory version, returns an identifier
+                def commit                  #takes an identifier, and commits it to the master copy of memory in all pools
+                def trackingOn
+                def trackingOff
+
+                def accessStateOld(key, index)      #This function is passed to the InstructionSet instructions, for reading/writing to memory/registers
+                                                        #Throws eception if memory element doesn't exist
+                def accessStateNew(key, index)      #This function is passed to the InstructionSet instructions, for reading/writing to memory/registers
+                                                        #Throws eception if memory element doesn't exist
+                                                        #Writing to an imm register adds it to the old state, and returns a register key/index.
+                                                            #Note: when adding an imm, the imm register generatated should have a bitLenght only as large as required to store the value (plus one leading bit to indicate a positive or negative number)
+                def configInfo(key, index)          #This function is passed to the InstructionSet instructions, for qurying information on memory elements, see "#register config datastructure"
+                                                        #Throws eception if memory element doesn't exist
+                def memoryTransactions              #outputs a list of all memory transactions in the current fork since last TICK
+
+                #Note: reading/writing to oldState and newState should be done with two different versionNodes
+                def read(self, virtualOperation : bool, hyperThreadContext, versionNode, poolEntryPoint, shortPath, key, index) -> int
+                    This function is passed to the InstructionSet instructions, for reading from memory/registers/pools
+                    This function is curried so that only key and index arguments are passed to the instruction
+                    Throws an exception if memory element doesn't exist
+                def write(self, virtualOperation : bool, hyperThreadContext, versionNode, poolEntryPoint, shortPath, key, index, value) -> None or registerAddress
+                    This function is passed to the instructionSet instructions, for writing values to memory/registers/pools
+                    The engine should make a wrapper function around this function before passing it to instructionSet instruction to allow for intercepting of writes to imm registers
+                    This function is curried so that only key and index arguments are passed to the instruction
+                    Throws an exception if memory element doesn't exist
+
+                def writeWrapper(self, hyperThreadContext, versionNode, oldVersionNode, poolEntryPoint, shortPath, key, index, value) -> None or registerAddress #TODO
+                    This should be implimented in the engine, not in the memory module
+                    just like regular write, only writes to immediate registers are intercepted and written to the previous versionNode
+                    Writing to an imm registers adds it to the OLD state, and returns a registerAddress
+                        When adding an imm, the imm register generated should have a bitLength only as large as required to store the value (plus one leading to to indicate a positive or negative value)
+
+                def configInfo(key, index) -> dict
+                    This function is passed to teh instructionSet instructions, for qurying information on memory elements, see "#register config datastructure"
+                    Throws an exception if memory element doesn't exist
+
+                def memoryKeys(self, versionNode) -> Tuple(hyperThreadContext, key, index):
+                    returns a 'memory map' of all key/index that are being used, does not return stored values of those Memory Elements
+
+        Use Cases:
+            Read data and instruction
+                Setup:
+                    Registers -> DataL1, InstructionL1
+                    DataL1 -> SRAM
+                    InstructionL1 -> SRAM
+                Reading data and instructions at the same time will cause two consecitive reads in the same tick
+                Two different pools connect to SRAM
+                Instruction Reads and Data Loads should be treated differently
+            CPU Flags
+                Setup:
+                    Registers -> SRAM
+                    Flags -> None
+                Must be able to support multiple unconnected pools, like in the case of reading/writing CPU flags
+            Spectulative Execution
+                Setup:
+                    Registers -> SRAM
+                Should be able to have a version history of multiple different read/write histories as different branches that can be merged and forked
+                Should be able to see which individual memory transactions are taking place, to find out if different InstructionSet instructions are conflicting.
+                    IE: (A+B=C), (C+D=E); both instructions can't execute at the same time since (C+D=E) is reading "C" while (A+B=C) is writing to "C" in the same TICK
+            Expected Use Case 1
+                Setup
+                    Single Execution Port
+                    Registers -> L1 -> DRAM
+                Execution Loop:
+                    Get instruction
+                    (Speculative) Execute instruction
+                        get memory transactions (data read/written, time latency data, data path routing, energy use, #TODO)
+                        check if memory transactions conflict with other memory transactions
+                        Commit memory reads
+                        Store instruction in (re-order buffer) until read memory latency
+                        Execute instruction
+                        Commit memory writes
+                    Next Instruction
+            Expected Use Case 2
+                Setup
+                    Multiple Executions Ports
+                    Registers -> DataL1, InstructionL1
+                    DataL1, InstructionL1 -> L2
+                    L2 -> DRAM (DRAM has controller which constrains bandwidth)
+                Execution Loop:
+                    Tick
+                        Var MemoryWriteLock?
+                        Get list of Instructions
+                            Var ReOrderBuffer : List
+                            (Re-order buffer) execute instruction
+                                Get memory transactions (data read/write, time latency data, data path routing, energy use, #TODO)
+                                check if memory transactions conflict with other memory transactions
+                                check if memory transactions conflict with 'locked off' memory writes
+                                check if port use conflicts with other port use
+                                queue instruction execution to ReOrderBuffer
+                            For Instructions in ReOrderBuffer
+                                Commit read Memory transactions
+                                instruction waits for memory read latency
+                                'execute' instruction
+                                Commit write memory transactions
+                                Lock memory write elements
+            Simple Setup Case
+                Setup:
+                    Registers('r', 'm')
+                        ('r', 0, alias='x1', memoryLatency=5)
+                        ('r', 1, alias='x2', memoryLatency=10)
+                        ('m', 0, memoryLatency=100)
+
+        """
+
+        def __init__(self):
+            self.poolArray : Dict[int, Any] = {}
+
+        def read(self, virtualOperation : bool, branchNode : int, poolEntryPoint : int, transactionType : str, hyperThreadContext : int, key : str or int, index : str or int):
+            """
+
+            virtualOperation - indicates wheater the read should tabulate stats, or not. IE: reading data for an ISA Instruction vs reading for a debug output
+            branchNode - the idea of s specific memory version branch to read from
+            poolEntryPoint - this read gets routed through a specific memory pool initially. IE: fetching an instruction goes through L1Instruction vs a data load which goes through L1Data
+            transactionType - what part of the engine made this transaction. IE: the engine automatically changed the instruction pointer, vs an ISA instruction jump changing the instruction pointer
+            hyperThreadContext - what hyperthread context is being accessed. IE: each thread will need to have a different instruction pointer
+            key - the memory element key
+            index - the memory element index
+            """
+            pass
 
 #====================================================================================================================== Main
 
