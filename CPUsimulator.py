@@ -3628,7 +3628,36 @@ class RiscV:
 
 class TIS100:
     def __init__(self):
+        CPU = CPUsim(16, defaultSetup=False)
+        CPU.configConfigRegister('pc',          0, 4)
+        CPU.configAddRegister('_m',             8, 16,                      show=False)
 
+        CPU.configConfigRegister('r',           0, 16,     alias=['nil'],   show=False)
+        CPU.configConfigRegister('r',           1, 16,     alias=['acc'])
+        CPU.configConfigRegister('r',           2, 16,     alias=['bak'])
+
+        CPU.configConfigRegister('_port',       0, 16,     alias=['left'],  show=False, note="Dummy Register")
+        CPU.configConfigRegister('_port',       1, 16,     alias=['right'], show=False, note="Dummy Register")
+        CPU.configConfigRegister('_port',       2, 16,     alias=['up'],    show=False, note="Dummy Register")
+        CPU.configConfigRegister('_port',       3, 16,     alias=['down'],  show=False, note="Dummy Register")
+        CPU.configConfigRegister('_port',       4, 16,     alias=['any'],   show=False, note="Dummy Register")
+        CPU.configConfigRegister('_port',       5, 16,     alias=['last'],  show=False, note="Dummy Register")
+
+        CPU.configConfigRegister('_portout',    'left',     16)
+        CPU.configConfigRegister('_portout',    'right',    16)
+        CPU.configConfigRegister('_portout',    'up',       16)
+        CPU.configConfigRegister('_portout',    'down',     16)
+        CPU.configConfigRegister('_portout',    'any',      16)
+        CPU.configConfigRegister('_portout',    'last',     16)
+
+        CPU.configConfigRegister('_portin',     'left',     16)
+        CPU.configConfigRegister('_portin',     'right',    16)
+        CPU.configConfigRegister('_portin',     'up',       16)
+        CPU.configConfigRegister('_portin',     'down',     16)
+        CPU.configConfigRegister('_portin',     'any',      16)
+        CPU.configConfigRegister('_portin',     'last',     16)
+
+        self.CPU = CPU
 
 
 
@@ -3773,6 +3802,7 @@ class InstructionSetDefault_Mockup:
         """Takes a bitLength, and a number where ((0 - 2**bitLength) // 2 <= number < 2**bitLength). Returns a bit int array representing the number, zero index is least significant bit
         
         For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
+    def postCycle(self, currentState : dict) -> Tuple[dict, dict]:
         """
         assert type(bitLength) is int
         assert bitLength > 0
@@ -4137,6 +4167,7 @@ class InstructionSetDefault_Mockup:
                 funcWrite(pc, pointer)
             elif mode == "!=" and a != b:
                 funcWrite(pc, pointer)
+        assert type(currentState) is dict
 
     def opShiftL(self, 
         funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
@@ -4164,18 +4195,58 @@ class InstructionSetDefault_Mockup:
 
         a : int = funcRead(registerA)
         amount : int = funcRead(registerShiftOffset)
+        oldState = copy.deepcopy(currentState) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
+        newState = copy.deepcopy(currentState)
         
         bitLengthSource : int = funcGetConfig(registerA)["bitLength"]
         bitLengthDestination : int = funcGetConfig(registerDestination)["bitLength"]
+        if 'flag' in newState.keys():
+            for i in newState['flag'].keys(): #resets all flags
+                newState['flag'][i] = 0
+        newState['imm'] = {}
 
         if amount > 8 * max(256, bitLengthSource, bitLengthDestination):
             raise Exception("Instruction input 'registerShiftOffset' is too large to be valid")
+        oldState['r'][0] = 0
+        newState['r'][0] = 0
+
+        #enforces values are -999 <= x <= 999
+        registers =  [(i,j) for i, j in enumerate(oldState['r'])]
+        registers += [(i,j) for i, j in enumerate(oldState['_port'])]
+        registers += [(i,j) for i, j in enumerate(oldState['_portout'])]
+        registers += [(i,j) for i, j in enumerate(oldState['_portin'])]
+        for i, j in registers:
+            if oldState[i][j] < -999:
+                oldState[i][j] = -999
+                newState[i][j] = -999
+            elif oldState[i][j] > 999:
+                oldState[i][j] = 999
+                newState[i][j] = 999
 
         result : int = a << amount
+        return (oldState, newState)
 
         result = result & (2**bitLengthDestination - 1)
+    class TIS100ISA(CPUsim.InstructionSetDefault):
+        def __init__(self):
+            self.instructionSet : dict = {
+                'nop'   : self.opNop,
+                #'mov'
+                #'swp'
+                #'sav'
+                #'add'
+                #'sub'
+                #'neg'
+                #'jmp'
+                #'jez'
+                #'jnz'
+                #'jgz'
+                #'jlz'
+                #'jro'
+            }
 
         funcWrite(registerDestination, result)
+            self.stats : dict = {}
 
     def opShiftR(self, 
         funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
@@ -4229,8 +4300,12 @@ class InstructionSetDefault_Mockup:
             result = result | msb
         
         result = result & (2**bitLengthDestination - 1)
+            self.directives : dict = {}
 
         funcWrite(registerDestination, result)
+    class TIS100Parser(CPUsim.ParseDefault):
+        def parseCode(self, sourceCode : str) -> Tuple["Node", Dict[str, "Node"]]:
+            pass
 
     def opRotate(self, 
         funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
@@ -4280,8 +4355,10 @@ class InstructionSetDefault_Mockup:
                 a = a & (2**bitLengthSource - 1)
         
         result = a & (2**bitLengthDestination - 1)
+#======================================================================================================================
 
         funcWrite(registerDestination, result)
+class BrainFuck:
 
     def opCopy(self, 
         funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
@@ -4325,8 +4402,14 @@ class InstructionSetDefault_Mockup:
         destinationBank : str = registerDestination[0]
         destinationIndex : str or int = registerDestination[1]
         destinationBitLength : int = funcGetConfig(registerDestination)
+    def __init__(self):
+        CPU = CPUsim(16, defaultSetup=False)
+        CPU.configConfigRegister('dp', 0, show=True, note="Data Pointer")
+        CPU.configAddRegister('m', 8, 2**16, show=False)
+        CPU.configAddRegister('data', 8, 30000, show=False)
 
         
+#====================================================================================================================== Prototype MMMU
 
         #TODO
         raise Exception()
