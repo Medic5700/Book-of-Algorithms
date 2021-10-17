@@ -4708,7 +4708,7 @@ class CPUsim_v4(Generic[ParseNode]):
                                         Tuple[str, ...],                                    #Instruction 'op-code', will automatically (#TODO) get converted to a Tuple on import
                                         List[                                               #Instruction functions will automatically (#TODO) get converted to a list in import
                                             Callable[
-                                                [   #A list/tuple, bypasses python parser typing bug
+                                                [
                                                     Callable[[str, int or str], int],       #MMMU read function
                                                     Callable[[str, int or str], None],      #MMMU write function
                                                     Callable[[str, int or str], dict],      #MMMU get config function
@@ -4754,7 +4754,7 @@ class CPUsim_v4(Generic[ParseNode]):
                                             Tuple[str, ...],
                                             List[
                                                 Callable[
-                                                    [   #A list/tuple, bypasses python parser typing bug
+                                                    [
                                                         Callable[[str, int or str], int],       #MMMU read function
                                                         Callable[[str, int or str], None],      #MMMU write function
                                                         Callable[[str, int or str], dict],      #MMMU get config function
@@ -4771,7 +4771,7 @@ class CPUsim_v4(Generic[ParseNode]):
                 "nop"       : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0}),
 
                 "add"       : self.engAdd_RippleCarry,
-                "mult"      : self.engMultiply,
+                "mult"      : self.engMultiply_ShiftAdd2,
                 "twos"      : (lambda fRead, fWrite, fConfig,       des, a                  : { "energy"    : self.engAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["energy"] + self.engNOT(fRead, fWrite, fConfig, des, a)["energy"], 
                                                                                                 "latency"   : self.engAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["latency"] + self.engNOT(fRead, fWrite, fConfig, des, a)["latency"]
                                                                                                 }),
@@ -5510,6 +5510,80 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return {"energy" : energy, "latency" : latency}
 
+        def engMultiply_ShiftAdd1(self, 
+            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
+            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]
+            ) -> Dict[Literal["energy", "latency"], int]:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
+
+            The value of the registers are not used, only the size of the registers
+            energy = 1 is normalized to one logic gate
+            latency = 1 is normalized to one logic gate
+
+            Doubles the length of input registers
+            for every bit:
+                uses an ripple carry add of (energy = 5 * bitLength, latency = 3)
+                uses a shift of (energy = 1 * bitLength, latency = 1)
+            This is a very simplistic and unoptimized algorithm
+            """
+            assert callable(funcRead)
+            assert callable(funcWrite)
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+
+            bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB)) * 2
+
+            energy : int = (bitLength * (5 + 1)) * bitLength
+            latency : int = (bitLength * (3 + 1)) * 2
+            
+            return {"energy" : energy, "latency" : latency}
+
+        def engMultiply_ShiftAdd2(self, 
+            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
+            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]
+            ) -> Dict[Literal["energy", "latency"], int]:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
+
+            The value of the registers are not used, only the size of the registers
+            energy = 1 is normalized to one logic gate
+            latency = 1 is normalized to one logic gate
+
+            Doubles the length of input registers
+            for every bit:
+                uses an ripple carry add of (energy = 5 * bitLength, latency = 3)
+                uses a shift of (energy = 1 * bitLength, latency = 1)
+            Since leading bits remain zero until after some shifts, and trailing bits remain unchanged after some shifts, it's only the middle bits that actually require computation.
+            """
+            assert callable(funcRead)
+            assert callable(funcWrite)
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+
+            bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB))
+
+            energy : int = (bitLength * (5 + 1)) * bitLength
+            latency : int = (bitLength * (3 + 1)) * 2
+            
+            return {"energy" : energy, "latency" : latency}
+
         def engAND(self, 
             funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
             registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]
@@ -5578,6 +5652,8 @@ class CPUsim_v4(Generic[ParseNode]):
             latency : int = 1
 
             return {"energy" : energy, "latency" : latency}
+
+    
 
     class MMMU:
         """
