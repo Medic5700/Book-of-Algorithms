@@ -5653,7 +5653,1033 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return {"energy" : energy, "latency" : latency}
 
-    
+    class ParserDefault(Generic[ParseNode]):
+        """Parses strings into an (almost) execution tree.
+        ParseDefault.Node is the dataclass for storing tokens in a Node Tree.
+
+        ParseDefault.parseCode("source code") is called which returns a Node Tree representing the "source code"
+
+            ParseDefault.parseCode() calls ParseDefault._tokenize() to do the initial tokenization of the "source code"
+            root -> Node
+                    |- Token "test"
+                    |- Token " "
+                    |- Token "123"
+                    |- ...
+
+            "rule functions" are called to apply various rules to the Node Tree
+            all "rule functions" are functional, and return a COPY of Nodes
+            Note: most do not recurse
+            by combining "rule functions" in different ways in ParseDefault.parseCode(), different syntaxes can be proccessed
+            root = self.ruleRemoveToken(root, " ")
+            root -> Node
+                    |- Token "test"
+                    |- Token "123"
+                    |- ...
+            root = ruleCastInts(root)
+            root -> Node
+                    |- Token "test"
+                    |- Token 123
+                    |- ...
+
+            return root
+        """
+        #Node = CPUsim_v4.NodeParse #can't define here since CPUsim_v4 definition is still being created (not initialized)(If I understand it right?)
+
+        def __init__(self, nameSpace : dict = {}):
+            assert type(nameSpace) is dict
+
+            self.nameSpace : dict = nameSpace
+            self.alias : dict = {}
+            self.labels : dict = None
+
+            self.Node : ParseNode = CPUsim_v4.NodeParse #Can be put here since this runs AFTER CPUsim_v4 is defined, thus allowing a reference to it (If I understand it right?)
+
+        '''
+        def updateNameSpace(self, nameSpace : dict, alias : dict):
+            """Takes in nameSpace a dictionary whose keys represent the CPU flags, registers, instructions, etc"""
+            assert type(nameSpace) is dict
+            assert type(alias) is dict
+
+            self.nameSpace = nameSpace
+            self.alias = alias
+
+        def update(
+            self, 
+            instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Args"], None]], 
+            directives : dict,
+            tokenAlias : Dict[str, str]
+            ):
+            pass
+        '''
+
+        def _tokenize(self, code : str) -> List[Tuple[str, int, int]] :
+            """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). 
+            
+            No characters are filtered out
+            
+            Case 1: "test\n\nHello World" =>
+            [
+                ('test',    0, 0),
+                ('\n',      0, 0),
+                ('\n',      1, 0),
+                ('Hello',   2, 0),
+                (' ',       2, 5),
+                ('World',   2, 6)
+            ]
+            """
+            assert type(code) is str
+            assert len(code) > 0
+
+            #done like this to easily add extra characters
+            _isName : Callable[[str], bool] = lambda x : x.isalnum() or x in "_" #returns True is character can be in a name, False otherwise
+
+            tokenList : List[Tuple[str, int, int]] = []
+            token : str = ""
+            lineNum : int = 0
+            characterNum : int = 0
+            for j in code:
+                if _isName(j): #creates tokens from everything that could be a variable name
+                    token += j
+                else: #everything else is a special character
+                    if token != "":
+                        tokenList.append((token, lineNum, characterNum))
+                        token = ""
+                    tokenList.append((j, lineNum, characterNum))
+
+                #keeps track of line and positition numbers
+                if j == "\n":
+                    lineNum += 1
+                    characterNum = 0
+                else:
+                    characterNum += 1
+            if token != "": #adds last token
+                tokenList.append((token, lineNum, characterNum))
+                token = ""
+
+            return tokenList
+
+        def ruleCastInts(self, tree : ParseNode) -> ParseNode:
+            """Takes in a Node Tree of depth 2, casts all children that are integers to integers (with labels). Returns a Node Tree of depth 2.
+
+            Does not recurse #TODO should recruse
+
+            Case: "123 456 789" =>
+            Node
+                '123'   |
+                ' '
+                '456'   |
+                ' '
+                '789'   |
+            =>
+            Node
+                123     |
+                ' '
+                456     |
+                ' '
+                789     |
+            """
+            assert type(tree) is self.Node
+
+            root : ParseNode = tree.copyInfo()
+
+            for i in tree.child:
+                if type(i.token) is str:
+                    if i.token.isdigit():
+                        temp = i.copyDeep()
+                        temp.token = int(i.token)
+                        temp.type = "int"
+                        root.append(temp)
+                    else:
+                        root.append(i.copyDeep())
+                else:
+                    root.append(i.copyDeep())
+
+            return root
+
+        def ruleCastHex(self, tree : ParseNode) -> ParseNode:
+            """Takes in a Node Tree of depth 2, casts all children that are in hex format to integers (with labels). Returns a node tree of depth 2.
+
+            Does not recurse #TODO should recurse
+
+            Case: "0x0 0x000A 0xff" =>
+            Node
+                '0x0'       |
+                ' '
+                '0x000A'    |
+                ' '
+                '0xff'      |
+            =>
+            Node
+                0           |
+                ' '
+                10          |
+                ' '
+                255         |
+            """
+            assert type(tree) is self.Node
+
+            root : ParseNode = tree.copyInfo()
+
+            for i in tree.child:
+                if type(i.token) == str:
+                    if i.token.startswith("0x") or i.token.startswith("0X"):
+                        temp : ParseNode = i.copyDeep()
+                        temp.token = int(i.token, 16)
+                        temp.type = "int"
+                        root.append(temp)
+                    else:
+                        root.append(i.copyDeep())
+                else:
+                    root.append(i.copyDeep())
+
+            return root
+
+        def ruleRemoveEmptyLines(self, tree : ParseNode) -> ParseNode:
+            """Takes in a Node Tree of depth 2. Removes all empty lines. Returns a Node Tree of depth 2.
+
+            Does not recurse
+
+            Case 1: "test\ntest\n\n\ntest\n" =>
+            Node
+                'test'
+                '\n'
+                'test'
+                '\n'    |
+                '\n'    |
+                '\n'    |
+                'test'
+                '\n'
+            Node
+                'test'
+                '\n'
+                'test'
+                '\n'    |
+                'test'
+                '\n'
+            """
+            assert type(tree) is self.Node
+
+            root : ParseNode = tree.copyInfo()
+
+            stack : str = "\n"
+
+            for i in tree.child:
+                #if previous == "\n" and current == "\n" do nothing, else copy Node
+                if i != "\n" or stack != "\n":
+                    root.append(i.copyDeep())
+                    stack = i.token
+
+            return root
+
+        def ruleRemoveLeadingWhitespace(self, tree : ParseNode, whiteSpace : List[str] = [" ", "\t"]) -> ParseNode:
+            """Takes in a Node Tree of depth 2, removes all white space tokens between a new line token and the next token. Returns a Node Tree of depth 2.
+            
+            Does not recurse
+
+            Case: "test test \ntest\n  \ttest\t\n     \n" -> "test test \ntest\ntest\t\n\n" ->
+            Node
+                'test'
+                ' '
+                'test'
+                ' '
+                '\n'
+                'test'
+                '\n'
+                'test'
+                '\t'
+                '\n'
+                '\n'
+            """
+            assert type(tree) is self.Node
+            assert type(whiteSpace) is list
+            assert all([len(i) == 1 for i in whiteSpace])
+
+            root : ParseNode = tree.copyInfo()
+
+            stack : str = "\n" #initialize to State 0
+            if len(tree.child) != 0:
+                if tree.child[0] == "\n":
+                    stack = None #initialize to State 1
+
+            ''' Finite State Machine
+            State 0: at beginning of line
+            State 1: after first token
+            Edge: 0 -> 0: found whitespace, not copying
+            Edge: 0 -> 1: found token, copying
+            Edge: 1 -> 0: found newline
+            Edge: 1 -> 1: did not find newline, copy token
+            '''
+            for i in tree.child:
+                logging.debug(debugHelper(inspect.currentframe()) + repr(i.token))
+                if stack != None: #State 0: at beginning of line
+                    if i.token in whiteSpace: #Edge: 0 -> 0: found whitespace, not copying
+                        logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 0 -> 0")
+                        pass
+                    else: #Edge: 0 -> 1: found token, copying
+                        logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 0 -> 1")
+                        root.append(i.copyDeep())
+                        stack = None
+                else: #State 1: after first token
+                    if i == "\n": #Edge: 1 -> 0: found newline
+                        logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 1 -> 0")
+                        stack = "\n"
+                        root.append(i.copyDeep())
+                    else: #Edge: 1 -> 1: did not find newline, copy token
+                        logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 1 -> 1")
+                        root.append(i.copyDeep())
+
+            return root
+
+        def ruleStringSimple(self, tree : ParseNode) -> ParseNode:
+            """Takes in a Node Tree of depth 2, combines all the tokens that are contained by quote tokens into a string node. Returns a Node Tree of depth 2.
+            #TODO allow for arbitrary definition of list of 'quote like characters'
+
+            Does not recurse
+            
+            Case: "test 'test'" ->
+            Node
+                'test'
+                ' '
+                "test"
+
+            Case: "\'test\n\\\'test\\\''\ntest" ->
+            Node
+                "test\n\\\'test\\\'"
+                '\n'
+                'test'
+
+            Case: "\'test\n\'test\'\'\ntest" ->
+            Node
+                "test\n"
+                "test"
+                ""
+                "\n"
+                "test"
+
+            Case: "test1\"abc\'123\'abc\"test2" ->
+                "test1"
+                "abc\'123\'abc"
+                "test2"
+
+            Case: "" ->
+                None
+            """
+            assert type(tree) is self.Node
+
+            root : ParseNode = tree.copyInfo()
+            string : str = ""
+
+            stack : str = None
+            lineNum : int = None
+            charNum : int = None
+
+            '''Finite State Machine
+            State 0 #Looking for an opening quote
+            State 1 #Looking for a closing quote
+            Edge 0 -> 0 iff token != quote: append node to root
+            Edge 0 -> 1 iff token == quote: setup looking for closing quote
+            Edge 1 -> 1 iff token != quote: append string with token
+            Edge 1 -> 0 iff token == quote: copy string to node, append to root
+            '''
+            for i in tree.child:
+                if stack == None: #the 'looking for an opening quote' State 0
+                    if i != "\"" and i != "\'": #Edge 0 -> 0
+                        root.append(i.copyDeep())
+                    if i == "\"" or i == "\'":
+                        if i.nodePrevious != "\\": #Edge 0 -> 1
+                            stack = i.token
+                            lineNum = i.lineNum
+                            charNum = i.charNum
+                        elif i.nodePrevious == "\\": #Edge 0 -> 0
+                            root.append(i.copyDeep())
+                elif stack != None: #the 'in a quote' State 1
+                    if i != stack: #Edge 1 -> 1
+                        string += str(i.token)
+                    if i == stack:
+                        if i.nodePrevious != "\\": #Edge 1 -> 0
+                            temp = self.Node("string", string, lineNum, charNum)
+                            root.append(temp)
+
+                            stack = None
+                            lineNum = None
+                            charNum = None
+                            string = ""
+                        elif i.nodePrevious == "\\": #Edge 1 -> 1
+                            string += str(i.token)
+
+            if stack != None: #TODO handle mis-matched quotes
+                raise Exception("Parse Error: Mismatched quotes")
+
+            return root
+
+        def ruleFilterLineComments(self, tree : ParseNode, character : str = "#") -> ParseNode:
+            """Takes in a Node Tree of depth 2, removes any tokens between a "#" token and a new line token. Returns a Node Tree of depth 2.
+
+            Does not recurse
+
+            Case: "test #test\n #test\n\t\\#test" -> "test \n \n\t\\#test" ->
+            Node
+                'test'
+                ' '
+                '\n'
+                ' '
+                '\n'
+                '\t'
+                '\\
+                '#'
+                'test'
+            
+            Case: "test test \\# test #abc abc abc \\n abc \n test test" ->
+            Node
+                'test'
+                ' '
+                'test'
+                ' '
+                '\\'
+                '#'
+                ' '
+                'test'
+                ' '
+                '\n'
+                ' '
+                'test'
+                ' '
+                'test'
+            """
+            assert type(tree) is self.Node
+            assert type(character) is str 
+            assert len(character) == 1
+
+            root : ParseNode = tree.copyInfo()
+
+            stack : str = None
+
+            '''Finite State Machine
+            State 0: Looking for comment begin
+            State 1: Looking for comment end
+            0 -> 0 iff token != # : append token to root
+            0 -> 1 iff token == # : setup looking for \n
+            1 -> 1 iff token != \n : do nothing
+            1 -> 0 iff token == \n : append \n to root
+            '''
+            for i in tree.child:
+                if stack == None:
+                    if i != character:
+                        root.append(i.copyDeep())
+                    elif i == character:
+                        if i.nodePrevious != "\\":
+                            stack = character
+                        elif i.nodePrevious == "\\":
+                            root.append(i.copyDeep())
+                elif stack != None:
+                    if i != "\n":
+                        pass
+                    elif i == "\n":
+                        if i.nodePrevious != "\\":
+                            stack = None
+                            root.append(i.copyDeep())
+                        elif i.nodePrevious == "\\":
+                            pass
+
+            return root
+
+        def ruleContainer(self, tree : ParseNode, containers : Dict[str, str] = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> ParseNode:
+            """Takes in a Node Tree of depth 2, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers. Returns a Node Tree of arbitrary depth.
+
+            Containers are of the form {"opening bracket": "closing bracket", ...}
+            Does not copy closing brackets
+            Does not recurse
+            
+            Case: "test[test(test)]" ->
+            Node
+                'test'
+                '['
+                    'test'
+                    '('
+                        'test'
+
+            Case: "test[abc abc{123 123}{123 123}](abc)" ->
+            Node
+                'test'
+                '['
+                    'abc'
+                    ' '
+                    'abc'
+                    '{'
+                        '123'
+                        ' '
+                        '123'
+                    '{'
+                        '123'
+                        ' '
+                        '123'
+                '('
+                    'abc'
+            """
+            assert type(tree) is self.Node
+            assert type(containers) is dict
+            assert len(containers) >= 1
+            assert all([True if type(i) is str else False for i in containers.keys()])
+            assert all([True if type(containers[i]) is str else False for i in containers.keys()])
+            assert all([True if len(i) == 1 else False for i in containers.keys()])
+            assert all([True if len(containers[i]) == 1 else False for i in containers.keys()])
+            assert all([True if containers[i] != i else False for i in containers.keys()]) #asserts that the 'matching bracket' isn't the same characters
+            assert type(nodeType) is str
+
+            root : ParseNode = tree.copyInfo()
+            stack : List[Tuple[str, ParseNode]] = []
+
+            for i in tree.child:
+                '''
+                if openbracket
+                    append to stack
+                if closing bracket
+                    pop from stack
+                    append to root
+                else
+                    if len(stack) == 0
+                        append to root
+                    else
+                        append to last element in stack
+                '''
+                if i.token in list(containers.keys()): #if open bracket
+                    #append to stack
+                    temp : ParseNode = i.copyDeep()
+                    temp.type = nodeType
+                    stack.append((i.token, temp))
+                elif len(stack) != 0:
+                    if containers[stack[-1][0]] == i.token: #if closing bracket
+                        temp : ParseNode = stack.pop()[1] #pop from stack
+
+                        if len(stack) != 0: #append to last element in stack, otherwise append to root
+                            stack[-1][1].append(temp)
+                        else:
+                            root.append(temp)
+                    else: #not container, append to last element in stack
+                        stack[-1][1].append(i.copyDeep())
+                else: #not container, append to last element in stack, otherwise append to root
+                    if len(stack) == 0:
+                        root.append(i.copyDeep())
+                    else:
+                        stack[-1][1].append(i.copyDeep())
+
+            if len(stack) != 0:
+                raise Exception("Parse Error: mismatching brackets")
+
+            return root
+
+        def ruleFindLabels(self, tree : ParseNode) -> Tuple[ParseNode, Dict[str, ParseNode]]:
+            """Takes in a Node Tree of depth 2, attempts to find a label that is immidiatly followed by a ":", returns a Node Tree of depth 2, and a dictionary of labels
+            
+            Does not recurse"""
+            assert type(tree) is self.Node
+
+            root : ParseNode = tree.copyInfo()
+            previous : str = "\n"
+            skipToken : bool = False
+
+            labels : Dict[str, ParseNode] = {}
+
+            for i in tree.child:
+                if (i.nodePrevious == previous or i.nodePrevious == None) and i.nodeNext == ":":
+                    temp : ParseNode = i.copyDeep()
+                    temp.type = "label"
+                    root.append(temp)
+
+                    labels[i.token] = temp.copyInfo()
+
+                    previous = i.token
+                    skipToken = True
+                elif skipToken == True:
+                    skipToken = False
+                else:
+                    root.append(i.copyDeep())
+                    previous = i.token
+
+            return (root, labels)
+
+        def ruleLabelNamespace(self, tree : ParseNode, nameSpace : dict, tokenType : str = "namespace") -> ParseNode:
+            """Takes in a node tree, and a nameSpace. Labels all nodes that are in nameSpace as 'NameSpace'. Returns Node Tree of depth 2.
+            
+            Does not recurse
+            #TODO find a better/less confusing name (conflicts with ruleFindLabels)?"""
+            assert type(tree) is self.Node
+            assert type(nameSpace) is dict
+            assert type(tokenType) is str
+
+            root : ParseNode = tree.copyInfo()
+            keys : List[str]= [i.lower() for i in nameSpace.keys()]
+
+            for i in tree.child:
+                if type(i.token) is str:
+                    if i.token.lower() in keys:
+                        temp = i.copyDeep()
+                        temp.type = tokenType
+                        root.append(temp)
+                    else:
+                        root.append(i.copyDeep())
+                else:
+                    root.append(i.copyDeep())
+
+            return root
+        
+        def ruleRemoveToken(self, tree : ParseNode, token : str, recurse : bool = True) -> ParseNode:
+            """Takes in a Node Tree of arbitrary depth, and a token. Removes all instances of token in tree.child. Returns a Node Tree of arbitrary depth.
+            
+            Case 1: token = '\n'
+            Node
+                'test1'
+                '\n'
+                'test2'
+            =>
+            Node
+                'test1'
+                'test2'
+
+            Case 2: token = ','
+            Node
+                'add'
+                    'arg1'
+                    ','
+                    'arg2'
+                ','
+                'mult'
+                    'arg1'
+                    ','
+                    'arg2'
+            =>
+            Node
+                'add'
+                    'arg1'
+                    'arg2'
+                'mult'
+                    'arg1'
+                    'arg2'
+            """
+            assert type(tree) is self.Node
+            
+            root : ParseNode = tree.copyInfo()
+
+            for i in tree.child:
+                if i != token:
+                    root.append(i.copyDeep())
+
+            if recurse:
+                newRoot : ParseNode = tree.copyInfo()
+                for i in root.child:
+                    newRoot.append(self.ruleRemoveToken(i.copyDeep(), token, True))
+                root = newRoot
+
+            return root
+        
+        def ruleSplitLines(self, tree : ParseNode, tokenType : str = "line", splitToken : str = "\n") -> List[ParseNode]:
+            """Takes in a Node Tree of arbitrary depth. Returns a list of Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited.
+            
+            #TODO should be able to recurse
+            """
+            assert type(tree) is self.Node
+            assert type(tokenType) is str
+            assert type(splitToken) is str
+
+            result : List[ParseNode] = []
+            current : ParseNode = self.Node(tokenType, None, 0, 0)
+
+            for i in tree.child:
+                if i == splitToken:
+                    result.append(current)
+                    current = self.Node(tokenType, None, 0, 0)
+                else:
+                    current.append(i.copyDeep())
+
+            if len(current.child) >= 1:
+                result.append(current)
+
+            #Goes through all 'lines' and sets lineNum and charNum to the values of the first child Node in them
+            for i in result:
+                if len(i.child) != 0:
+                    i.lineNum = i.child[0].lineNum
+                    i.charNum = i.child[0].charNum
+
+            return result
+
+        def ruleSplitTokens(self, tree : ParseNode, tokenType : str = "line", splitToken : str = "\n", recurse : bool = True) -> ParseNode:
+            """Takes in a Node Tree of arbitrary depth. Returns a Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited, and in containers.
+
+            Case 1: splitToken = "\n"
+            Node
+                'test'
+                '\n'    #notice the splitToken '\n' is omitted
+                'abc'
+            =>
+            Node
+                None
+                    'test'
+                None
+                    'abc' 
+
+            Case 2: splitToken = ','
+            Node
+                'test1'
+                'test2'
+                    'abc1'
+                    ','
+                    'abc2'
+                    ','
+                    'abc3'
+                    'abc4'
+            =>
+            Node
+                'test1'
+                'test2'
+                    None
+                        'abc1'
+                    None
+                        'abc2'
+                    None
+                        'abc3'
+                        'abc4'
+            
+            Case 3: splitToken = ','
+            Node
+                'test1'
+                    'abc1'
+                    ','
+                    'abc2'
+                ','
+                'test2'
+            =>
+            Node
+                None
+                    'test1'
+                        None
+                            'abc1'
+                        None
+                            'abc2'
+                None
+                    'test2'
+
+            Case 4: splitToken = '\n'
+            Node
+                'test1'
+                'test2'
+                'test3'
+            =>
+            Node
+                'test1'
+                'test2'
+                'test3'
+            """
+            assert type(tree) is self.Node
+            assert type(tokenType) is str
+            assert len(tokenType) > 0
+            assert type(splitToken) is str
+            assert len(splitToken) > 0
+            assert type(recurse) is bool
+
+            root : ParseNode = tree.copyInfo()
+            tokenFound : bool = False
+
+            #checks if there is a splitToken in children
+            for i in tree.child:
+                if i == splitToken:
+                    tokenFound = True
+
+            if tokenFound:
+                stack : List[ParseNode] = []
+                for i in tree.child:
+                    if i == splitToken:
+                        temp : ParseNode = self.Node(tokenType, None, stack[0].lineNum, stack[0].charNum)
+                        while len(stack) != 0:
+                            temp.append(stack.pop(0))
+                        root.append(temp)
+                    else:
+                        #stack.append(self.ruleSplitTokens(i.copyDeep(), tokenType, splitToken, recurse) if recurse else i.copyDeep())
+                        temp : ParseNode = None
+                        if recurse:
+                            temp = self.ruleSplitTokens(i.copyDeep(), tokenType, splitToken, recurse)
+                        else:
+                            temp = i.copyDeep()
+                        stack.append(temp)
+
+                if len(stack) != 0:
+                    temp : ParseNode = self.Node(tokenType, None, stack[0].lineNum, stack[0].charNum)
+                    while len(stack) != 0:
+                        temp.append(stack.pop(0))
+                    root.append(temp)
+                    
+            else: #the splitToken not found case
+                for i in tree.child:
+                    temp : ParseNode = None
+                    if recurse:
+                        temp = self.ruleSplitTokens(i.copyDeep(), tokenType, splitToken, recurse)
+                    else:
+                        temp = i.copyDeep()
+                    root.append(temp)
+            
+            return root
+
+        def ruleNestContainersIntoInstructions(self, tree : ParseNode, nameSpace : dict, recurse : bool = True) -> ParseNode:
+            """Takes in a Node Tree of arbitrary depth, and a nameSpace dict represeting instructions, registers, etc. 
+            If a container node follows a nameSpace node, make container node a child of the nameSpace node.
+            Returns a Node Tree of arbitrary depth.
+
+            Recurses by default            
+            """
+            assert type(tree) is self.Node
+            assert type(nameSpace) is dict
+            
+            root : ParseNode = tree.copyInfo()
+
+            for i in tree.child:
+                if i.type == "container":  
+                    temp : ParseNode = None
+                    if recurse:
+                        temp = self.ruleNestContainersIntoInstructions(i.copyDeep(), nameSpace, True)
+                    else:
+                        temp = i
+
+                    if type(i.nodePrevious) is self.Node: #IE: the node exists
+                        if i.nodePrevious.token in nameSpace:
+                            root.child[-1].append(temp.copyDeep())
+                        else:
+                            root.append(temp.copyDeep())
+                else:
+                    root.append(i.copyDeep())
+
+            return root
+
+        def ruleLowerCase(self, tree : ParseNode, recurse : bool = True) -> ParseNode:
+            """Takes in a Node Tree of arbitrary depth. Sets all tokens in the Node Tree's children as lower case. Recurses by default. Returns a Node Tree of arbitrary depth.
+            
+            Case 1:
+            Node
+                'HELLO'
+                ' '
+                'WORLD'
+                    'test'
+                    'ABC'
+            =>
+            Node
+                'hello'
+                ' '
+                'world'
+                    'test'
+                    'abc'
+            """
+            assert type(tree) is self.Node
+
+            root : ParseNode = tree.copyInfo()
+            for i in tree.child:
+                temp : ParseNode = i.copyDeep()
+                if type(temp.token) is str:
+                    temp.token = temp.token.lower()
+                if recurse:
+                    temp = self.ruleLowerCase(temp, True)
+                root.append(temp)
+            
+            return root
+
+        def ruleApplyAlias(self, tree : ParseNode, alias : Dict[str, str]) -> ParseNode:
+            """Takes in a Node Tree of Depth 2. If a token is in alias, replaces that token, then tokenizes it. Returns a Node Tree of Depth 2.
+            
+            Case 1: alias = {'123': 'hello world'}
+            Node
+                'test'
+                ' '
+                '123'       |
+                ' '
+                'abc'
+            =>
+            Node
+                'test'
+                ' '
+                'hello'     | #notice how the string 'hello world' was tokenized
+                ' '         |
+                'world'     |
+                ' '
+                'abc'
+            
+            Case 2: alias = {'abc' : '1 2 3'}
+            Node
+                'test'
+                ' '
+                'abc'       |
+                    'hello' |
+                    ' '     |
+                    'world' |
+                ' '
+                'temp
+            =>
+            Node
+                'test'
+                ' '
+                '1'         | #notice how the children of 'abc' was added to the first of the replacement nodes
+                    'hello' |
+                    ' '     |
+                    'world' |
+                ' '         |
+                '2'         |
+                ' '         |
+                '3'         |
+                ' '
+                'temp'
+            """
+            assert type(tree) is self.Node
+            assert type(alias) is dict
+            assert all([type(i) is str for i in alias.keys()])
+            assert all([type(i) is str for i in alias.values()])
+            assert all([i != j for i, j in alias.items()])
+
+            root : ParseNode = tree.copyInfo()
+
+            for i in tree.child:
+                temp = []
+                if type(i.token) is str and i.token in alias: #if alias token found, tokenize it's replacement string, and add that series of tokens to root
+                    for j in self._tokenize(alias[i.token]):
+                        temp.append(self.Node("token", j[0], i.lineNum, i.charNum))
+                else:
+                    temp.append(i.copyInfo())
+
+                for j in i.child: #if alias token has children, add children to first token of the replacement tokens
+                    temp[0].append(j.copyDeep)
+                
+                #append tokens to root
+                for j in temp:
+                    root.append(j)
+
+            return root
+
+        def ruleFilterBlockComments(self, tree : ParseNode, character : dict = {}) -> ParseNode:
+            #TODO
+            pass
+
+        def ruleFindDirectives(self, tree : ParseNode, directives : dict) -> ParseNode:
+            #TODO
+            pass
+
+        def parseCode(self, sourceCode : str) -> Tuple[ParseNode, Dict[str, ParseNode]]:
+            """Takes a string of source code, returns a parsed instruction tree
+            
+            Takes source code of the form:
+                #This is a comment, non-functional example code
+                label1:     add(r[0],r[0],r[0])
+                            and(r[1],r[2],r[0]) #Another comment
+                label2:     jump(label1)
+            Returns:
+                None                                        :Root           1       lineNum=None    charNum=None
+                    None                                    :Line           2       lineNum=2       charNum=31
+                        'add'                               :Namespace      3       lineNum=2       charNum=31
+                            '('                             :Container      4       lineNum=2       charNum=31
+                                None                        :Argument       5       lineNum=2       charNum=33
+                                    'r'                     :Namespace      6       lineNum=2       charNum=33
+                                        '['                 :Container      7       lineNum=2       charNum=33
+                                            0               :Int            8       lineNum=2       charNum=35
+                                None                        :Argument       5       lineNum=2       charNum=38
+                                    'r'                     :Namespace      6       lineNum=2       charNum=38
+                                        '['                 :Container      7       lineNum=2       charNum=38
+                                            0               :Int            8       lineNum=2       charNum=40
+                                None                        :Argument       5       lineNum=2       charNum=43
+                                    'r'                     :Namespace      6       lineNum=2       charNum=43
+                                        '['                 :Container      7       lineNum=2       charNum=43
+                                            0               :Int            8       lineNum=2       charNum=45
+                    None                                    :Line           2       lineNum=3       charNum=31
+                        'and'                               :Namespace      3       lineNum=3       charNum=31
+                            '('                             :Container      4       lineNum=3       charNum=31
+                                None                        :Argument       5       lineNum=3       charNum=33
+                                    'r'                     :Namespace      6       lineNum=3       charNum=33
+                                        '['                 :Container      7       lineNum=3       charNum=33
+                                            1               :Int            8       lineNum=3       charNum=35
+                                None                        :Argument       5       lineNum=3       charNum=38
+                                    'r'                     :Namespace      6       lineNum=3       charNum=38
+                                        '['                 :Container      7       lineNum=3       charNum=38
+                                            2               :Int            8       lineNum=3       charNum=40
+                                None                        :Argument       5       lineNum=3       charNum=43
+                                    'r'                     :Namespace      6       lineNum=3       charNum=43
+                                        '['                 :Container      7       lineNum=3       charNum=43
+                                            0               :Int            8       lineNum=3       charNum=45
+                    None                                    :Line           2       lineNum=4       charNum=32
+                        'jump'                              :Namespace      3       lineNum=4       charNum=32
+                            '('                             :Container      4       lineNum=4       charNum=32
+                                'label1'                    :Token          5       lineNum=4       charNum=39
+            """
+            assert type(sourceCode) is str
+            
+            #tokenizes sourceCode, and turns it into a Node Tree
+            root : ParseNode = self.Node("root")
+            for i in self._tokenize(sourceCode):
+                root.append(self.Node("token", i[0], i[1], i[2]))
+
+            logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
+            logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
+
+            #Note: at this point, rules do operations on the Node Tree, but the depth of the Node Tree remains 2
+
+            root = self.ruleFilterLineComments(root, "#")
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
+
+            root = self.ruleStringSimple(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
+
+            root = self.ruleApplyAlias(root, self.alias)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
+
+            root = self.ruleLowerCase(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root))            
+
+            root = self.ruleRemoveLeadingWhitespace(root, [" ", "\t"])
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveLeadingWhitespace: " + "\n" + str(root))
+
+            root = self.ruleRemoveEmptyLines(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveEmptyLines: " + "\n" + str(root))
+
+            root, self.labels = self.ruleFindLabels(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root) + "\nlabels: " + str(self.labels))
+            i = 0
+            while i < len(root.child): #removes the label nodes, as they don't need to be executed
+                if root.child[i].type == "label":
+                    root.remove(root.child[i])
+                else:
+                    i += 1
+            
+            root = self.ruleLabelNamespace(root, self.nameSpace)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleLabelNamespace: " + "\n" + str(root))
+
+            root = self.ruleRemoveToken(root, " ", False)
+            root = self.ruleRemoveToken(root, "\t", False)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveToken: " + "\n" + str(root))
+
+            root = self.ruleCastInts(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleCastInts: " + "\n" + str(root))
+
+            root = self.ruleCastHex(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleCastHex: " + "\n" + str(root))
+
+            #This is where the Node Tree is allowed to go to depth > 2
+            root = self.ruleContainer(root, {"(":")", "[":"]"})
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
+
+            root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
+
+            temp : List[self.Node] = self.ruleSplitLines(root, "line", "\n")
+            root = self.Node("root")
+            for i in temp:
+                root.append(i)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
+
+            #removes empty lines/empty line nodes
+            i = 0
+            while i < len(root.child):
+                if len(root.child[i].child) == 0:
+                    root.remove(root.child[i])
+                else:
+                    i += 1
+            logging.debug(debugHelper(inspect.currentframe()) + "remove empty line nodes: " + "\n" + str(root))
+
+            root = self.ruleSplitTokens(root, "argument", ',', True)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
+
+            return root, self.labels
 
     class MMMU:
         """
