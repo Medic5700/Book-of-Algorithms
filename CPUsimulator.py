@@ -4709,21 +4709,22 @@ class CPUsim_v4(Generic[ParseNode]):
                                         List[                                               #Instruction functions will automatically (#TODO) get converted to a list in import
                                             Callable[
                                                 [
-                                                    Callable[[str, int or str], int],       #MMMU read function
-                                                    Callable[[str, int or str], None],      #MMMU write function
-                                                    Callable[[str, int or str], dict],      #MMMU get config function
+                                                    Callable[[int or str, int or str], int],       #MMMU read function
+                                                    Callable[[int or str, int or str], None],      #MMMU write function
+                                                    Callable[[int or str, int or str], dict],      #MMMU get config function
                                                     Dict[                                   #Engine Functions
                                                         str,
                                                         Callable[[Any], Any]                                                    
                                                     ],                                   
                                                     dict,                                   #Engine info
-                                                    Tuple[str, str or int],                 #Optional Additional register arguments passed to instruction
+                                                    Tuple[int or str, int or str],                 #Optional Additional register arguments passed to instruction
                                                     Any
                                                 ],                                   #Optional Additional register arguments passed to instruction
                                                 None
                                             ]
                                         ]
-                                    ] = {
+                                    ]
+            self.instructionSet = {
                 "nop"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                               : self.opNop(fRead, fWrite, fConfig, EFunc, EStatus)), #full syntax
 
                 "add"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,      des, a, b                : self.opAdd(fRead, fWrite, fConfig, EFunc, EStatus,            des, a, b)), #full syntax
@@ -4755,10 +4756,10 @@ class CPUsim_v4(Generic[ParseNode]):
                                             List[
                                                 Callable[
                                                     [
-                                                        Callable[[str, int or str], int],       #MMMU read function
-                                                        Callable[[str, int or str], None],      #MMMU write function
-                                                        Callable[[str, int or str], dict],      #MMMU get config function
-                                                        Tuple[str, str or int],                 #Optional Additional register arguments passed to instruction
+                                                        Callable[[int or str, int or str], int],       #MMMU read function
+                                                        Callable[[int or str, int or str], None],      #MMMU write function
+                                                        Callable[[int or str, int or str], dict],      #MMMU get config function
+                                                        Tuple[int or str, int or str],                 #Optional Additional register arguments passed to instruction
                                                         Any
                                                     ],
                                                     Dict[                                       #Returns energy/latency info to engine for tabulation
@@ -4767,7 +4768,8 @@ class CPUsim_v4(Generic[ParseNode]):
                                                     ]
                                                 ]
                                             ]
-                                        ] = {
+                                        ]
+            self.instructionEnergy = {
                 "nop"       : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0}),
 
                 "add"       : self.engAdd_RippleCarry,
@@ -4833,7 +4835,8 @@ class CPUsim_v4(Generic[ParseNode]):
                                                 Literal["cycles", "executionUnit"],
                                                 None or int or str or Literal["none", "alu", "int", "float", "branch", "load", "vector"]
                                             ]
-                                        ] = {
+                                        ]
+            self.instructionStats = {
                 "nop"       : {"cycles"         : 1,                "executionUnit" : None              },
 
                 "add"       : {"cycles"         : 1,                "executionUnit" : "alu"             },
@@ -4855,7 +4858,7 @@ class CPUsim_v4(Generic[ParseNode]):
                 "halt"      : {"cycles"         : 1,                "executionUnit" : None            },
             }
 
-        def checkEnvironment(self, funcRead : Callable[[str, str or int], int]) -> bool:
+        def checkEnvironment(self, funcRead : Callable[[int or str, int or str], int]) -> bool:
             """Checks if the memory layout is compatible by attempting to read necissary elements from memory, returns true is compatible"""
             assert callable(funcRead)
 
@@ -4888,18 +4891,19 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return sum([bit << i for i, bit in enumerate(bitArray)])
 
-        def microEnforceAccess(self, register : Tuple[str, str or int], key : str) -> Tuple[str, str or int]:
+        def microEnforceAccess(self, register : Tuple[int or str, int or str], key : str) -> Tuple[int or str, int or str]:
             """returns register tuple iff register[0] matches key, raises exception otherwise"""
             assert type(register) is tuple or type(register) is list
             assert len(register) == 2
-            assert type(register[0]) is str and (type(register[1]) is int or type(register[1]) is str)
+            assert type(register[0]) is int or type(register[0]) is str 
+            assert type(register[1]) is int or type(register[1]) is str
 
             if key != register[0]:
                 raise Exception("Instruction not allowed access to specified register: " + str(key))
             return register
 
         def microSyscall(self,
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict,
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict,
             operation : str):
             """Takes in a string indicating what syscall to call, and passes that call to the engine"""
             assert callable(funcRead)
@@ -4915,16 +4919,17 @@ class CPUsim_v4(Generic[ParseNode]):
             engineFunc["syscall"](operation)
 
         def microSelectBits(self,
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None],
-            registerA : Tuple[str, str or int],
-            bitStart : int, bitEnd: int) -> Tuple[str, str or int]:
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None],
+            registerA : Tuple[str, int or str],
+            bitStart : int, bitEnd: int) -> Tuple[int or str, int or str]:
             """Takes a register, selects the bits starting at bitStart inclusive and ending at bitEnd inclusive. Takes result, adds it as an immediate register, returns the register address"""
             assert callable(funcRead)
             assert callable(funcWrite)
 
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
 
             assert type(bitStart) is int
             assert bitStart >= 0
@@ -4941,7 +4946,7 @@ class CPUsim_v4(Generic[ParseNode]):
             return registerB
 
         def opNop(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict):
             """The 'No Operation' instruction, it does nothing"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -4953,8 +4958,8 @@ class CPUsim_v4(Generic[ParseNode]):
             pass #Does nothing
 
         def opAdd(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
             """Adds registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -4965,13 +4970,16 @@ class CPUsim_v4(Generic[ParseNode]):
             
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+            assert type(registerB[0]) is int or type(registerB[0]) is str 
+            assert type(registerB[1]) is int or type(registerB[1]) is str
 
             a : int = funcRead(registerA)
             b : int = funcRead(registerB)
@@ -4984,8 +4992,8 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, c)
 
         def opMultiply(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
             """Multiplies registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -4996,13 +5004,16 @@ class CPUsim_v4(Generic[ParseNode]):
             
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+            assert type(registerB[0]) is int or type(registerB[0]) is str 
+            assert type(registerB[1]) is int or type(registerB[1]) is str
 
             a : int = funcRead(registerA)
             b : int = funcRead(registerB)
@@ -5015,8 +5026,8 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, c)
 
         def opTwosCompliment(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int]):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str]):
             """Takes value from registerA, performs twos compliment, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5027,10 +5038,12 @@ class CPUsim_v4(Generic[ParseNode]):
             
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
 
             a : int = funcRead(registerA)
 
@@ -5047,8 +5060,8 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, result)
 
         def opAND(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
             """Performs AND operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5059,13 +5072,16 @@ class CPUsim_v4(Generic[ParseNode]):
             
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+            assert type(registerB[0]) is int or type(registerB[0]) is str 
+            assert type(registerB[1]) is int or type(registerB[1]) is str
 
             a : int = funcRead(registerA)
             b : int = funcRead(registerB)
@@ -5078,8 +5094,8 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, c)
 
         def opOR(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
             """Performs OR operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5090,13 +5106,16 @@ class CPUsim_v4(Generic[ParseNode]):
             
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+            assert type(registerB[0]) is int or type(registerB[0]) is str 
+            assert type(registerB[1]) is int or type(registerB[1]) is str
 
             a : int = funcRead(registerA)
             b : int = funcRead(registerB)
@@ -5109,8 +5128,8 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, c)
 
         def opXOR(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
             """Performs XOR operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5121,13 +5140,16 @@ class CPUsim_v4(Generic[ParseNode]):
             
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+            assert type(registerB[0]) is int or type(registerB[0]) is str 
+            assert type(registerB[1]) is int or type(registerB[1]) is str
 
             a : int = funcRead(registerA)
             b : int = funcRead(registerB)
@@ -5140,8 +5162,8 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, c)
 
         def opNOT(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int]):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str]):
             """Performs NOT operation on registerA, stores result in registerDesintation"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5152,10 +5174,12 @@ class CPUsim_v4(Generic[ParseNode]):
             
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
 
             a : int = funcRead(registerA)
 
@@ -5171,9 +5195,9 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, result)
 
         def opJump(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
             mode : Literal["goto", "<", "<=", ">", ">=", "==", "!="],
-            gotoIndex : Tuple[str, str or int], registerA : Tuple[str, str or int] = None, registerB : Tuple[str, str or int] = None):
+            gotoIndex : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str] = None, registerB : Tuple[int or str, int or str] = None):
             """Conditional jump to gotoIndex, conditional on mode, and optional registers a and b
 
             #TODO needs to handle signed and unsigned ints
@@ -5200,14 +5224,17 @@ class CPUsim_v4(Generic[ParseNode]):
             assert mode in ("goto", "<", "<=", ">", ">=", "==", "!=")
             assert type(gotoIndex) is tuple or type(gotoIndex) is list
             assert len(gotoIndex) == 2
-            assert type(gotoIndex[0]) is str and (type(gotoIndex[1]) is int or type(gotoIndex[1]) is str)
+            assert type(gotoIndex[0]) is int or type(gotoIndex[0]) is str 
+            assert type(gotoIndex[1]) is int or type(gotoIndex[1]) is str
             if mode != "goto":
                 assert type(registerA) is tuple or type(registerA) is list
                 assert len(registerA) == 2
-                assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+                assert type(registerA[0]) is int or type(registerA[0]) is str 
+                assert type(registerA[1]) is int or type(registerA[1]) is str
                 assert type(registerB) is tuple or type(registerB) is list
                 assert len(registerB) == 2
-                assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+                assert type(registerB[0]) is int or type(registerB[0]) is str 
+                assert type(registerB[1]) is int or type(registerB[1]) is str
             else: #mode == "goto"
                 assert type(registerA) is type(None)
                 assert type(registerB) is type(None)
@@ -5235,8 +5262,8 @@ class CPUsim_v4(Generic[ParseNode]):
                     funcWrite(pc, pointer)
 
         def opShiftL(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerShiftOffset : Tuple[str, str or int]):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerShiftOffset : Tuple[int or str, int or str]):
             """Takes registerA, shifts left by amount registerShiftOffset, stores result in registerDestination
             
             will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
@@ -5250,13 +5277,16 @@ class CPUsim_v4(Generic[ParseNode]):
             
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerShiftOffset) is tuple or type(registerShiftOffset) is list
             assert len(registerShiftOffset) == 2
-            assert type(registerShiftOffset[0]) is str and (type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str)
+            assert type(registerShiftOffset[0]) is int or type(registerShiftOffset[0]) is str 
+            assert type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str
 
             a : int = funcRead(registerA)
             amount : int = funcRead(registerShiftOffset)
@@ -5274,8 +5304,8 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, result)
 
         def opShiftR(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerShiftOffset : Tuple[str, str or int], arithmetic : bool = False):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerShiftOffset : Tuple[int or str, int or str], arithmetic : bool = False):
             """Takes registerA, shifts it right by registerShiftOffset (performs arithmetic right shift if arithmetic == True), stores result in registerDestination
             
             If registerDestination bitLength is greater then registerA bitLength:
@@ -5292,13 +5322,16 @@ class CPUsim_v4(Generic[ParseNode]):
             
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerShiftOffset) is tuple or type(registerShiftOffset) is list
             assert len(registerShiftOffset) == 2
-            assert type(registerShiftOffset[0]) is str and (type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str)
+            assert type(registerShiftOffset[0]) is int or type(registerShiftOffset[0]) is str 
+            assert type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str
             assert type(arithmetic) is bool
 
             a : int = funcRead(registerA)
@@ -5329,8 +5362,9 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, result)
 
         def opRotate(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerShiftOffset : Tuple[str, str or int], leftOrRight : Literal["left", "right"]):
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerShiftOffset : Tuple[int or str, int or str], 
+            leftOrRight : Literal["left", "right"]):
             """Takes registerA, rotates bits left or right (depending on leftOrRight) by rigsterShiftOffset amount. Result is then trunked to fit into registerDestination
             
             will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
@@ -5344,13 +5378,17 @@ class CPUsim_v4(Generic[ParseNode]):
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerShiftOffset) is tuple or type(registerShiftOffset) is list
             assert len(registerShiftOffset) == 2
-            assert type(registerShiftOffset[0]) is str and (type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str)
+            assert type(registerShiftOffset[0]) is int or type(registerShiftOffset[0]) is str 
+            assert type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str
+
             assert type(leftOrRight) is str
             assert leftOrRight in ("left", "right")
 
@@ -5380,8 +5418,8 @@ class CPUsim_v4(Generic[ParseNode]):
             funcWrite(registerDestination, result)
 
         def opCopyElement(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int],
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str],
             trunkOrExtend : Literal["trunk", "extend"] = 'trunk'):
             """Copies a value from registerA to registerDestination
             
@@ -5399,10 +5437,12 @@ class CPUsim_v4(Generic[ParseNode]):
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
 
             assert type(trunkOrExtend) is str
             assert len(trunkOrExtend) > 0
@@ -5428,8 +5468,8 @@ class CPUsim_v4(Generic[ParseNode]):
 
         '''
         def opCopy(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int],
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str],
             trunkOrExtend : Literal["trunk", "extend"], multiElement : bool, bitsToCopy : int):
             """Copies a value from registerA to registerDestination
             
@@ -5450,10 +5490,12 @@ class CPUsim_v4(Generic[ParseNode]):
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
 
             assert type(trunkOrExtend) is str
             assert len(trunkOrExtend) > 0
@@ -5463,19 +5505,19 @@ class CPUsim_v4(Generic[ParseNode]):
             assert bitsToCopy > 0
 
             sourceBank : str = registerA[0]
-            sourceIndex : str or int = registerA[1]
+            sourceIndex : int or str = registerA[1]
             sourceBitLength : int = funcGetConfig(registerA)
 
             destinationBank : str = registerDestination[0]
-            destinationIndex : str or int = registerDestination[1]
+            destinationIndex : int or str = registerDestination[1]
             destinationBitLength : int = funcGetConfig(registerDestination)
 
             #TODO
         '''
 
         def engAdd_RippleCarry(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]
             ) -> Dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of ripple carry add operation on those registers. Returns the energy and latency as a dictionary
             
@@ -5495,13 +5537,16 @@ class CPUsim_v4(Generic[ParseNode]):
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+            assert type(registerB[0]) is int or type(registerB[0]) is str 
+            assert type(registerB[1]) is int or type(registerB[1]) is str
 
             bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB))
 
@@ -5511,8 +5556,8 @@ class CPUsim_v4(Generic[ParseNode]):
             return {"energy" : energy, "latency" : latency}
 
         def engMultiply_ShiftAdd1(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]
             ) -> Dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
 
@@ -5532,13 +5577,16 @@ class CPUsim_v4(Generic[ParseNode]):
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+            assert type(registerB[0]) is int or type(registerB[0]) is str 
+            assert type(registerB[1]) is int or type(registerB[1]) is str
 
             bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB)) * 2
 
@@ -5548,8 +5596,8 @@ class CPUsim_v4(Generic[ParseNode]):
             return {"energy" : energy, "latency" : latency}
 
         def engMultiply_ShiftAdd2(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]
             ) -> Dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
 
@@ -5569,13 +5617,16 @@ class CPUsim_v4(Generic[ParseNode]):
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+            assert type(registerB[0]) is int or type(registerB[0]) is str 
+            assert type(registerB[1]) is int or type(registerB[1]) is str
 
             bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB))
 
@@ -5585,8 +5636,8 @@ class CPUsim_v4(Generic[ParseNode]):
             return {"energy" : energy, "latency" : latency}
 
         def engAND(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int], registerB : Tuple[str, str or int]
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]
             ) -> Dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
             
@@ -5605,13 +5656,16 @@ class CPUsim_v4(Generic[ParseNode]):
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is str and (type(registerB[1]) is int or type(registerB[1]) is str)
+            assert type(registerB[0]) is int or type(registerB[0]) is str 
+            assert type(registerB[1]) is int or type(registerB[1]) is str
 
             bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB))
 
@@ -5621,8 +5675,8 @@ class CPUsim_v4(Generic[ParseNode]):
             return {"energy" : energy, "latency" : latency}
 
         def engNOT(self, 
-            funcRead : Callable[[str, str or int], int], funcWrite : Callable[[str, str or int], None], funcGetConfig : Callable[[str, str or int], dict], 
-            registerDestination : Tuple[str, str or int], registerA : Tuple[str, str or int]
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
+            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str]
             ) -> Dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
             
@@ -5641,10 +5695,12 @@ class CPUsim_v4(Generic[ParseNode]):
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is str and (type(registerDestination[1]) is int or type(registerDestination[1]) is str)
+            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is str and (type(registerA[1]) is int or type(registerA[1]) is str)
+            assert type(registerA[0]) is int or type(registerA[0]) is str 
+            assert type(registerA[1]) is int or type(registerA[1]) is str
 
             bitLength : int = funcGetConfig(registerA)
 
