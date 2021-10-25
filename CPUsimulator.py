@@ -4413,9 +4413,9 @@ class CPUsim_v4(Generic[ParseNode]):
         Note: __eq__() and __ne__() are implimented to make it easier for compairsions with Node.token and other values.
         """
 
-        def __init__(self, typeStr : str = None, token : str or int = None, lineNum : int = None, charNum : int = None):
+        def __init__(self, typeStr : str = None, token : Any = None, lineNum : int = None, charNum : int = None):
             assert type(typeStr) is str or typeStr == None
-            #check for type(token) not done for better flexibility
+            
             assert type(lineNum) is int or lineNum == None
             if type(lineNum) is int:
                 assert lineNum >= 0
@@ -4424,7 +4424,7 @@ class CPUsim_v4(Generic[ParseNode]):
                 assert charNum >= 0
 
             self.type : str = typeStr
-            self.token : str = token
+            self.token : Any = token
             self.child : list = []
 
             #relational references to other nodes
@@ -4454,7 +4454,7 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return self.__class__(self.type, self.token, self.lineNum, self.charNum) #TODO This feels wrong, but I don't know why it's wrong
 
-        def copyDeep(self) -> ParseNode: #name is copyDeep instead of deepCopy to avoid accedentally calling copy.copyDeep()
+        def copyDeep(self) -> ParseNode: #name is copyDeep instead of deepCopy to avoid namespace collision with copy.copyDeep()
             """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree.
             
             Has the side effect of 'resetting' all relational links (parent, nodeNext, nodePrevious)"""
@@ -6269,7 +6269,7 @@ class CPUsim_v4(Generic[ParseNode]):
             for i in tree.child:
                 if type(i.token) is str:
                     if i.token.lower() in keys:
-                        temp = i.copyDeep()
+                        temp : ParseNode = i.copyDeep()
                         temp.type = tokenType
                         root.append(temp)
                     else:
@@ -6589,7 +6589,7 @@ class CPUsim_v4(Generic[ParseNode]):
             root : ParseNode = tree.copyInfo()
 
             for i in tree.child:
-                temp = []
+                temp : List[ParseNode] = []
                 if type(i.token) is str and i.token in alias: #if alias token found, tokenize it's replacement string, and add that series of tokens to root
                     for j in self._tokenize(alias[i.token]):
                         temp.append(self.Node("token", j[0], i.lineNum, i.charNum))
