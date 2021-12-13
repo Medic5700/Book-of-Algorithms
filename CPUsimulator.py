@@ -172,7 +172,7 @@ Data Structures:
     var state : Dict[
         var key : str,
         Dict[
-            var index : str or int,
+            var index : int or str,
             var value : int
         ]
     ]
@@ -184,7 +184,7 @@ Data Structures:
     var config : Dict[
         var key : str,
         Dict[
-            var index : str or int,
+            var index : int or str,
             Dict[
                 -> 'bitLength' : str        = int
                 -> 'show' : str             = bool
@@ -258,6 +258,11 @@ Test Cases to impliment:
             Energy tracking (for memory access, instruction fetching, computation, etc)
             An implimented Modular Meta Memory Managment Unit (MMMMU) (for energy tracking of memory access, instruction fetching, cache hits, etc)
             Speculative execution/branch prediction (having speculative execution with multiple execution units running could drastically change the energy profile of an algorithm)
+    AMD Bulldozer
+        https://en.wikipedia.org/wiki/Bulldozer_(microarchitecture)
+        This CPU is special as each pair of CPU cores shared a single FPU, thus two individual threads running Floating Point calculations would be bottlenecked by the single FPU
+        Would be implimented as a single CPU with hyperThreading of two threads, where the schedualer assigns instructions to specific Execution Ports based on which hyperThread the instructions are from
+            IE: thread1 can assign intructions to portInt1, portInt2, portFPU. thread2 can assign instruction to portInt3, portInt4, portFPU. Thus execution unit portFPU is shared between threads
     #TODO a stack based CPU
 
 #TODO Stack:
@@ -4627,16 +4632,69 @@ class NodeParse(Generic[ParseNode]): #Names NodeParse instead of ParseNode to av
 
 class CPUsim_v4(Generic[ParseNode]):
     """
-    API overview:
-        ckass CPUsim
+    API #TODO overview:
+        class CPUsim
             def __init__                            #TODO
+            def setInstructionSet                   #TODO #Passthrough
+            def setParser                           #TODO #Passthrough
+            def setDecoder                          #TODO #Passthrough
+            def setPostTickMemoryAdjuster           #TODO #Passthrough
+            def setMMMU                             #TODO #Passthrough
             class NodeParse
+                self.token                          #TODO token should be type 'Any'
             class DisplaySimpleAndClean             #TODO
             class DisplaySilent                     #TODO
             class InstructionSetDefault
                 def opCopy                          #NotImplimented
+            class MMMU                              #TODO #NotImplimented
+            class ParserDefault
+                def __init__                        #Eliminate
+                    var Node = NodeParse            #TODO should import 'class NodeParse' but name refers to old code with old name
+                def updateNameSpace                 #Eliminate
+                def update                          #Eliminate
+                def ruleFilterBlockComments         #TODO #NotImplimented
+                def ruleFindDirectives              #TODO #NotImplimented
+                def _tokenizeChar                   #NotImplimented
+            class CompilerDefault                   #TODO #NotImplimented
+            class DecoderDefault                    #TODO #NotImplimented
+
     """
-    version = "0.4"
+    """ Random Design Notes
+    Stats:
+        [every memory cell] (branchNode, poolEntryPoint, hyperThreadContext, key, index)
+            reads
+            writes
+            energy access
+            energy maintiance
+            #energy saved from cache hits?
+        [every instruction]
+            executions
+            energy
+            energy idle
+            time latency
+            time idle
+        [every execution unit]
+            executions
+            energy
+            energy idle
+            time idle
+
+    Energy Estimation:
+        1 energy = 1 logic gate =_approx 1 * 10 ^ -12 Joules = 1 picoJoule / Gate
+        1 latency = 1 logic gate =_approx 1 * 10 ^ -12 Seconds = 1 picoSecond / Gate
+        1 cycle =_approx 1 64-bit add operation register to register =_approx 1000 picoJoules, 1000 picoSeconds = 10 ^ -9 Joules, 10 ^ -9 Seconds = 1 nanoJoule / Operation, 1 nanoSecond / Operation
+
+        Characterizing the Energy Consumption of Data Transfers and Arithmetic Operations on x86-64 Processors [2010-xx-xx], Daniel Molka, Daniel Hackenberg, Robert Schone and Matthias S. M ¨ uller
+
+    Ideal Computation Logic Gate running at ideal temperature of 2.73 Kelvin (temperature of the Universe)
+        1 bitflip = k * T * ln(2); k = Boltzmann constant @ 1.38 * 10 ^ -23 J/K, T = Temperature in Kelvin
+        1 bitflip = (1.38 * 10 ^ -23 J/K) * (2.73 K) * ln(2) = 2.611 * 10 ^ -23 Joules
+        1 bitflip = 2.611 * 10 ^ -23 Joules
+        
+        https://youtu.be/__YWDi78Mco?t=847
+        https://en.wikipedia.org/wiki/Landauer%27s_principle#Equation
+
+    """
 
     def __init__(self):
         pass
