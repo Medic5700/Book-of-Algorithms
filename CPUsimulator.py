@@ -4390,6 +4390,241 @@ def testProgramMultiply():
 
 #====================================================================================================================== Mockup
 
+class NodeParse(Generic[ParseNode]): #Names NodeParse instead of ParseNode to avoid conflicts with the type ParseNode, and NodeParse seems more logical (Parse subset of root Node)
+    """A data class for storing information in a tree like structure. 
+
+    Each Node also has a coupld relational links between children (nodeNext, nodePrevious, nodeParent)
+    Note: __eq__() and __ne__() are implimented to make it easier for compairsions with Node.token and other values.
+    """
+
+    def __init__(self, typeStr : str = None, token : Any = None, lineNum : int = None, charNum : int = None):
+        assert type(typeStr) is str or typeStr == None
+        
+        assert type(lineNum) is int or lineNum == None
+        if type(lineNum) is int:
+            assert lineNum >= 0
+        assert type(charNum) is int or charNum == None
+        if type(charNum) is int:
+            assert charNum >= 0
+
+        self.type : str = typeStr
+        self.token : Any = token
+        self.child : list = []
+
+        #relational references to other nodes
+        self.parent : self.__class__ = None
+        self.nodePrevious : self.__class__ = None
+        self.nodeNext : self.__class__ = None
+
+        #the line number of the string or character position in a line, will be needed for indentation awareness if it's ever needed
+        self.lineNum : int = lineNum 
+        self.charNum : int = charNum
+
+    def append(self, node : ParseNode):
+        """Adds a new node object to self as a child (at end of list)"""
+        assert type(node) is self.__class__
+
+        if len(self.child) != 0:
+            self.child[-1].nodeNext = node
+            node.nodePrevious = self.child[-1]
+        if node.parent == None:
+            node.parent = self
+        self.child.append(node)
+    
+    def copyInfo(self) -> ParseNode:
+        """Creates a new node with the properties (but not relational data) of this node. returns the created node. 
+        
+        IE: returns a copy of the node with type, token, lineNum, charNum. Does not copy links to children, parent, nodeNext, nodePrevious, etc"""
+
+        return self.__class__(self.type, self.token, self.lineNum, self.charNum) #TODO This feels wrong, but I don't know why it's wrong
+
+    def copyDeep(self) -> ParseNode: #name is copyDeep instead of deepCopy to avoid namespace collision with copy.copyDeep()
+        """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree.
+        
+        Has the side effect of 'resetting' all relational links (parent, nodeNext, nodePrevious)"""
+        
+        newNode = self.__class__(self.type, self.token, self.lineNum, self.charNum)
+
+        logging.debug(debugHelper(inspect.currentframe()) + "attempting to copyDeep node"+ "\n" + str((
+                self.type,
+                self.token,
+                self.lineNum,
+                self.charNum,
+                self.child))
+            )
+
+        for i in range(len(self.child)):
+            newNode.append(self.child[i].copyDeep())
+        return newNode
+
+    def replace(self, oldNode : ParseNode, newNode : ParseNode):
+        """Takes in an oldNode that is child of self, and replaces it with newNode. Deletes oldNode"""
+        assert type(oldNode) is self.__class__
+        assert type(newNode) is self.__class__
+
+        index = None
+        for i in range(len(self.child)):
+            if self.child[i] is oldNode:
+                index = i
+        
+        if index == None:
+            raise Exception("oldNode not found, can not replace oldNode. oldNode = \n" + str(oldNode))
+
+        removeNode = self.child[index]
+        
+        #'rewires' the references of the children nodes
+        newNode.parent = self
+        if len(self.child) == 1: #case where oldNode is the only child in the list
+            logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
+            pass
+        elif index == 0: #case where oldNode is first child in the list, but not the only child in the list
+            logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
+
+            newNode.nodeNext = self.child[1]
+            self.child[1].nodePrevious = newNode
+        elif index == len(self.child) - 1: #case where oldNode is the last child in the list, but not the only child in the list
+            logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
+
+            newNode.nodePrevious = self.child[-1]
+            self.child[-1].nodeNext = newNode
+        elif 0 < index < len(self.child) -1: #case where oldNode is between two other nodes
+            logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
+
+            newNode.nodePrevious = self.child[index - 1]
+            newNode.nodeNext = self.child[index + 1]
+
+            self.child[index - 1] = newNode
+            self.child[index + 1] = newNode
+
+        self.child[index] = newNode
+
+        #deletes oldNode
+        removeNode.parent = None
+        removeNode.nodeNext = None
+        removeNode.nodePrevious = None
+
+        for i in range(len(removeNode.child) - 1, -1, -1):
+            removeNode.remove(removeNode.child[i])
+
+    def remove(self, node : ParseNode):
+        """Takes in a node that is a child of self, removes node. raises exception if node is not a child
+        
+        deletes references to other nodes from Node, recursively removes child nodes of Node using remove()
+        This is to make it easier to the python garbage collecter to destroy it, because cyclic references"""
+        assert type(node) is self.__class__
+
+        index : int = None
+        for i in range(len(self.child)):
+            if self.child[i] is node:
+                index = i
+
+        if index == None:
+            raise Exception("node is not found, can not remove. node = \n" + str(node))
+
+        removeNode : self.__class__ = self.child[index]
+
+        logging.debug(debugHelper(inspect.currentframe()) + "attempting to remove node"+ "\n" + str((
+                self.type,
+                self.token,
+                self.lineNum,
+                self.charNum,
+                self.child)))
+
+        #'rewires' the references of the children nodes to remove removeNode
+        if len(self.child) == 1: #case where removeNode is the only child in the list
+            logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
+            pass
+        elif index == 0: #case where removeNode is first child in the list, but not the only child in the list
+            logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
+            if type(removeNode.nodeNext) is self.__class__: #TODO figure out why this is neccissary to avoid a specific error.
+                removeNode.nodeNext.nodePrevious = None
+        elif index == len(self.child) - 1: #case where removeNode is the last child in the list, but not the only child in the list
+            logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
+            if type(removeNode.nodePrevious) is self.__class__:
+                removeNode.nodePrevious.nodeNext = None
+        elif 0 < index < len(self.child) -1: #case where removeNode is between two other nodes
+            logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
+            if type(removeNode.nodePrevious) is self.__class__:
+                removeNode.nodePrevious.nodeNext = removeNode.nodeNext
+            if type(removeNode.nodeNext) is self.__class__:
+                removeNode.nodeNext.nodePrevious = removeNode.nodePrevious
+        
+        removeNode.parent = None
+        removeNode.nodeNext = None
+        removeNode.nodePrevious = None
+        
+        self.child.pop(index)
+        
+        for i in range(len(removeNode.child) - 1, -1, -1):
+            removeNode.remove(removeNode.child[i])
+
+    def __repr__(self, depth : int = 1) -> str:
+        """Recursivly composes a string representing the node hierarchy, returns a string.
+        
+        Called by print() to display the object"""
+        assert type(depth) is int
+        assert depth >= 1
+
+        block : str = ""
+        line : str = ""
+        for i in range(depth):
+            line += "    "
+        line += repr(self.token)
+        line = line.ljust(40, " ")
+        line += "\t:" + str(self.type).capitalize().ljust(8)
+        line += "\t" + str(depth)
+
+        line += "\t" + "lineNum=" + str(self.lineNum) + "\t" + "charNum=" + str(self.charNum)
+
+        line += "\n"
+
+        childLines : List[str] = [i.__repr__(depth+1) for i in self.child]
+        block += line
+        for i in childLines:
+            block += i
+
+        return block
+        
+    def __eq__(self, other) -> bool:
+        """A custom equals comparision. Takes in another object other, and compaires it to self.token. Returns True if equal, False otherwise"""
+        logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
+
+        #return self.token == other
+        if type(other) is self.__class__:
+            return self.token == other.token
+        else:
+            return self.token == other
+
+    def __ne__(self, other) -> bool:
+        """A custom not equals comparision. Takes in another object other, and compaires it to self.token. Returns True if not equal, False otherwise"""
+        logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
+
+        #return self.token != other
+        if type(other) is self.__class__:
+            return self.token != other.token
+        else:
+            return self.token != other
+
+    #No longer needed since remove() cleans up enough recursivly for the python garbage collector to pick it up. This function might be useful for debugging purposes
+    def __del__(self):
+        """Decontructor, needed because the various inter-node references may make it harder for the python garbage collector to properly delete an entire tree.
+        
+        will not touch pointers to this node from other nodes. IE: nodeNext's pointer to this node could be set to None, but that could get messy?"""
+        
+        logging.debug(debugHelper(inspect.currentframe()) + "Deleting Node" + "\n" + str((
+                self.type,
+                self.token,
+                self.lineNum,
+                self.charNum))
+                )
+        
+        self.parent = None
+        self.nodeNext = None
+        self.nodePrevious = None
+
+        while len(self.child) != 0:
+            self.remove(self.child[0])
+
 class CPUsim_v4(Generic[ParseNode]):
     """
     API overview:
@@ -4406,240 +4641,27 @@ class CPUsim_v4(Generic[ParseNode]):
     def __init__(self):
         pass
 
-    class NodeParse(Generic[ParseNode]): #Names NodeParse instead of ParseNode to avoid conflicts with the type ParseNode, and NodeParse seems more logical (Parse subset of root Node)
-        """A data class for storing information in a tree like structure. 
 
-        Each Node also has a coupld relational links between children (nodeNext, nodePrevious, nodeParent)
-        Note: __eq__() and __ne__() are implimented to make it easier for compairsions with Node.token and other values.
         """
 
-        def __init__(self, typeStr : str = None, token : Any = None, lineNum : int = None, charNum : int = None):
-            assert type(typeStr) is str or typeStr == None
-            
-            assert type(lineNum) is int or lineNum == None
-            if type(lineNum) is int:
-                assert lineNum >= 0
-            assert type(charNum) is int or charNum == None
-            if type(charNum) is int:
-                assert charNum >= 0
-
-            self.type : str = typeStr
-            self.token : Any = token
-            self.child : list = []
-
-            #relational references to other nodes
-            self.parent : self.__class__ = None
-            self.nodePrevious : self.__class__ = None
-            self.nodeNext : self.__class__ = None
-
-            #the line number of the string or character position in a line, will be needed for indentation awareness if it's ever needed
-            self.lineNum : int = lineNum 
-            self.charNum : int = charNum
-
-        def append(self, node : ParseNode):
-            """Adds a new node object to self as a child (at end of list)"""
-            assert type(node) is self.__class__
-
-            if len(self.child) != 0:
-                self.child[-1].nodeNext = node
-                node.nodePrevious = self.child[-1]
-            if node.parent == None:
-                node.parent = self
-            self.child.append(node)
         
-        def copyInfo(self) -> ParseNode:
-            """Creates a new node with the properties (but not relational data) of this node. returns the created node. 
-            
-            IE: returns a copy of the node with type, token, lineNum, charNum. Does not copy links to children, parent, nodeNext, nodePrevious, etc"""
 
-            return self.__class__(self.type, self.token, self.lineNum, self.charNum) #TODO This feels wrong, but I don't know why it's wrong
 
-        def copyDeep(self) -> ParseNode: #name is copyDeep instead of deepCopy to avoid namespace collision with copy.copyDeep()
-            """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree.
-            
-            Has the side effect of 'resetting' all relational links (parent, nodeNext, nodePrevious)"""
-            
-            newNode = self.__class__(self.type, self.token, self.lineNum, self.charNum)
 
-            logging.debug(debugHelper(inspect.currentframe()) + "attempting to copyDeep node"+ "\n" + str((
-                    self.type,
-                    self.token,
-                    self.lineNum,
-                    self.charNum,
-                    self.child))
-                )
 
-            for i in range(len(self.child)):
-                newNode.append(self.child[i].copyDeep())
-            return newNode
 
-        def replace(self, oldNode : ParseNode, newNode : ParseNode):
-            """Takes in an oldNode that is child of self, and replaces it with newNode. Deletes oldNode"""
-            assert type(oldNode) is self.__class__
-            assert type(newNode) is self.__class__
 
-            index = None
-            for i in range(len(self.child)):
-                if self.child[i] is oldNode:
-                    index = i
-            
-            if index == None:
-                raise Exception("oldNode not found, can not replace oldNode. oldNode = \n" + str(oldNode))
 
-            removeNode = self.child[index]
-            
-            #'rewires' the references of the children nodes
-            newNode.parent = self
-            if len(self.child) == 1: #case where oldNode is the only child in the list
-                logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
-                pass
-            elif index == 0: #case where oldNode is first child in the list, but not the only child in the list
-                logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
 
-                newNode.nodeNext = self.child[1]
-                self.child[1].nodePrevious = newNode
-            elif index == len(self.child) - 1: #case where oldNode is the last child in the list, but not the only child in the list
-                logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
 
-                newNode.nodePrevious = self.child[-1]
-                self.child[-1].nodeNext = newNode
-            elif 0 < index < len(self.child) -1: #case where oldNode is between two other nodes
-                logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
 
-                newNode.nodePrevious = self.child[index - 1]
-                newNode.nodeNext = self.child[index + 1]
 
-                self.child[index - 1] = newNode
-                self.child[index + 1] = newNode
 
-            self.child[index] = newNode
 
-            #deletes oldNode
-            removeNode.parent = None
-            removeNode.nodeNext = None
-            removeNode.nodePrevious = None
 
-            for i in range(len(removeNode.child) - 1, -1, -1):
-                removeNode.remove(removeNode.child[i])
 
-        def remove(self, node : ParseNode):
-            """Takes in a node that is a child of self, removes node. raises exception if node is not a child
-            
-            deletes references to other nodes from Node, recursively removes child nodes of Node using remove()
-            This is to make it easier to the python garbage collecter to destroy it, because cyclic references"""
-            assert type(node) is self.__class__
 
-            index : int = None
-            for i in range(len(self.child)):
-                if self.child[i] is node:
-                    index = i
 
-            if index == None:
-                raise Exception("node is not found, can not remove. node = \n" + str(node))
-
-            removeNode : self.__class__ = self.child[index]
-
-            logging.debug(debugHelper(inspect.currentframe()) + "attempting to remove node"+ "\n" + str((
-                    self.type,
-                    self.token,
-                    self.lineNum,
-                    self.charNum,
-                    self.child)))
-
-            #'rewires' the references of the children nodes to remove removeNode
-            if len(self.child) == 1: #case where removeNode is the only child in the list
-                logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
-                pass
-            elif index == 0: #case where removeNode is first child in the list, but not the only child in the list
-                logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
-                if type(removeNode.nodeNext) is self.__class__: #TODO figure out why this is neccissary to avoid a specific error.
-                    removeNode.nodeNext.nodePrevious = None
-            elif index == len(self.child) - 1: #case where removeNode is the last child in the list, but not the only child in the list
-                logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
-                if type(removeNode.nodePrevious) is self.__class__:
-                    removeNode.nodePrevious.nodeNext = None
-            elif 0 < index < len(self.child) -1: #case where removeNode is between two other nodes
-                logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
-                if type(removeNode.nodePrevious) is self.__class__:
-                    removeNode.nodePrevious.nodeNext = removeNode.nodeNext
-                if type(removeNode.nodeNext) is self.__class__:
-                    removeNode.nodeNext.nodePrevious = removeNode.nodePrevious
-            
-            removeNode.parent = None
-            removeNode.nodeNext = None
-            removeNode.nodePrevious = None
-            
-            self.child.pop(index)
-            
-            for i in range(len(removeNode.child) - 1, -1, -1):
-                removeNode.remove(removeNode.child[i])
-
-        def __repr__(self, depth : int = 1) -> str:
-            """Recursivly composes a string representing the node hierarchy, returns a string.
-            
-            Called by print() to display the object"""
-            assert type(depth) is int
-            assert depth >= 1
-
-            block : str = ""
-            line : str = ""
-            for i in range(depth):
-                line += "    "
-            line += repr(self.token)
-            line = line.ljust(40, " ")
-            line += "\t:" + str(self.type).capitalize().ljust(8)
-            line += "\t" + str(depth)
-
-            line += "\t" + "lineNum=" + str(self.lineNum) + "\t" + "charNum=" + str(self.charNum)
-
-            line += "\n"
-
-            childLines : List[str] = [i.__repr__(depth+1) for i in self.child]
-            block += line
-            for i in childLines:
-                block += i
-
-            return block
-            
-        def __eq__(self, other) -> bool:
-            """A custom equals comparision. Takes in another object other, and compaires it to self.token. Returns True if equal, False otherwise"""
-            logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
-
-            #return self.token == other
-            if type(other) is self.__class__:
-                return self.token == other.token
-            else:
-                return self.token == other
-
-        def __ne__(self, other) -> bool:
-            """A custom not equals comparision. Takes in another object other, and compaires it to self.token. Returns True if not equal, False otherwise"""
-            logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
-
-            #return self.token != other
-            if type(other) is self.__class__:
-                return self.token != other.token
-            else:
-                return self.token != other
-
-        #No longer needed since remove() cleans up enough recursivly for the python garbage collector to pick it up. This function might be useful for debugging purposes
-        def __del__(self):
-            """Decontructor, needed because the various inter-node references may make it harder for the python garbage collector to properly delete an entire tree.
-            
-            will not touch pointers to this node from other nodes. IE: nodeNext's pointer to this node could be set to None, but that could get messy?"""
-            
-            logging.debug(debugHelper(inspect.currentframe()) + "Deleting Node" + "\n" + str((
-                    self.type,
-                    self.token,
-                    self.lineNum,
-                    self.charNum))
-                    )
-            
-            self.parent = None
-            self.nodeNext = None
-            self.nodePrevious = None
-
-            while len(self.child) != 0:
-                self.remove(self.child[0])
 
     class InstructionSetDefault:
         """A Mockup of the default instruction set for future use
@@ -5739,7 +5761,6 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return root
         """
-        #Node = CPUsim_v4.NodeParse #can't define here since CPUsim_v4 definition is still being created (not initialized)(If I understand it right?)
 
         def __init__(self, nameSpace : dict = {}):
             assert type(nameSpace) is dict
@@ -5748,7 +5769,7 @@ class CPUsim_v4(Generic[ParseNode]):
             self.alias : dict = {}
             self.labels : dict = None
 
-            self.Node : ParseNode = CPUsim_v4.NodeParse #Can be put here since this runs AFTER CPUsim_v4 is defined, thus allowing a reference to it (If I understand it right?)
+            self.Node : ParseNode = NodeParse
 
         '''
         def updateNameSpace(self, nameSpace : dict, alias : dict):
