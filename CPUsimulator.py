@@ -4786,7 +4786,7 @@ class CPUsim_v4(Generic[ParseNode]):
 
             self.instructionSet :   Dict[
                                         Tuple[str, ...],                                    #Instruction 'op-code', will automatically (#TODO) get converted to a Tuple on import
-                                        List[                                               #Instruction functions will automatically (#TODO) get converted to a list in import
+                                        Tuple[                                              #Instruction functions will automatically (#TODO) get converted to a list in import
                                             Callable[
                                                 [
                                                     Callable[[int or str, int or str], int],       #MMMU read function
@@ -4805,27 +4805,27 @@ class CPUsim_v4(Generic[ParseNode]):
                                         ]
                                     ]
             self.instructionSet = {
-                "nop"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                               : self.opNop(fRead, fWrite, fConfig, EFunc, EStatus)), #full syntax
+                ("nop",)        : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                               : self.opNop(fRead, fWrite, fConfig, EFunc, EStatus)), #full syntax
 
-                "add"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,      des, a, b                : self.opAdd(fRead, fWrite, fConfig, EFunc, EStatus,            des, a, b)), #full syntax
-                "mult"      : self.opMultiply,
-                "twos"      : self.opTwosCompliment,
-                "copy"      : self.opCopyElement,
+                ("add",)        : (lambda fRead, fWrite, fConfig, EFunc, EStatus,      des, a, b                : self.opAdd(fRead, fWrite, fConfig, EFunc, EStatus,            des, a, b)), #full syntax
+                ("mult",)       : self.opMultiply,
+                ("twos",)       : self.opTwosCompliment,
+                ("copy",)       : self.opCopyElement,
 
-                "and"       : self.opAND,
-                "or"        : self.opOR,
-                "xor"       : self.opXOR,
-                "not"       : self.opNOT,
+                ("and",)        : self.opAND,
+                ("or",)         : self.opOR,
+                ("xor",)        : self.opXOR,
+                ("not",)        : self.opNOT,
 
-                "jumpeq"    : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer, a, b           : self.opJump(fRead, fWrite, fConfig, EFunc, EStatus,           "==", pointer, a, b)),
-                "jumpne"    : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer, a, b           : self.opJump(fRead, fWrite, fConfig, EFunc, EStatus,           "!=", pointer, a, b)),
-                "jump"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer                 : self.opJump(fRead, fWrite, fConfig, EFunc, EStatus,           "goto", pointer)),
+                ("jumpeq",)     : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer, a, b           : self.opJump(fRead, fWrite, fConfig, EFunc, EStatus,           "==", pointer, a, b)),
+                ("jumpne",)     : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer, a, b           : self.opJump(fRead, fWrite, fConfig, EFunc, EStatus,           "!=", pointer, a, b)),
+                ("jump",)       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       pointer                 : self.opJump(fRead, fWrite, fConfig, EFunc, EStatus,           "goto", pointer)),
 
-                "shiftl"    : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a                  : self.opShiftL(fRead, fWrite, fConfig, EFunc, EStatus,         des, a, fWrite("imm", 0, 1))), #TODO #Allows adding an immediate value, and returns an immediate key/index pair
-                "shiftr"    : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a                  : self.opShiftR(fRead, fWrite, fConfig, EFunc, EStatus,         des, a, fWrite("imm", 0, 1), False)), #TODO #Allows adding an immediate value, and returns an immediate key/index pair
+                ("shiftl",)     : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a                  : self.opShiftL(fRead, fWrite, fConfig, EFunc, EStatus,         des, a, fWrite("imm", 0, 1))), #TODO #Allows adding an immediate value, and returns an immediate key/index pair
+                ("shiftr",)     : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a                  : self.opShiftR(fRead, fWrite, fConfig, EFunc, EStatus,         des, a, fWrite("imm", 0, 1), False)), #TODO #Allows adding an immediate value, and returns an immediate key/index pair
 
                 #TODO #This essentially makes a table-lookup to datastructure in another part of the CPU simulator where you can define what happens (IE: a direct function call, or a jump to an OS subroutine)
-                "halt"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                               : self.sysCallSimple(fRead, fWrite, fConfig, EFunc, EStatus,    "halt"))
+                ("halt",)       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                               : self.sysCallSimple(fRead, fWrite, fConfig, EFunc, EStatus,    "halt"))
                 #"halt"     : self.microcode(0xFFFF)    #TODO #This explicidly jumps to a predefined subroutine that is outside of the typical memory layout (IE: a special memory section kind of like how IMM registers is handled now)
 
                 #"addTest"  : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a, b               : self.opAdd(fRead, fWrite, fConfig, EFunc, EStatus,        des, ("m", fRead(a)), b))   #Indirect Memory Addressing
@@ -4833,7 +4833,7 @@ class CPUsim_v4(Generic[ParseNode]):
 
             self.instructionEnergy :    Dict[
                                             Tuple[str, ...],
-                                            List[
+                                            Tuple[
                                                 Callable[
                                                     [
                                                         Callable[[int or str, int or str], int],       #MMMU read function
@@ -4850,28 +4850,28 @@ class CPUsim_v4(Generic[ParseNode]):
                                             ]
                                         ]
             self.instructionEnergy = {
-                "nop"       : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0}),
+                ("nop",)        : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0}),
 
-                "add"       : self.engAdd_RippleCarry,
-                "mult"      : self.engMultiply_ShiftAdd2,
-                "twos"      : (lambda fRead, fWrite, fConfig,       des, a                  : { "energy"    : self.engAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["energy"] + self.engNOT(fRead, fWrite, fConfig, des, a)["energy"], 
+                ("add",)        : self.engAdd_RippleCarry,
+                ("mult",)       : self.engMultiply_ShiftAdd2,
+                ("twos",)       : (lambda fRead, fWrite, fConfig,       des, a                  : { "energy"    : self.engAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["energy"] + self.engNOT(fRead, fWrite, fConfig, des, a)["energy"], 
                                                                                                 "latency"   : self.engAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["latency"] + self.engNOT(fRead, fWrite, fConfig, des, a)["latency"]
                                                                                                 }),
-                "copy"      : self.engAND,
+                ("copy",)       : self.engAND,
 
-                "and"       : self.engAND,
-                "or"        : self.engAND,
-                "xor"       : self.engAND,
-                "not"       : self.engNOT,
+                ("and",)        : self.engAND,
+                ("or",)         : self.engAND,
+                ("xor",)        : self.engAND,
+                ("not",)        : self.engNOT,
 
-                "jumpeq"    : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.engAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
-                "jumpne"    : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.engAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
-                "jump"      : (lambda fRead, fWrite, fConfig,       pointer                 : self.engNOT(fRead, fWrite, fConfig,            pointer, pointer)),
+                ("jumpeq",)     : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.engAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
+                ("jumpne",)     : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.engAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
+                ("jump",)       : (lambda fRead, fWrite, fConfig,       pointer                 : self.engNOT(fRead, fWrite, fConfig,            pointer, pointer)),
 
-                "shiftl"    : self.engNOT,
-                "shiftr"    : self.engNOT,
+                ("shiftl",)     : self.engNOT,
+                ("shiftr",)     : self.engNOT,
 
-                "halt"      : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0})
+                ("halt",)       : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0})
             }
 
             """
