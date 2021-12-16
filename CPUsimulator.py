@@ -7057,6 +7057,383 @@ class CPUsim_v4(Generic[ParseNode]):
             """
             pass
 
+    class CompilerDefault(Generic[ParseNode]):
+        """
+
+        #TODO notes:
+            compile should take in an assembly program execution tree
+            var instruction array # holds instruction nodes
+            var data array # holds binary data
+            var jump array # holds jump pointers
+            recursivly evaluate every line
+                call instructionset functions to encode each node
+                dump data
+                    binary into data array
+                    execution node tree into instruction array
+                calculate how long the instruction is, and where the next instruction should be to jump to
+                    record that data into jump array
+        
+        """
+
+        def __init__(self, endianess : Literal["big", "little"] = "little", memoryElementSize : int = 8):
+            """
+
+            endianess           - the endianess of the binary data, used for properly storing data (64-bit int, 16-bit float, etc)
+            memoryElementSize   - the size of the memory unit, used in case of odd unit sizes (7-bit system, or a system that enforces 64-bit aligned access)
+            """
+            assert type(endianess) is str
+            assert endianess in ["big", "little"]
+            assert type(memoryElementSize) is int
+            assert memoryElementSize > 0
+
+            self.Node : ParseNode = NodeParse
+
+            self.endianess = endianess
+
+            self.memoryElementSize = memoryElementSize
+            
+            self.instructionSet :   Dict[
+                                        Tuple(str, ...),                    #Instruction or directive
+                                        Callable[
+                                            [
+                                                ParseNode,                  #The parse/execution tree for a line, for feeding in arguments into a function
+                                                Dict[                       #A dictionary of pointers to labels within the assembly source code given
+                                                    str,                    #The label
+                                                    int                     #The pointer index int (will only point to a memory bank WITHIN the current bank the)
+                                                ],
+                                                Dict[                       #A dictionary of aliases for memory, IE: register rt -> register r[5]
+                                                    str,
+                                                    Tuple[int or str]       #A register
+                                                ]
+                                            ],
+                                            List[                           #A list because should allow for the possibility of a node outputing more then one instruction
+                                                Tuple[
+                                                    List[int],                  #TODO
+                                                        #A series of ints representing the instruction in binary, each int is one memory element. more then one int represents an instruction longer then one memory element
+                                                        #should this be a bit array? 
+                                                    ParseNode,                  #The parse/execution tree to be written to memory
+                                                    Callable[[int], List[int]], #TODO
+                                                        #a lambda function that takes in a memory offset, and returns an output similar to the above, but taking into account the memory offset
+                                                    Any                         #TODO still figuring out what it needs to output, this should be some sort of readable code that could be reprocessed to adjust jumps for linking?
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+            self.instructionSet = {
+                ("nop",)            : (lambda node, labels, alias                                       : self.opNop(node, labels, alias)),
+                ("add",)            : (lambda node, labels, alias,      des, a, b                       : self.null(node, labels, alias,            des, a, b)),
+                (".ascii",)         : (lambda node, labels, alias,      text                            : self.dirAscii(node, labels, alias,        (text + "\0"))),
+                (".int8",)          : (lambda node, labels, alias,      n                               : self.dirInt(node, labels, alias,          n, 8))
+            }
+
+        def update(self, nameSpace : None):
+            """Takes in a namespace, and updates all relavent variables
+            
+            #TODO filter out instructions, 'autofill' the self.instructionSet with opNull for any instruction not defined
+            """
+            pass
+
+        def link(self, parseTree : ParseNode, labels : Dict[str, int], alias : Dict[str, Tuple[int or str]]) -> Tuple[List[int], List[int], List[ParseNode]]:
+            """Takes in a parseNode representing the parse tree for the entire program, a dict of labels, and outputs a list of ints and a list of instruction lengths and execution tree nodes.
+
+            for each line in the parse tree
+                Recursivly searches through an exectuion tree
+                    if the node token is in self.instructionSet 
+                        will execute the function to properly execute it recursivly
+                        (returns int representing instruction, int represeting instruction length, ParseNode representing the exectution tree so far)
+                    else
+                        do nothing
+                        (returns 0, 0, ParseNode as was passed in)
+                
+            """
+            
+            root : ParseNode = parseTree
+            lines : List[ParseNode] = [node for node in root.child]
+
+        def __parseNodeSearchDepthFirst(self, parseTree: ParseNode):
+            pass
+
+        def __evaluateTree(self, parseTree: ParseNode):
+            pass
+
+        def int2bits(self, number : int, bitLength : int) -> List[int]:
+            """Takes a bitLength, and a number where ((0 - 2**bitLength) // 2 <= number < 2**bitLength). Returns a bit int array representing the number, zero index is least significant bit
+            
+            For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
+            """
+            assert type(bitLength) is int
+            assert bitLength > 0
+            assert type(number) is int
+            assert (0 - 2**bitLength) // 2 <= number < 2**bitLength
+
+            number = number & (2**bitLength - 1)
+            bitArray = [number >> i & 1 for i in range(bitLength)] #index 0 is least significant bit
+
+            return bitArray
+
+        def null(self,
+            node : ParseNode, labels : dict, alias : dict,
+            *null
+            ) -> Tuple[List[int], ParseNode]:
+            """Takes in an arbitrary number of arguments. Returns a list of zero representing no instruction, and the node passed in
+            
+            'Passes through' the ParseNode, while ignoring a variable number of arguments, allowing the instruction encoiding details to be undefined
+            """
+
+            return [0], node
+
+        def opNop(self, 
+            node : ParseNode, labels : dict, alias : dict 
+            ) -> Tuple[List[int], ParseNode]:
+            
+            return [0], node
+
+        def dirAscii(self,
+            node : ParseNode, labels : dict, alias : dict,
+            text : str
+            ) -> Tuple[List[int], ParseNode]:
+            """ Takes in a string, and outputs a list of ints representing the ascii of the string + None
+
+            memoryElementSize must by 7 bits or greater
+            Every character gets put into a single Memory Element, there is no 'packing' multiple characters into a single Memory Element. #TODO should this be allowed?
+            Every character gets 'squashed' to 7-bits before being stored
+            """
+
+            assert self.memoryElementSize >= 7
+            assert type(text) is str
+            assert len(text) > 0
+
+            result : List[int] = []
+
+            character : int = 0
+            for i in text:
+                character = ord(i) & (2**7 - 1) #Squashish ascii to 7-bits
+                result.append(character)
+
+            return result, None
+
+        def dirInt(self,
+            node : ParseNode, labels : dict, alias : dict,
+            n : int, bitSize : int
+            ) -> Tuple[List[int], ParseNode]:
+            """ Takes in a number, and a bitSize, and returns a list of ints representing the number's 'not bytes' + None
+
+            If the bitSize is not a multiple of self.memoryElementSize, the number will still be represented. 
+                IE: n=255, bitSize=7 will return [127, 1] (where the '1' is the most significant 'not byte')
+
+            Example:
+                endianess           = 'little'
+                memoryElementSize   = 8
+                bitLength           = 16
+                n                   = 255
+                result              = ([255, 0], None)
+            Example:
+                endianess           = 'little'
+                memoryElementSize   = 8
+                bitLength           = 16
+                n                   = 256
+                result              = ([0, 1], None)
+            Example:
+                endianess           = 'big'
+                memoryElementSize   = 8
+                bitLength           = 16
+                n                   = 256
+                result              = ([1, 0], None)
+            Example:
+                endianess           = 'little'
+                memoryElementSize   = 7
+                bitLength           = 8
+                n                   = 255
+                result              = ([127, 1], None)
+            Example:
+                endianess           = 'little'
+                memoryElementSize   = 7
+                bitLength           = 8
+                n                   = 256
+                result              = ([0, 2], None)
+            Example:
+                endianess           = 'big'
+                memoryElementSize   = 7
+                bitLength           = 8
+                n                   = 256
+                result              = ([2, 0], None)
+            """
+
+            assert self.memoryElementSize > 1
+            assert type(n) is int
+            assert n >= 0
+            assert type(bitSize) is int
+            assert bitSize > 0
+
+            assert n < 2**bitSize
+
+            numberBits : List[int] = self.int2bits(n, bitSize) # LSB is first
+            result : List[int] = []
+
+            modulus : int = 0
+            memoryElement : int = 0
+            for i in numberBits: # Takes Least Significant 'not Byte' and appends it to the result
+                memoryElement = memoryElement + (i << modulus)
+                modulus += 1
+                if modulus == self.memoryElementSize:
+                    result.append(memoryElement)
+                    memoryElement = 0
+                    modulus = 0
+            
+            if modulus > 0: # the remander will be the Most Significant 'not Byte'
+                result.append(memoryElement)
+
+            # result now contains 'not byte' elements such that the Least Significant 'not Byte' is First
+            if self.endianess == "big":
+                result.reverse()
+            
+            return result, None
+        
+
+class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
+
+    def testDirInt_Int8(self):
+        """Tests 8-bit ints, nothing fancy"""
+
+        compiler = CPUsim.CompilerDefault(endianess = "little", memoryElementSize = 8)
+
+        for i in range(256):
+            result : Tuple[List[int], None] = compiler.dirInt(NodeParse(), {}, {},
+                                                                i, 8)
+            self.assertEqual(result, ([i], None))
+
+    def testDirInt_Int16(self):
+        """Tests 16-bit ints, over 2 memory elements, with both endianess"""
+
+        for endianessTest in ["little", "big"]:
+            with self.subTest(endianessTest = endianessTest):
+                compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 8)
+
+                for i in range(2**16):
+                    with self.subTest(i = i):
+                        x_0 = i & (2**8 - 1) # takes lower 8 bits
+                        x_1 = (i & ((2**8 - 1) << 8)) >> 8 # takes upper 8 bits
+
+                        result : List[int] = compiler.dirInt(NodeParse(), {}, {},
+                                                            i, 16)[0]
+
+                        if endianessTest == "little":
+                            self.assertEqual(result, [x_0, x_1])
+                        else:
+                            self.assertEqual(result, [x_1, x_0])
+
+    def testDirInt_8BitSweep(self):
+        """Sweeps a single toggeled bit across multiple bitLengths, for both endianess"""
+
+        for endianessTest in ["little", "big"]:
+            with self.subTest(endianessTest = endianessTest):
+
+                compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 8)
+
+                for bitLength in [8, 16, 32, 64, 128]:
+                    with self.subTest(bitLength=bitLength):
+
+                        for i in range(bitLength):
+                            with self.subTest(i = i):
+
+                                result : List[int] = compiler.dirInt(NodeParse(), {}, {},
+                                                                    (1 << i), bitLength)[0]
+
+                                if endianessTest == "little":
+                                    result.reverse()
+
+                                resultProcessed : int = 0
+                                for j in range(bitLength // 8):
+                                    resultProcessed = (resultProcessed << 8) + result[j]
+
+                                self.assertEqual(resultProcessed, (1 << i))
+
+    def testDirInt_MaxInt(self):
+        """Attempts to store the maxium value in an int of multiple bitLengths and both endianess"""
+
+        for endianessTest in ["little", "big"]:
+            with self.subTest(endianessTest = endianessTest):
+
+                compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 8)
+
+                for byteLength in [2 ** i for i in range(1, 8 + 1)]:
+                    with self.subTest(bitLength=byteLength):
+
+                        result : List[int] = compiler.dirInt(NodeParse(), {}, {},
+                                                            2**(8 * byteLength) - 1, 8 * byteLength)[0]
+
+                        resultProcessed : int = 0
+                        for j in range(byteLength):
+                            resultProcessed = (resultProcessed << 8) + result[j]
+
+                        self.assertEqual(resultProcessed, 2**(8 * byteLength) - 1)
+
+    def testDirInt_MemoryElementSizeMismatch(self):
+        """Tests that a number can still be stored when the memoryElementSize and the bitLength of the number being stored are not multiples of each other
+        
+        Example:
+            endianess = 'little'
+            memoryElementSize = 7
+            bitLength = 8
+            n = 255
+            result = [127, 1]
+
+        Example:
+            endianess = 'little'
+            memoryElementSize = 7
+            bitLength = 8
+            n = 256
+            result = [0, 2]
+
+        Example:
+            endianess = 'big'
+            memoryElementSize = 7
+            bitLength = 8
+            n = 256
+            result = [2, 0]
+        """
+
+        for endianessTest in ["little", "big"]:
+            with self.subTest(endianessTest = endianessTest):
+
+                compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 7)
+
+                for i in range(2 ** 10):
+                    with self.subTest(i=i):
+
+                        x_0 = i & (2**7 - 1) # takes lower 7 bits
+                        x_1 = (i & ((2**7 - 1) << 7)) >> 7 # takes upper 7 bits
+
+                        result : List[int] = compiler.dirInt(NodeParse(), {}, {},
+                                                            i, 10)[0] # MemoryElement is 7 bits long, but requesting jamming 8 bits into it
+
+                        if endianessTest == "little":
+                            self.assertEqual(result, [x_0, x_1])
+                        else:
+                            self.assertEqual(result, [x_1, x_0])
+
+    def testDirAscii_HelloWorld(self):
+        """Tests converting 'Hello World!'"""
+
+        compiler = CPUsim.CompilerDefault(endianess = "little", memoryElementSize = 8)
+
+        result : List[int] = compiler.dirAscii(NodeParse(), {}, {},
+                                                "Hello World!")[0]
+
+        self.assertEqual(result, [ord(i) for i in "Hello World!"])
+
+    def testDirAscii_7bitSquash(self):
+        """Tests that input text is properly 'squashed' to 7-bit ASCII"""
+
+        compiler = CPUsim.CompilerDefault(endianess = "little", memoryElementSize = 8)
+
+        for i in range(256):
+            with self.subTest(i = i):
+                result : List[int] = compiler.dirAscii(NodeParse(), {}, {},
+                                                        chr(i))[0]
+
+                self.assertEqual(result, [i & 0b01111111])
+
 #====================================================================================================================== Main
 
 if __name__ == "__main__":
