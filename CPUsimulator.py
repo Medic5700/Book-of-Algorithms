@@ -293,7 +293,7 @@ import unittest
 import random
 
 #Some stuff for more complex annotation typing
-from typing import Any, Callable, Dict, Generic, List, Literal, Tuple, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Literal, Text, Tuple, Type, TypeVar
 ParseNode = TypeVar("ParseNode") #A node used for containing source code parsing data.
 
 #debugging and logging stuff
