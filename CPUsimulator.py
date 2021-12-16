@@ -5002,7 +5002,10 @@ class CPUsim_v4(Generic[ParseNode]):
             funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None],
             registerA : Tuple[str, int or str],
             bitStart : int, bitEnd: int) -> Tuple[int or str, int or str]:
-            """Takes a register, selects the bits starting at bitStart inclusive and ending at bitEnd inclusive. Takes result, adds it as an immediate register, returns the register address"""
+            """Takes a register, selects the bits starting at bitStart inclusive and ending at bitEnd inclusive. Takes result, adds it as an immediate register, returns the register address
+            
+            Note: bit 0 is least significant bit
+            """
             assert callable(funcRead)
             assert callable(funcWrite)
 
@@ -6693,7 +6696,7 @@ class CPUsim_v4(Generic[ParseNode]):
             pass
 
         def parseCode(self, sourceCode : str) -> Tuple[ParseNode, Dict[str, ParseNode]]:
-            """Takes a string of source code, returns a parsed instruction tree
+            """Takes a string of source code, returns a parsed instruction tree and a dictionary representing labels/pointers
             
             Takes source code of the form:
                 #This is a comment, non-functional example code
@@ -6736,6 +6739,10 @@ class CPUsim_v4(Generic[ParseNode]):
                         'jump'                              :Namespace      3       lineNum=4       charNum=32
                             '('                             :Container      4       lineNum=4       charNum=32
                                 'label1'                    :Token          5       lineNum=4       charNum=39
+
+                Dict
+                    "label1"    :   0
+                    "label2"    :   2
             """
             assert type(sourceCode) is str
             
@@ -6755,8 +6762,8 @@ class CPUsim_v4(Generic[ParseNode]):
             root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
-            root = self.ruleApplyAlias(root, self.alias)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
+            #root = self.ruleApplyAlias(root, self.alias)
+            #logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
 
             root = self.ruleLowerCase(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root))            
@@ -6816,7 +6823,7 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return root, self.labels
 
-    class MMMU:
+    class MMMUDefault:
         """
         MMMU requirements:
             Modular Meta Memory Managment Unit
@@ -6898,6 +6905,8 @@ class CPUsim_v4(Generic[ParseNode]):
                     def readRaw             #reads a value directly from a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
                     def writeRaw            #writes a value directly to a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
 
+                    def writeEvict          #data from a higher level memory pool gets 'evicted' from that pool, and writen to a lower level cache. 
+
                     def tick
 
                     def setPool
@@ -6913,6 +6922,8 @@ class CPUsim_v4(Generic[ParseNode]):
                     def readRaw             #reads a value directly from a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
                     def writeRaw            #writes a value directly to a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
 
+                    def writeEvict          #data from a higher level memory pool gets 'evicted' from that pool, and writen to a lower level cache. 
+
                     def tick
 
                 class externalPassThrough   #used for connected memory pools from other threads into this processor
@@ -6925,6 +6936,8 @@ class CPUsim_v4(Generic[ParseNode]):
                     def readRaw             #reads a value directly from a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
                     def writeRaw            #writes a value directly to a pool, without stat tracking, without routing to another pool (IE: L2 cache is Opauqe, but this allows reading of L2 without the request being rerouted to L3)
 
+                    def writeEvict          #data from a higher level memory pool gets 'evicted' from that pool, and writen to a lower level cache. 
+
                     def tick
 
                     def connectThread
@@ -6934,22 +6947,13 @@ class CPUsim_v4(Generic[ParseNode]):
 
                 def tick
 
-                def lock
-                def unlock
+                def lock                    #locks data reads and writes, allows for passing access to data to another function without requireing a complete copy
+                def unlock                  #unlocks data reads and writes
                 def fork                    #creates a forked memory version, returns an identifier
                 def commit                  #takes an identifier, and commits it to the master copy of memory in all pools
                 def trackingOn
                 def trackingOff
-
-                def accessStateOld(key, index)      #This function is passed to the InstructionSet instructions, for reading/writing to memory/registers
-                                                        #Throws eception if memory element doesn't exist
-                def accessStateNew(key, index)      #This function is passed to the InstructionSet instructions, for reading/writing to memory/registers
-                                                        #Throws eception if memory element doesn't exist
-                                                        #Writing to an imm register adds it to the old state, and returns a register key/index.
-                                                            #Note: when adding an imm, the imm register generatated should have a bitLenght only as large as required to store the value (plus one leading bit to indicate a positive or negative number)
-                def configInfo(key, index)          #This function is passed to the InstructionSet instructions, for qurying information on memory elements, see "#register config datastructure"
-                                                        #Throws eception if memory element doesn't exist
-                def memoryTransactions              #outputs a list of all memory transactions in the current fork since last TICK
+                def trackingReset           #resets all statistic tracking data
 
                 #Note: reading/writing to oldState and newState should be done with two different versionNodes
                 def read(self, virtualOperation : bool, hyperThreadContext, versionNode, poolEntryPoint, shortPath, key, index) -> int
@@ -6968,12 +6972,19 @@ class CPUsim_v4(Generic[ParseNode]):
                     Writing to an imm registers adds it to the OLD state, and returns a registerAddress
                         When adding an imm, the imm register generated should have a bitLength only as large as required to store the value (plus one leading to to indicate a positive or negative value)
 
+                def writeWrapper(self, hyperThreadContext, versionNode, oldVersionNode, poolEntryPoint, shortPath, [key, index], value) -> None or registerAddress #TODO
+                    This should be implimented in the engine when calling InstructionSet instructions.
+                    The [key, index] is a tuple for convinence inside and InstructionSet instruction. Allows passing a register [key, index] without having to manually seperate the values
+
                 def configInfo(key, index) -> dict
                     This function is passed to teh instructionSet instructions, for qurying information on memory elements, see "#register config datastructure"
                     Throws an exception if memory element doesn't exist
 
-                def memoryKeys(self, versionNode) -> Tuple(hyperThreadContext, key, index):
+                def getmemoryKeys(self, versionNode) -> Tuple(hyperThreadContext, key, index):
                     returns a 'memory map' of all key/index that are being used, does not return stored values of those Memory Elements
+
+                def memoryTransactions(self, versionNode) -> A linked list of memory transactions, tracing data access:
+                    returns a list of all memory transactions in the current fork since last TICK
 
         Use Cases:
             Read data and instruction
@@ -6995,6 +7006,11 @@ class CPUsim_v4(Generic[ParseNode]):
                 Should be able to have a version history of multiple different read/write histories as different branches that can be merged and forked
                 Should be able to see which individual memory transactions are taking place, to find out if different InstructionSet instructions are conflicting.
                     IE: (A+B=C), (C+D=E); both instructions can't execute at the same time since (C+D=E) is reading "C" while (A+B=C) is writing to "C" in the same TICK
+            Caching
+                Setup:
+                    Registers -> L1 -> DRAM
+                Read the same data from DRAM twice, will result in data being cached in L1. The second read may occure before L1 technically 'loaded' the data from DRAM.
+                    This means all data in cache needs to have a latency timer on it, to know for sure wheather each byte is 'in flight' when being read, or is actually stored.
             Expected Use Case 1
                 Setup
                     Single Execution Port
@@ -7044,16 +7060,26 @@ class CPUsim_v4(Generic[ParseNode]):
         def __init__(self):
             self.poolArray : Dict[int, Any] = {}
 
-        def read(self, virtualOperation : bool, branchNode : int, poolEntryPoint : int, transactionType : str, hyperThreadContext : int, key : str or int, index : str or int):
+        def read(self, virtualOperation : bool, transactionType : str, branchNode : int, poolEntryPoint : int, hyperThreadContext : int, key : int or str, index : int or str):
             """
 
             virtualOperation - indicates wheater the read should tabulate stats, or not. IE: reading data for an ISA Instruction vs reading for a debug output
             branchNode - the idea of s specific memory version branch to read from
             poolEntryPoint - this read gets routed through a specific memory pool initially. IE: fetching an instruction goes through L1Instruction vs a data load which goes through L1Data
             transactionType - what part of the engine made this transaction. IE: the engine automatically changed the instruction pointer, vs an ISA instruction jump changing the instruction pointer
-            hyperThreadContext - what hyperthread context is being accessed. IE: each thread will need to have a different instruction pointer
+            hyperThreadContext - what hyperthread context is being accessed. IE: each thread will need to have a different instruction pointer register
             key - the memory element key
             index - the memory element index
+
+            (branchNode, poolEntryPoint, hyperThreadContext, key, index) together form a kind of address for every memory element
+                hyperThreadContext should be zero when not applicable
+                using a key of "__" should be reserved for reading the raw values of a pool, without being routed through cache or other nodes
+                EX:
+                    (1234, L1Instruction, 0, 'm', 255) -> accesses memory version node 1234, fetch memory element '255' from bank 'm', with hyperThreadContext of '0', via the 'L1Instruction' memory pool
+                    (1234, L1Instruction, 0, '__', 255) -> accesses memory version node 1234, fetch raw memory element '255' from 'L1Instruction' memory pool. hyperThreadContext is not realavent
+            """
+            pass
+
             """
             pass
 
