@@ -6564,7 +6564,7 @@ class CPUsim_v4(Generic[ParseNode]):
             
             return root
 
-        def ruleNestContainersIntoInstructions(self, tree : ParseNode, nameSpace : dict, recurse : bool = True) -> ParseNode: #TODO rename, as nameSpace is not more generic then just 'instructions'
+        def ruleNestContainersIntoInstructions(self, tree : ParseNode, nameSpace : Dict[str, NameSpaceObject], recurse : bool = True) -> ParseNode: #TODO rename, as nameSpace is not more generic then just 'instructions'
             """Takes in a Node Tree of arbitrary depth, and a nameSpace dict represeting instructions, registers, etc. 
             If a container node follows a nameSpace node, make container node a child of the nameSpace node.
             Returns a Node Tree of arbitrary depth.
@@ -6574,21 +6574,26 @@ class CPUsim_v4(Generic[ParseNode]):
             assert type(tree) is self.Node
             assert type(nameSpace) is dict
             
+            logging.debug(debugHelper(inspect.currentframe()) + "EnterFunction \n" + str(tree))
             root : ParseNode = tree.copyInfo()
 
             for i in tree.child:
+                logging.debug(debugHelper(inspect.currentframe()) + "i \n" + str(i))
                 if i.type == "container":  
                     temp : ParseNode = None
                     if recurse:
                         temp = self.ruleNestContainersIntoInstructions(i.copyDeep(), nameSpace, True)
                     else:
                         temp = i
+                    logging.debug(debugHelper(inspect.currentframe()) + "temp \n" + str(temp))
 
                     if type(i.nodePrevious) is self.Node: #IE: the node exists
                         if i.nodePrevious.token in nameSpace:
                             root.child[-1].append(temp.copyDeep())
                         else:
                             root.append(temp.copyDeep())
+                    else:
+                        root.append(temp.copyDeep())
                 else:
                     root.append(i.copyDeep())
 
