@@ -4577,11 +4577,12 @@ class NodeParse(Generic[ParseNode]): #Names NodeParse instead of ParseNode to av
         for i in range(depth):
             line += "    "
         line += repr(self.token)
-        line = line.ljust(40, " ")
-        line += "\t:" + str(self.type).capitalize().ljust(8)
-        line += "\t" + str(depth)
+        line = line.ljust(64, " ")
+        line += ":" + str(self.type).capitalize().ljust(32)
+        line += "" + str(depth).ljust(8)
 
-        line += "\t" + "lineNum=" + str(self.lineNum) + "\t" + "charNum=" + str(self.charNum)
+        line += ("lineNum=" + str(self.lineNum)).ljust(16)
+        line += ("charNum=" + str(self.charNum)).ljust(16)
 
         line += "\n"
 
