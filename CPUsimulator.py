@@ -4630,6 +4630,30 @@ class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to a
         while len(self.child) != 0:
             self.remove(self.child[0])
 
+    def dataEqual(self, a : ParseNode) -> bool:
+        """Compairs the data of a different node recursively, returns True if equal, False otherwise"""
+        assert type(a) is self.__class__
+
+        result : bool = True
+
+        if a.token != self.token:
+            result = False
+        if a.type != self.type:
+            result = False
+        if a.lineNum != self.lineNum:
+            result = False
+        if a.charNum != self.charNum:
+            result = False
+
+        if len(a.child) != len(self.child):
+            result = False
+        else:
+            for i in range(len(a.child)):
+                if not self.child[i - 1].equalRecursive(self.child[i - 1]):
+                    result = False
+
+        return result
+
 @dataclass
 class NameSpaceObject:
     type : Literal["alias", "directive", "instruction", "label", "registerBank"]
