@@ -4648,8 +4648,8 @@ class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to a
         if len(a.child) != len(self.child):
             result = False
         else:
-            for i in range(len(a.child)):
-                if not self.child[i - 1].dataEqual(self.child[i - 1]):
+            for i in range(len(self.child)):
+                if not self.child[i - 1].dataEqual(a.child[i - 1]):
                     result = False
 
         return result
