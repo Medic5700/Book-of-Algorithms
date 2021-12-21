@@ -6522,6 +6522,7 @@ class CPUsim_v4(Generic[ParseNode]):
             assert len(splitToken) > 0
             assert type(recurse) is bool
 
+            logging.debug(debugHelper(inspect.currentframe()) + "\n" + str(tree))
             root : ParseNode = tree.copyInfo()
             tokenFound : bool = False
 
@@ -6529,11 +6530,13 @@ class CPUsim_v4(Generic[ParseNode]):
             for i in tree.child:
                 if i == splitToken:
                     tokenFound = True
+            logging.debug(debugHelper(inspect.currentframe()) + "tokenFound=\t" + str(tokenFound))
 
             if tokenFound:
                 stack : List[ParseNode] = []
                 for i in tree.child:
                     if i == splitToken:
+                        logging.debug(debugHelper(inspect.currentframe()) + str(stack))
                         temp : ParseNode = self.Node(tokenType, None, stack[0].lineNum, stack[0].charNum)
                         while len(stack) != 0:
                             temp.append(stack.pop(0))
@@ -6701,9 +6704,6 @@ class CPUsim_v4(Generic[ParseNode]):
             return root
 
 
-        def ruleFindDirectives(self, tree : ParseNode, directives : dict) -> ParseNode:
-            #TODO
-            pass
 
         def parseCode(self, sourceCode : str) -> Tuple[ParseNode, Dict[str, ParseNode]]:
             """Takes a string of source code, returns a parsed instruction tree and a dictionary representing labels/pointers
@@ -6755,6 +6755,8 @@ class CPUsim_v4(Generic[ParseNode]):
                     "label2"    :   2
             """
             assert type(sourceCode) is str
+
+            labels : dict = None
             
             #tokenizes sourceCode, and turns it into a Node Tree
             root : ParseNode = self.Node("root")
@@ -6772,9 +6774,6 @@ class CPUsim_v4(Generic[ParseNode]):
             root = self.ruleStringSimple(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleStringSimple: " + "\n" + str(root))
 
-            #root = self.ruleApplyAlias(root, self.alias)
-            #logging.debug(debugHelper(inspect.currentframe()) + "ruleApplyAlias: " + "\n" + str(root))
-
             root = self.ruleLowerCase(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleLowerCase: " + "\n" + str(root))            
 
@@ -6784,8 +6783,8 @@ class CPUsim_v4(Generic[ParseNode]):
             root = self.ruleRemoveEmptyLines(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleRemoveEmptyLines: " + "\n" + str(root))
 
-            root, self.labels = self.ruleFindLabels(root)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root) + "\nlabels: " + str(self.labels))
+            root, labels = self.ruleFindLabels(root)
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root) + "\nlabels: " + str(labels))
             i = 0
             while i < len(root.child): #removes the label nodes, as they don't need to be executed
                 if root.child[i].type == "label":
@@ -6806,9 +6805,9 @@ class CPUsim_v4(Generic[ParseNode]):
             root = self.ruleCastHex(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleCastHex: " + "\n" + str(root))
 
-            #This is where the Node Tree is allowed to go to depth > 2
+            # This is where the Node Tree is allowed to go to depth > 2
             root = self.ruleContainer(root, {"(":")", "[":"]"})
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
+            logging.error(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
             root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
@@ -6831,7 +6830,8 @@ class CPUsim_v4(Generic[ParseNode]):
             root = self.ruleSplitTokens(root, "argument", ',', True)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
 
-            return root, self.labels
+
+            return root, labels
 
     class MMMUDefault:
         """
