@@ -6903,8 +6903,13 @@ class CPUsim_v4(Generic[ParseNode]):
             root = self.ruleContainer(root, {"(":")", "[":"]"})
             logging.error(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
-            root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
-            logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
+            # This will roll containers trailing a namespace object into a child of namespace object
+            filteredNameSpace : Dict[NameSpaceObject] = {}
+            for i, j in self.nameSpace.items():
+                if j.type in ["instruction", "directive", "registerBank"]:
+                    filteredNameSpace[i] = j
+            root = self.ruleNestContainersIntoInstructions(root, filteredNameSpace, True)
+            logging.error(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
 
             temp : List[self.Node] = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
