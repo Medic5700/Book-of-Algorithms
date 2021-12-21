@@ -5830,32 +5830,21 @@ class CPUsim_v4(Generic[ParseNode]):
             return root
         """
 
-        def __init__(self, nameSpace : dict = {}):
-            assert type(nameSpace) is dict
+        def __init__(self):
 
-            self.nameSpace : dict = nameSpace
-            self.alias : dict = {}
-            self.labels : dict = None
+            self.nameSpace : Dict[str, NameSpaceObject] = {}
 
             self.Node : ParseNode = NodeParse
 
-        '''
-        def updateNameSpace(self, nameSpace : dict, alias : dict):
+        
+        def updateNameSpace(self, nameSpace : Dict[str, NameSpaceObject]) -> Dict[str, NameSpaceObject]:
             """Takes in nameSpace a dictionary whose keys represent the CPU flags, registers, instructions, etc"""
             assert type(nameSpace) is dict
-            assert type(alias) is dict
+            assert all([type(i) is NameSpaceObject for _, i in nameSpace.items()])
 
             self.nameSpace = nameSpace
-            self.alias = alias
 
-        def update(
-            self, 
-            instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Args"], None]], 
-            directives : dict,
-            tokenAlias : Dict[str, str]
-            ):
-            pass
-        '''
+            return {}
 
         def _tokenize(self, code : str) -> List[Tuple[str, int, int]] :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). 
