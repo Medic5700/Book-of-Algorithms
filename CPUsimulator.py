@@ -6343,23 +6343,24 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return (root, labels)
 
-        def ruleLabelNamespace(self, tree : ParseNode, nameSpace : dict, tokenType : str = "namespace") -> ParseNode:
+        def ruleLabelNamespace(self, tree : ParseNode, nameSpace : Dict[str, NameSpaceObject]) -> ParseNode:
             """Takes in a node tree, and a nameSpace. Labels all nodes that are in nameSpace as 'NameSpace'. Returns Node Tree of depth 2.
             
             Does not recurse
-            #TODO find a better/less confusing name (conflicts with ruleFindLabels)?"""
+            """
             assert type(tree) is self.Node
             assert type(nameSpace) is dict
-            assert type(tokenType) is str
+            #TODO assert that all keys are strings
+            #TODO assert that all values are NameSpaceObjects?
 
             root : ParseNode = tree.copyInfo()
-            keys : List[str]= [i.lower() for i in nameSpace.keys()]
+            keys : List[str] = [i.lower() for i in nameSpace.keys()]
 
             for i in tree.child:
                 if type(i.token) is str:
                     if i.token.lower() in keys:
                         temp : ParseNode = i.copyDeep()
-                        temp.type = tokenType
+                        temp.type = f"NameSpace-{nameSpace[i.token.lower()].type}"
                         root.append(temp)
                     else:
                         root.append(i.copyDeep())
