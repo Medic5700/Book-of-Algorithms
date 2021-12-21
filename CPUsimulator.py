@@ -296,6 +296,8 @@ import random
 from typing import Any, Callable, Dict, Generic, List, Literal, Text, Tuple, Type, TypeVar
 ParseNode = TypeVar("ParseNode") #A node used for containing source code parsing data.
 
+from dataclasses import dataclass # used for namespace objects (dictionaries just wasn't going to cut it)
+
 #debugging and logging stuff
 import logging
 import inspect #used for logging, also used to assertion testing
@@ -4629,6 +4631,13 @@ class NodeParse(Generic[ParseNode]): #Names NodeParse instead of ParseNode to av
 
         while len(self.child) != 0:
             self.remove(self.child[0])
+
+@dataclass
+class NameSpaceObject:
+    type : Literal["alias", "directive", "instruction", "label", "registerBank"]
+    key : Any
+    value : Any = None
+    replace : Any = None
 
 class CPUsim_v4(Generic[ParseNode]):
     """
