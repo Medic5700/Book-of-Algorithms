@@ -6703,7 +6703,101 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return root
 
+        def ruleFilterContainerKeepChildren(self, tree : ParseNode, containerTokens : List[Any]) -> ParseNode:
+            """Takes in a Node Tree of arbitrary depth, recursivly removes any tokens in token (containers) while keeping children. Returns a Node Tree.
 
+            Example 01: 
+                    "add(r[0], r[1], r[2])" 
+                ->
+                    Node
+                        add
+                            (
+                                r
+                                    [
+                                        0
+                                r
+                                    [
+                                        1
+                                r
+                                    [
+                                        2
+                -> token = ["(", "["]
+                    Node
+                        add
+                            r
+                                0
+                            r
+                                1
+                            r
+                                2
+
+            Example 02:
+                    "add(r[0], (r[1], r[2]))"
+                ->
+                    Node
+                        add
+                            (
+                                r
+                                    [
+                                        0
+                                (
+                                    r
+                                        [
+                                            1
+                                    r
+                                        [
+                                            2
+                -> token = ["(", "["]
+                    Node
+                        add
+                            r
+                                0
+                            None                    | # Notice how the container was replaced with 'None', in order to maintain the structure of the tree
+                                r                   |
+                                    1               |
+                                r                   |
+                                    2               |
+            
+            """
+            assert type(tree) is self.Node
+            assert type(containerTokens) is list
+            assert len(containerTokens) > 0
+
+            root : ParseNode = tree.copyInfo()
+
+            ''' # rough algorithm
+            if tree.child == None:
+                return tree
+            if len(tree.child) == 1:
+                if tree.child is container:
+                    delete child, children of child become children of tree
+            if len(tree.child) > 1:
+                if tree.child is container:
+                    child token set to None
+            recurse on all tree.child
+            '''
+            children : list[ParseNode] = []
+            if tree.child == None:
+                pass
+            if len(tree.child) == 1:
+                if tree.child[0].token in containerTokens:
+                    for i in tree.child[0].child:
+                        children.append(i.copyDeep())
+                else:
+                    children.append(tree.child[0].copyDeep())
+            if len(tree.child) > 1:
+                for i in tree.child:
+                    if i.token in containerTokens:
+                        temp = i.copyDeep()
+                        temp.token = None
+                        children.append(temp)
+                    else:
+                        children.append(i.copyDeep())
+
+            for i in children:
+                root.append(self.ruleFilterContainerKeepChildren(i, containerTokens))
+            
+            return root
 
         def parseCode(self, sourceCode : str) -> Tuple[ParseNode, Dict[str, ParseNode]]:
             """Takes a string of source code, returns a parsed instruction tree and a dictionary representing labels/pointers
@@ -6830,6 +6924,8 @@ class CPUsim_v4(Generic[ParseNode]):
             root = self.ruleSplitTokens(root, "argument", ',', True)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitTokens: " + "\n" + str(root))
 
+            root = self.ruleFilterContainerKeepChildren(root, ["[", "("])
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterContainerKeepChildren: " + "\n" + str(root))
 
             return root, labels
 
