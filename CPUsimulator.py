@@ -277,9 +277,6 @@ Test Cases to impliment:
     Change terminology of 'registers' to 'registers' and 'register banks' or 'register array'
     Change terminology of 'cycle' to 'tick' with expected value of 1*10^10
     Move Node class definition from Parser to main class
-
-
-
 """
 
 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
@@ -294,7 +291,6 @@ import random
 
 #Some stuff for more complex annotation typing
 from typing import Any, Callable, Dict, Generic, List, Literal, Text, Tuple, Type, TypeVar
-ParseNode = TypeVar("ParseNode") #A node used for containing source code parsing data.
 
 from dataclasses import dataclass # used for namespace objects (dictionaries just wasn't going to cut it)
 
@@ -4397,7 +4393,8 @@ def testProgramMultiply():
 
 #====================================================================================================================== Mockup
 
-class NodeParse(Generic[ParseNode]): #Names NodeParse instead of ParseNode to avoid conflicts with the type ParseNode, and NodeParse seems more logical (Parse subset of root Node)
+ParseNode = TypeVar("ParseNode") #A node used for containing source code parsing data.
+class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to avoid conflicts with the type ParseNode, and NodeParse seems more logical (Parse subset of root Node)
     """A data class for storing information in a tree like structure. 
 
     Each Node also has a coupld relational links between children (nodeNext, nodePrevious, nodeParent)
@@ -6566,7 +6563,7 @@ class CPUsim_v4(Generic[ParseNode]):
             
             return root
 
-        def ruleNestContainersIntoInstructions(self, tree : ParseNode, nameSpace : dict, recurse : bool = True) -> ParseNode:
+        def ruleNestContainersIntoInstructions(self, tree : ParseNode, nameSpace : dict, recurse : bool = True) -> ParseNode: #TODO rename, as nameSpace is not more generic then just 'instructions'
             """Takes in a Node Tree of arbitrary depth, and a nameSpace dict represeting instructions, registers, etc. 
             If a container node follows a nameSpace node, make container node a child of the nameSpace node.
             Returns a Node Tree of arbitrary depth.
@@ -6697,9 +6694,6 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return root
 
-        def ruleFilterBlockComments(self, tree : ParseNode, character : dict = {}) -> ParseNode:
-            #TODO
-            pass
 
         def ruleFindDirectives(self, tree : ParseNode, directives : dict) -> ParseNode:
             #TODO
