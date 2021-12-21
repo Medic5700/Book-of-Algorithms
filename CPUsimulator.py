@@ -4449,13 +4449,13 @@ class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to a
         
         newNode = self.__class__(self.type, self.token, self.lineNum, self.charNum)
 
-        logging.debug(debugHelper(inspect.currentframe()) + "attempting to copyDeep node"+ "\n" + str((
-                self.type,
-                self.token,
-                self.lineNum,
-                self.charNum,
-                self.child))
-            )
+        # logging.debug(debugHelper(inspect.currentframe()) + "attempting to copyDeep node"+ "\n" + str((
+        #         self.type,
+        #         self.token,
+        #         self.lineNum,
+        #         self.charNum,
+        #         self.child))
+        #     )
 
         for i in range(len(self.child)):
             newNode.append(self.child[i].copyDeep())
@@ -4479,20 +4479,20 @@ class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to a
         #'rewires' the references of the children nodes
         newNode.parent = self
         if len(self.child) == 1: #case where oldNode is the only child in the list
-            logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
+            #logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
             pass
         elif index == 0: #case where oldNode is first child in the list, but not the only child in the list
-            logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
+            #logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
 
             newNode.nodeNext = self.child[1]
             self.child[1].nodePrevious = newNode
         elif index == len(self.child) - 1: #case where oldNode is the last child in the list, but not the only child in the list
-            logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
+            #logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
 
             newNode.nodePrevious = self.child[-1]
             self.child[-1].nodeNext = newNode
         elif 0 < index < len(self.child) -1: #case where oldNode is between two other nodes
-            logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
+            #logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
 
             newNode.nodePrevious = self.child[index - 1]
             newNode.nodeNext = self.child[index + 1]
@@ -4527,27 +4527,27 @@ class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to a
 
         removeNode : self.__class__ = self.child[index]
 
-        logging.debug(debugHelper(inspect.currentframe()) + "attempting to remove node"+ "\n" + str((
-                self.type,
-                self.token,
-                self.lineNum,
-                self.charNum,
-                self.child)))
+        # logging.debug(debugHelper(inspect.currentframe()) + "attempting to remove node"+ "\n" + str((
+        #         self.type,
+        #         self.token,
+        #         self.lineNum,
+        #         self.charNum,
+        #         self.child)))
 
         #'rewires' the references of the children nodes to remove removeNode
         if len(self.child) == 1: #case where removeNode is the only child in the list
-            logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
+            #logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
             pass
         elif index == 0: #case where removeNode is first child in the list, but not the only child in the list
-            logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
+            #logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
             if type(removeNode.nodeNext) is self.__class__: #TODO figure out why this is neccissary to avoid a specific error.
                 removeNode.nodeNext.nodePrevious = None
         elif index == len(self.child) - 1: #case where removeNode is the last child in the list, but not the only child in the list
-            logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
+            #logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
             if type(removeNode.nodePrevious) is self.__class__:
                 removeNode.nodePrevious.nodeNext = None
         elif 0 < index < len(self.child) -1: #case where removeNode is between two other nodes
-            logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
+            #logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
             if type(removeNode.nodePrevious) is self.__class__:
                 removeNode.nodePrevious.nodeNext = removeNode.nodeNext
             if type(removeNode.nodeNext) is self.__class__:
@@ -4592,7 +4592,7 @@ class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to a
         
     def __eq__(self, other) -> bool:
         """A custom equals comparision. Takes in another object other, and compaires it to self.token. Returns True if equal, False otherwise"""
-        logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
+        #logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
 
         #return self.token == other
         if type(other) is self.__class__:
@@ -4602,7 +4602,7 @@ class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to a
 
     def __ne__(self, other) -> bool:
         """A custom not equals comparision. Takes in another object other, and compaires it to self.token. Returns True if not equal, False otherwise"""
-        logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
+        #logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
 
         #return self.token != other
         if type(other) is self.__class__:
@@ -4616,12 +4616,12 @@ class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to a
         
         will not touch pointers to this node from other nodes. IE: nodeNext's pointer to this node could be set to None, but that could get messy?"""
         
-        logging.debug(debugHelper(inspect.currentframe()) + "Deleting Node" + "\n" + str((
-                self.type,
-                self.token,
-                self.lineNum,
-                self.charNum))
-                )
+        # logging.debug(debugHelper(inspect.currentframe()) + "Deleting Node" + "\n" + str((
+        #         self.type,
+        #         self.token,
+        #         self.lineNum,
+        #         self.charNum))
+        #         )
         
         self.parent = None
         self.nodeNext = None
