@@ -5847,18 +5847,27 @@ class CPUsim_v4(Generic[ParseNode]):
             return {}
 
         def _tokenize(self, code : str) -> List[Tuple[str, int, int]] :
-            """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). 
+            """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line)(zero indexed). 
             
             No characters are filtered out
             
-            Case 1: "test\n\nHello World" =>
+            Example 01: "Hello World!" =>
+            [
+                ('Hello',   0, 0),
+                (' ',       0, 5),
+                ('World',   0, 6),
+                ('!',       0, 11)
+            ]
+
+            Example 02: "test\n\nHello World" =>
             [
                 ('test',    0, 0),
-                ('\n',      0, 0),
+                ('\n',      0, 4),
                 ('\n',      1, 0),
                 ('Hello',   2, 0),
                 (' ',       2, 5),
-                ('World',   2, 6)
+                ('World',   2, 6),
+                ('!',       2, 11)
             ]
             """
             assert type(code) is str
@@ -5871,14 +5880,18 @@ class CPUsim_v4(Generic[ParseNode]):
             token : str = ""
             lineNum : int = 0
             characterNum : int = 0
+            tokenLength : int = 0
             for j in code:
                 if _isName(j): #creates tokens from everything that could be a variable name
                     token += j
+                    tokenLength += 1
                 else: #everything else is a special character
                     if token != "":
-                        tokenList.append((token, lineNum, characterNum))
+                        tokenList.append((token, lineNum, characterNum - tokenLength))
                         token = ""
+                        tokenLength = 0
                     tokenList.append((j, lineNum, characterNum))
+                    tokenLength = 0
 
                 #keeps track of line and positition numbers
                 if j == "\n":
@@ -5887,8 +5900,9 @@ class CPUsim_v4(Generic[ParseNode]):
                 else:
                     characterNum += 1
             if token != "": #adds last token
-                tokenList.append((token, lineNum, characterNum))
+                tokenList.append((token, lineNum, characterNum - tokenLength))
                 token = ""
+                tokenLength = 0
 
             return tokenList
 
