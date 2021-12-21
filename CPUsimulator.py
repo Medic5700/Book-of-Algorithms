@@ -4393,8 +4393,41 @@ def testProgramMultiply():
 
 #====================================================================================================================== Mockup
 
-ParseNode = TypeVar("ParseNode") #A node used for containing source code parsing data.
-class NodeParse(Generic[ParseNode]): # Named NodeParse instead of ParseNode to avoid conflicts with the type ParseNode, and NodeParse seems more logical (Parse subset of root Node)
+#ParseNode = TypeVar("ParseNode") #A node used for containing source code parsing data.
+class ParseNode: # dummy class used exclusivly for typing, not used in the program. Documentation included for help text, is mirrored FROM NodeParse. Dunder methods are not included.
+    """A data class for storing information in a tree like structure. 
+
+    Each Node also has a coupld relational links between children (nodeNext, nodePrevious, nodeParent)
+    Note: __eq__() and __ne__() are implimented to make it easier for compairsions with Node.token and other values.
+    """
+    def __init(self, typeStr : str = None, token : Any = None, lineNum : int = None, charNum : int = None):
+        pass
+    def append(self, node : "ParseNode"):
+        """Adds a new node object to self as a child (at end of list)"""
+        pass
+    def copyInfo(self) -> "ParseNode":
+        """Creates a new node with the properties (but not relational data) of this node. returns the created node. 
+        
+        IE: returns a copy of the node with type, token, lineNum, charNum. Does not copy links to children, parent, nodeNext, nodePrevious, etc"""
+        pass
+    def copyDeep(self) -> "ParseNode": #name is copyDeep instead of deepCopy to avoid namespace collision with copy.copyDeep()
+        """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree.
+        
+        Has the side effect of 'resetting' all relational links (parent, nodeNext, nodePrevious)"""
+        pass
+    def replace(self, oldNode : "ParseNode", newNode : "ParseNode"):
+        """Takes in an oldNode that is child of self, and replaces it with newNode. Deletes oldNode"""
+        pass
+    def remove(self, node : "ParseNode"):
+        """Takes in a node that is a child of self, removes node. raises exception if node is not a child
+        
+        deletes references to other nodes from Node, recursively removes child nodes of Node using remove()
+        This is to make it easier to the python garbage collecter to destroy it, because cyclic references"""
+        pass
+    def dataEqual(self, a : "ParseNode") -> bool:
+        """Compairs the data of a different node recursively, returns True if equal, False otherwise"""
+
+class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with the type ParseNode, and NodeParse seems more logical (Parse subset of root Node)
     """A data class for storing information in a tree like structure. 
 
     Each Node also has a coupld relational links between children (nodeNext, nodePrevious, nodeParent)
@@ -4661,7 +4694,7 @@ class NameSpaceObject:
     value : Any = None
     replace : Any = None
 
-class CPUsim_v4(Generic[ParseNode]):
+class CPUsim_v4:
     """
     API #TODO overview:
         class CPUsim
@@ -5823,7 +5856,7 @@ class CPUsim_v4(Generic[ParseNode]):
 
             return {"energy" : energy, "latency" : latency}
 
-    class ParserDefault(Generic[ParseNode]):
+    class ParserDefault:
         """Parses strings into an (almost) execution tree.
         ParseDefault.Node is the dataclass for storing tokens in a Node Tree.
 
@@ -7221,7 +7254,7 @@ class CPUsim_v4(Generic[ParseNode]):
             """
             pass
 
-    class CompilerDefault(Generic[ParseNode]):
+    class CompilerDefault:
         """
 
         #TODO notes:
