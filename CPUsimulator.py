@@ -5908,24 +5908,28 @@ class CPUsim_v4:
             
             No characters are filtered out
             
-            Example 01: "Hello World!" =>
-            [
-                ('Hello',   0, 0),
-                (' ',       0, 5),
-                ('World',   0, 6),
-                ('!',       0, 11)
-            ]
+            Example 01: # TestParseDefaultBuildingBlocks.test__tokenizer_HelloWorld
+                "Hello World!" 
+                ->
+                [
+                    ('Hello',   0, 0),
+                    (' ',       0, 5),
+                    ('World',   0, 6),
+                    ('!',       0, 11)
+                ]
 
-            Example 02: "test\n\nHello World" =>
-            [
-                ('test',    0, 0),
-                ('\n',      0, 4),
-                ('\n',      1, 0),
-                ('Hello',   2, 0),
-                (' ',       2, 5),
-                ('World',   2, 6),
-                ('!',       2, 11)
-            ]
+            Example 02: # TestParseDefaultBuildingBlocks.test__tokenizer_IntegrationMultiline
+                "test\n\nHello World" 
+                ->
+                [
+                    ('test',    0, 0),
+                    ('\n',      0, 4),
+                    ('\n',      1, 0),
+                    ('Hello',   2, 0),
+                    (' ',       2, 5),
+                    ('World',   2, 6),
+                    ('!',       2, 11)
+                ]
             """
             assert type(code) is str
             assert len(code) > 0
@@ -5966,22 +5970,24 @@ class CPUsim_v4:
         def ruleCastInts(self, tree : ParseNode) -> ParseNode:
             """Takes in a Node Tree of depth 2, casts all children that are integers to integers (with labels). Returns a Node Tree of depth 2.
 
-            Does not recurse #TODO should recruse
+            Does not recurse #TODO should recerse
 
-            Case: "123 456 789" =>
-            Node
-                '123'   |
-                ' '
-                '456'   |
-                ' '
-                '789'   |
-            =>
-            Node
-                123     |
-                ' '
-                456     |
-                ' '
-                789     |
+            Case: # TestParseDefaultBuildingBlocks.test_RuleCastInts_Integration01
+                "123 456 789" 
+                ->
+                Node
+                    '123'   | Cast
+                    ' '
+                    '456'   | Cast
+                    ' '
+                    '789'   | Cast
+                ->
+                Node
+                    123     |
+                    ' '
+                    456     |
+                    ' '
+                    789     |
             """
             assert type(tree) is self.Node
 
@@ -6002,24 +6008,26 @@ class CPUsim_v4:
             return root
 
         def ruleCastHex(self, tree : ParseNode) -> ParseNode:
-            """Takes in a Node Tree of depth 2, casts all children that are in hex format to integers (with labels). Returns a node tree of depth 2.
+            """Takes in a Node Tree of depth 2, casts all children that are in hex format to integers (with format of '0xFFFF' with arbitrary length). Returns a node tree of depth 2.
 
             Does not recurse #TODO should recurse
 
-            Case: "0x0 0x000A 0xff" =>
-            Node
-                '0x0'       |
-                ' '
-                '0x000A'    |
-                ' '
-                '0xff'      |
-            =>
-            Node
-                0           |
-                ' '
-                10          |
-                ' '
-                255         |
+            Case: # TestParseDefaultBuildingBlocks.test_RuleCastHex_Integration02
+                "0x0 0x000A 0xff" 
+                ->
+                Node
+                    '0x0'       | Cast
+                    ' '
+                    '0x000A'    | Cast
+                    ' '
+                    '0xff'      | Cast
+                ->
+                Node
+                    0           |
+                    ' '
+                    10          |
+                    ' '
+                    255         |
             """
             assert type(tree) is self.Node
 
@@ -6044,23 +6052,26 @@ class CPUsim_v4:
 
             Does not recurse
 
-            Case 1: "test\ntest\n\n\ntest\n" =>
-            Node
-                'test'
-                '\n'
-                'test'
-                '\n'    |
-                '\n'    |
-                '\n'    |
-                'test'
-                '\n'
-            Node
-                'test'
-                '\n'
-                'test'
-                '\n'    |
-                'test'
-                '\n'
+            Case 1:  # TestParseDefaultBuildingBlocks.test_RuleRemoveEmptyLines_Integration02
+                "test\ntest\n\n\ntest\n" 
+                ->
+                Node
+                    'test'
+                    '\n'
+                    'test'
+                    '\n'    
+                    '\n'    |
+                    '\n'    |
+                    'test'
+                    '\n'
+                ->
+                Node
+                    'test'
+                    '\n'
+                    'test'
+                    '\n'    _V_
+                    'test'   A
+                    '\n'
             """
             assert type(tree) is self.Node
 
@@ -6081,19 +6092,43 @@ class CPUsim_v4:
             
             Does not recurse
 
-            Case: "test test \ntest\n  \ttest\t\n     \n" -> "test test \ntest\ntest\t\n\n" ->
-            Node
-                'test'
-                ' '
-                'test'
-                ' '
-                '\n'
-                'test'
-                '\n'
-                'test'
-                '\t'
-                '\n'
-                '\n'
+            Case: # TestParseDefaultBuildingBlocks.test_RuleRemoveLeadingWhitespace_Integration02
+                "test test \ntest\n  \ttest\t\n     \n" 
+                -> 
+                Node
+                    'test'
+                    ' '
+                    'test'
+                    ' '
+                    '\n'
+                    'test'
+                    '\n'
+                    ' '     |
+                    ' '     |
+                    '\t'    |
+                    'test'
+                    '\t'
+                    '\n'
+                    ' '     |
+                    ' '     |
+                    ' '     |
+                    ' '     |                               
+                    ' '     |
+                    '\n'
+                "test test \ntest\ntest\t\n\n" 
+                ->
+                Node
+                    'test'
+                    ' '
+                    'test'
+                    ' '
+                    '\n'
+                    'test'
+                    '\n'    _V_
+                    'test'   A
+                    '\t'
+                    '\n'    _V_
+                    '\n'     A
             """
             assert type(tree) is self.Node
             assert type(whiteSpace) is list
@@ -6141,33 +6176,90 @@ class CPUsim_v4:
 
             Does not recurse
             
-            Case: "test 'test'" ->
-            Node
-                'test'
-                ' '
-                "test"
+            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Integration04
+                "test 'test'" 
+                ->
+                Node
+                    'test'
+                    ' '
+                    '\''                                | Convert
+                    'test'                              |
+                    '\''                                |
+                ->
+                Node
+                    'test'
+                    ' '
+                    "test"                              | string
 
-            Case: "\'test\n\\\'test\\\''\ntest" ->
-            Node
-                "test\n\\\'test\\\'"
-                '\n'
-                'test'
+            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Integration05
+                "\'test\n\\\'test\\\'\'\ntest" 
+                ->
+                Node
+                    '\''                                | Convert
+                    'test'                              |
+                    '\n'                                |
+                    '\\'                                |
+                    '\''                                |
+                    'test'                              |
+                    '\\'                                |
+                    '\''                                |
+                    '\''                                |
+                    '\n'
+                    'test'
+                ->
+                Node
+                    "test\n\\\'test\\\'"                | string
+                    '\n'
+                    'test'
 
-            Case: "\'test\n\'test\'\'\ntest" ->
-            Node
-                "test\n"
-                "test"
-                ""
-                "\n"
-                "test"
+            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Integration06
+                "\'test\n\'test\'\'\ntest" 
+                ->
+                Node
+                    '\''                                | Convert
+                    'test'                              |
+                    '\n'                                |
+                    '\''                                |
+                    'test'
+                    '\''                                | Convert
+                    '\''                                |
+                    '\n'
+                    'test'
+                ->
+                Node
+                    "test\n"                            | string
+                    "test"
+                    ""                                  | string
+                    "\n"
+                    "test"
 
-            Case: "test1\"abc\'123\'abc\"test2" ->
-                "test1"
-                "abc\'123\'abc"
-                "test2"
+            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Integration07
+                "test1\"abc\'123\'abc\"test2" 
+                ->
+                Node
+                    'test1'
+                    '\"'                                | Convert
+                    'abc'                               |
+                    '\''                                |
+                    '123'                               |
+                    '\''                                |
+                    'abc'                               |
+                    '\"'                                |
+                    'test2'
+                ->
+                Node
+                    "test1"
+                    "abc\'123\'abc"                     | string
+                    "test2"
 
-            Case: "" ->
-                None
+            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Null
+                "" 
+                ->
+                Node
+                    None
+                ->
+                Node
+                    None
             """
             assert type(tree) is self.Node
 
@@ -6222,34 +6314,85 @@ class CPUsim_v4:
 
             Does not recurse
 
-            Case: "test #test\n #test\n\t\\#test" -> "test \n \n\t\\#test" ->
-            Node
-                'test'
-                ' '
-                '\n'
-                ' '
-                '\n'
-                '\t'
-                '\\
-                '#'
-                'test'
+            #TODO allow for alternate escape characters
+
+            Case: # TestParseDefaultBuildingBlocks.test_RuleFilterLineComments_Integration03
+                "test #test\n #test\n\t\\#test" 
+                ->
+                Node
+                    'test'
+                    ' '
+                    '#'                         | comment
+                    'test'                      |
+                    '\n'
+                    ' '
+                    '#'                         | comment
+                    'test'                      |
+                    '\n'
+                    '\t'
+                    '\\'
+                    '#'
+                    'test'
+                -> 
+                "test \n \n\t\\#test" 
+                ->
+                Node
+                    'test'
+                    ' '                         _V_
+                    '\n'                         A
+                    ' '                         _V_
+                    '\n'                         A
+                    '\t'
+                    '\\
+                    '#'
+                    'test'
             
-            Case: "test test \\# test #abc abc abc \\n abc \n test test" ->
-            Node
-                'test'
-                ' '
-                'test'
-                ' '
-                '\\'
-                '#'
-                ' '
-                'test'
-                ' '
-                '\n'
-                ' '
-                'test'
-                ' '
-                'test'
+            Case: # TestParseDefaultBuildingBlocks.test_RuleFilterLineComments_Integration04
+                "test test \\# test #abc abc abc \\n abc \n test test" 
+                ->
+                Node
+                    'test'
+                    ' '
+                    'test'
+                    ' '
+                    '\\'
+                    '#'
+                    ' '
+                    'test'
+                    ' '
+                    '#'                     | comment
+                    'abc'                   |
+                    ' '                     |
+                    'abc'                   |
+                    ' '                     |
+                    'abc'                   |
+                    ' '                     |
+                    '\\'                    |
+                    'n'                     |
+                    ' '                     |
+                    'abc'                   |
+                    ' '                     |
+                    '\n'
+                    ' '
+                    'test'
+                    ' '
+                    'test'
+                ->
+                Node
+                    'test'
+                    ' '
+                    'test'
+                    ' '
+                    '\\'
+                    '#'
+                    ' '
+                    'test'
+                    ' '                     _V_
+                    '\n'                     A
+                    ' '
+                    'test'
+                    ' '
+                    'test'
             """
             assert type(tree) is self.Node
             assert type(character) is str 
@@ -6429,38 +6572,94 @@ class CPUsim_v4:
 
             return root
         
-        def ruleRemoveToken(self, tree : ParseNode, token : str, recurse : bool = True) -> ParseNode:
-            """Takes in a Node Tree of arbitrary depth, and a token. Removes all instances of token in tree.child. Returns a Node Tree of arbitrary depth.
+        def ruleRemoveToken(self, tree : ParseNode, token : Any, recurse : bool = True) -> ParseNode:
+            """Takes in a Node Tree of arbitrary depth, and a token. Removes all instances of token in tree.child. Will remove children of token. Returns a Node Tree of arbitrary depth.
             
-            Case 1: token = '\n'
-            Node
-                'test1'
-                '\n'
-                'test2'
-            =>
-            Node
-                'test1'
-                'test2'
+            Case 1: # TestParseDefaultBuildingBlocks.test_RuleRemoveToken_Integration03
+                "test1\ntest2"
+                ->
+                token = '\n'
+                Node
+                    'test1'
+                    '\n'                | Removed
+                    'test2'
+                ->
+                Node
+                    'test1'             _V_
+                    'test2'              A
 
-            Case 2: token = ','
-            Node
-                'add'
-                    'arg1'
-                    ','
-                    'arg2'
-                ','
-                'mult'
-                    'arg1'
-                    ','
-                    'arg2'
-            =>
-            Node
-                'add'
-                    'arg1'
-                    'arg2'
-                'mult'
-                    'arg1'
-                    'arg2'
+            Case 2: # TestParseDefaultBuildingBlocks.test_RuleRemoveToken_Integration04
+                'add(arg1,arg2),mult(arg1,arg2)'
+                -> some parsing later (containerization, arg folding, etc)
+                token = ','
+                Node
+                    'add'
+                        'arg1'
+                        ','             | Removed
+                        'arg2'
+                    ','                 | Removed
+                    'mult'
+                        'arg1'
+                        ','             | Removed
+                        'arg2'
+                ->
+                Node
+                    'add'
+                        'arg1'          _V_
+                        'arg2'           A _V_
+                    'mult'                  A
+                        'arg1'          _V_
+                        'arg2'           A
+
+            Case 3: # TestParseDefaultBuildingBlocks.test_RuleRemoveToken_Integration06
+                'a[1,2,3],b[1,2,3],c[1,b,3]' (brackets are not removed, but are folded in as children)
+                ->
+                Node
+                    a
+                        [
+                        1
+                        ,
+                        2
+                        ,
+                        3
+                        ]
+                    ,
+                    b                   | Removed
+                        [               | Children are also removed
+                        1               |
+                        ,               |
+                        2               |
+                        ,               |
+                        3               |
+                        ]               |
+                    ,
+                    c
+                        [
+                        1
+                        ,
+                        b               | Removed
+                        ,
+                        3
+                        ]
+                ->
+                Node
+                    a
+                        [
+                        1
+                        ,
+                        2
+                        ,
+                        3
+                        ]
+                    ,                   _V_
+                    ,                    A
+                    c
+                        [
+                        1
+                        ,               _V_
+                        ,                A
+                        3
+                        ]
             """
             assert type(tree) is self.Node
             
