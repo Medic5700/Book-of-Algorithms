@@ -7830,6 +7830,1154 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
 
                 self.assertEqual(result, [i & 0b01111111])
 
+class TestParseDefaultBuildingBlocks(unittest.TestCase):
+    def setUp(self):
+        self.parser = CPUsim_v4.ParserDefault()
+
+    def test__tokenizer_HelloWorld(self):
+        """Tests the tokizer tokinizes correctly on HelloWorld"""
+
+        raw : List[Tuple[str, int, int]] = self.parser._tokenize("Hello World!")
+        expected : List[Tuple[str, int, int]] = [   ("Hello",   0, 0), 
+                                                    (" ",       0, 5), 
+                                                    ("World",   0, 6), 
+                                                    ("!",       0, 11)]
+
+        self.assertEqual(raw, expected)
+
+    def test__tokenizer_IntegrationMultiline(self):
+        """Tests the tokizer on multiline input"""
+
+        raw : List[Tuple[str, int, int]] = self.parser._tokenize("test\n\nHello World!")
+        expected : List[Tuple[str, int, int]] = [   ("test",    0, 0),
+                                                    ("\n",      0, 4),
+                                                    ("\n",      1, 0),
+                                                    ("Hello",   2, 0),
+                                                    (" ",       2, 5),
+                                                    ("World",   2, 6),
+                                                    ("!",       2, 11)]
+
+        self.assertEqual(raw, expected)
+
+    def test_RuleCastInts_Integration01(self):
+        """tests ruleCastInts basic test case '123 456 789'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "123",              0, 0))
+        root.append(NodeParse(      "",         "",                 0, 0))
+        root.append(NodeParse(      "",         "456",              0, 0))
+        root.append(NodeParse(      "",         "",                 0, 0))
+        root.append(NodeParse(      "",         "789",              0, 0))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "int",      123,                0, 0))
+        expected.append(NodeParse(  "",         "",                 0, 0))
+        expected.append(NodeParse(  "int",      456,                0, 0))
+        expected.append(NodeParse(  "",         "",                 0, 0))
+        expected.append(NodeParse(  "int",      789,                0, 0))
+
+        result : ParseNode = self.parser.ruleCastInts(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleCastInts_ExceptionTreeNotNodeParse(self):
+        """tests ruleCastInts raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleCastInts, tree)
+
+    def test_RuleCastHex_Integration01(self):
+        """tests rulesCastHex basic test case '0xff'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "0xff",             0, 0))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "int",      255,                0, 0))
+
+        result : ParseNode = self.parser.ruleCastHex(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleCastHex_Integration02(self):
+        """tests rulesCastHex basic test case '0x0 0x000A 0xff'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "0x0",              0, 0))
+        root.append(NodeParse(      "",         " ",                0, 0))
+        root.append(NodeParse(      "",         "0x000A",           0, 0))
+        root.append(NodeParse(      "",         " ",                0, 0))
+        root.append(NodeParse(      "",         "0xff",             0, 0))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "int",      0,                  0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 0))
+        expected.append(NodeParse(  "int",      10,                 0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 0))
+        expected.append(NodeParse(  "int",      255,                0, 0))
+        
+        result : ParseNode = self.parser.ruleCastHex(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleCastHex_MixedCase(self):
+        """tests ruleCastHex if the hex is formatted with mixed cases '0xfFfF'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "0xfFfF",           0, 0))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "int",      65535,              0, 0))
+
+        result : ParseNode = self.parser.ruleCastHex(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleCastHex_ExceptionTreeNotNodeParse(self):
+        """tests ruleCastHex raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleCastHex, tree)
+
+    def test_RuleRemoveEmptyLines_Integration01(self):
+        """tests ruleRemoveEmptyLines on a single line, 'Hello World!'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",            0, 0))
+        root.append(NodeParse(      "",         " ",                0, 5))
+        root.append(NodeParse(      "",         "World",            0, 6))
+        root.append(NodeParse(      "",         "!",                0, 11))
+
+        expected : ParseNode = root.copyDeep()
+
+        result : ParseNode = self.parser.ruleRemoveEmptyLines(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveEmptyLines_Integration02(self):
+        """tests ruleRemoveEmptyLines on a multiline input, 'test\ntest\n\n\ntest\n'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",             0, 0))
+        root.append(NodeParse(      "",         "\n",               0, 4))
+        root.append(NodeParse(      "",         "test",             1, 0))
+        root.append(NodeParse(      "",         "\n",               1, 4))
+        root.append(NodeParse(      "",         "\n",               2, 0))
+        root.append(NodeParse(      "",         "\n",               3, 0))
+        root.append(NodeParse(      "",         "test",             4, 0))
+        root.append(NodeParse(      "",         "\n",               4, 4))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",             0, 0))
+        expected.append(NodeParse(  "",         "\n",               0, 4))
+        expected.append(NodeParse(  "",         "test",             1, 0))
+        expected.append(NodeParse(  "",         "\n",               1, 4))
+        expected.append(NodeParse(  "",         "test",             4, 0))
+        expected.append(NodeParse(  "",         "\n",               4, 4))
+
+        result : ParseNode = self.parser.ruleRemoveEmptyLines(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveEmptyLines_AllEmpty(self):
+        """tests ruleRemoveEmptyLines in the case of all empty lines '\n\n\n\n'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\n",               0, 0))
+        root.append(NodeParse(      "",         "\n",               1, 0))
+        root.append(NodeParse(      "",         "\n",               2, 0))
+        root.append(NodeParse(      "",         "\n",               3, 0))
+
+        expected : ParseNode = NodeParse()
+        
+        result : ParseNode = self.parser.ruleRemoveEmptyLines(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveEmptyLines_ExceptionTreeNotNodeParse(self):
+        """tests ruleFilterLineComments raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleFilterLineComments, tree)
+
+    def test_RuleRemoveLeadingWhitespace_Integration01(self):
+        """tests ruleRemoveLeadingWhitespace on a single line, 'Hello World!'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",            0, 0))
+        root.append(NodeParse(      "",         " ",                0, 5))
+        root.append(NodeParse(      "",         "World",            0, 6))
+        root.append(NodeParse(      "",         "!",                0, 11))
+
+        expected : ParseNode = root.copyDeep()
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_Integration02(self):
+        """tests ruleRemoveLeadingWhitespace on a multiline input, 'test test \ntest\n  \ttest\t\n     \n'"""
+
+        # "test test \ntest\n  \ttest\t\n     \n"
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",             0, 0))
+        root.append(NodeParse(      "",         " ",                0, 4))
+        root.append(NodeParse(      "",         "test",             0, 5))
+        root.append(NodeParse(      "",         " ",                0, 9))
+        root.append(NodeParse(      "",         "\n",               0, 10))
+        root.append(NodeParse(      "",         "test",             1, 0))
+        root.append(NodeParse(      "",         "\n",               1, 4))
+        root.append(NodeParse(      "",         " ",                2, 0))
+        root.append(NodeParse(      "",         " ",                2, 1))
+        root.append(NodeParse(      "",         "\t",               2, 2))
+        root.append(NodeParse(      "",         "test",             2, 3))
+        root.append(NodeParse(      "",         "\t",               2, 7))
+        root.append(NodeParse(      "",         "\n",               2, 8))
+        root.append(NodeParse(      "",         " ",                3, 0))
+        root.append(NodeParse(      "",         " ",                3, 1))
+        root.append(NodeParse(      "",         " ",                3, 2))
+        root.append(NodeParse(      "",         " ",                3, 3))
+        root.append(NodeParse(      "",         " ",                3, 4))
+        root.append(NodeParse(      "",         "\n",               3, 5))
+
+        # "test test \ntest\ntest\t\n\n"
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",             0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 4))
+        expected.append(NodeParse(  "",         "test",             0, 5))
+        expected.append(NodeParse(  "",         " ",                0, 9))
+        expected.append(NodeParse(  "",         "\n",               0, 10))
+        expected.append(NodeParse(  "",         "test",             1, 0))
+        expected.append(NodeParse(  "",         "\n",               1, 4))
+        expected.append(NodeParse(  "",         "test",             2, 3))
+        expected.append(NodeParse(  "",         "\t",               2, 7))
+        expected.append(NodeParse(  "",         "\n",               2, 8))
+        expected.append(NodeParse(  "",         "\n",               3, 5))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_EmptyLine(self):
+        """tests ruleRemoveLeadingWhitespace on an empty line '\n'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\n",               0, 0))
+
+        expected : ParseNode = root.copyDeep()
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_AllWhiteSpace(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of all whitespace '    '"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         " ",                0, 0))
+        root.append(NodeParse(      "",         " ",                0, 1))
+        root.append(NodeParse(      "",         " ",                0, 2))
+        root.append(NodeParse(      "",         " ",                0, 3))
+
+        expected : ParseNode = NodeParse()
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_LeadingSpace(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '   Hello World!'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         " ",                0, 0))
+        root.append(NodeParse(      "",         " ",                0, 1))
+        root.append(NodeParse(      "",         " ",                0, 2))
+        root.append(NodeParse(      "",         "Hello",            0, 3))
+        root.append(NodeParse(      "",         " ",                0, 8))
+        root.append(NodeParse(      "",         "World",            0, 9))
+        root.append(NodeParse(      "",         "!",                0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",            0, 3))
+        expected.append(NodeParse(  "",         " ",                0, 8))
+        expected.append(NodeParse(  "",         "World",            0, 9))
+        expected.append(NodeParse(  "",         "!",                0, 14))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_LeadingTabbs(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '\t\t\tHello World!'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\t",               0, 0))
+        root.append(NodeParse(      "",         "\t",               0, 1))
+        root.append(NodeParse(      "",         "\t",               0, 2))
+        root.append(NodeParse(      "",         "Hello",            0, 3))
+        root.append(NodeParse(      "",         " ",                0, 8))
+        root.append(NodeParse(      "",         "World",            0, 9))
+        root.append(NodeParse(      "",         "!",                0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",            0, 3))
+        expected.append(NodeParse(  "",         " ",                0, 8))
+        expected.append(NodeParse(  "",         "World",            0, 9))
+        expected.append(NodeParse(  "",         "!",                0, 14))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_ExceptionTreeNotNodeParse(self):
+        """tests ruleRemoveLeadingWhitespace raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, tree)
+
+    def test_RuleStringSimple_Integration01(self):
+        """tests ruleStringSimple on a simple string 'Hello World!'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",            0, 0))
+        root.append(NodeParse(      "",         " ",                0, 5))
+        root.append(NodeParse(      "",         "World",            0, 6))
+        root.append(NodeParse(      "",         "!",                0, 11))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",            0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 5))
+        expected.append(NodeParse(  "",         "World",            0, 6))
+        expected.append(NodeParse(  "",         "!",                0, 11))
+
+        result : ParseNode = self.parser.ruleStringSimple(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleStringSimple_Integration02(self):
+        """tests ruleStringSimple on a simple string '\'Hello World!\''"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\'",               0, 0))
+        root.append(NodeParse(      "",         "Hello",            0, 1))
+        root.append(NodeParse(      "",         " ",                0, 6))
+        root.append(NodeParse(      "",         "World",            0, 7))
+        root.append(NodeParse(      "",         "!",                0, 12))
+        root.append(NodeParse(      "",         "\'",               0, 13))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "string",   "Hello World!",     0, 0))
+
+        result : ParseNode = self.parser.ruleStringSimple(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleStringSimple_Integration03(self):
+        """tests ruleStringSimple on a simple string '\"Hello World!\"'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\"",               0, 0))
+        root.append(NodeParse(      "",         "Hello",            0, 1))
+        root.append(NodeParse(      "",         " ",                0, 6))
+        root.append(NodeParse(      "",         "World",            0, 7))
+        root.append(NodeParse(      "",         "!",                0, 12))
+        root.append(NodeParse(      "",         "\"",               0, 13))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "string",   "Hello World!",     0, 0))
+
+        result : ParseNode = self.parser.ruleStringSimple(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleStringSimple_Integration04(self):
+        """tests ruleStringSimple on a simple string 'test \'test\''"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",             0, 0))
+        root.append(NodeParse(      "",         " ",                0, 4))
+        root.append(NodeParse(      "",         "\'",               0, 5))
+        root.append(NodeParse(      "",         "test",             0, 6))
+        root.append(NodeParse(      "",         "\'",               0, 10))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",             0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 4))
+        expected.append(NodeParse(  "string",   "test",             0, 5))
+        
+        result : ParseNode = self.parser.ruleStringSimple(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleStringSimple_Integration05(self):
+        """tests ruleStringSimple on a simple string '\'test\n\\\'test\\\'\'\ntest'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\'",               0, 0))
+        root.append(NodeParse(      "",         "test",             0, 4))
+        root.append(NodeParse(      "",         "\n",               0, 5))
+        root.append(NodeParse(      "",         "\\",               0, 6))
+        root.append(NodeParse(      "",         "\'",               0, 7))
+        root.append(NodeParse(      "",         "test",             0, 8))
+        root.append(NodeParse(      "",         "\\",               0, 12))
+        root.append(NodeParse(      "",         "\'",               0, 13))
+        root.append(NodeParse(      "",         "\'",               0, 14))
+        root.append(NodeParse(      "",         "\n",               0, 15))
+        root.append(NodeParse(      "",         "test",             0, 16))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "string",   "test\n\\\'test\\\'", 0, 0))
+        expected.append(NodeParse(  "",         "\n",               0, 15))
+        expected.append(NodeParse(  "",         "test",             0, 16))
+
+        result : ParseNode = self.parser.ruleStringSimple(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleStringSimple_Integration06(self):
+        """tests ruleStringSimple on a simple string '\'test\n\'test\'\'\ntest'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\'",               0, 0))
+        root.append(NodeParse(      "",         "test",             0, 1))
+        root.append(NodeParse(      "",         "\n",               0, 5))
+        root.append(NodeParse(      "",         "\'",               0, 6))
+        root.append(NodeParse(      "",         "test",             0, 7))
+        root.append(NodeParse(      "",         "\'",               0, 11))
+        root.append(NodeParse(      "",         "\'",               0, 12))
+        root.append(NodeParse(      "",         "\n",               0, 13))
+        root.append(NodeParse(      "",         "test",             0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "string",   "test\n",           0, 0))
+        expected.append(NodeParse(  "",         "test",             0, 7))
+        expected.append(NodeParse(  "string",   "",                 0, 11))
+        expected.append(NodeParse(  "",         "\n",               0, 13))
+        expected.append(NodeParse(  "",         "test",             0, 14))
+
+        result : ParseNode = self.parser.ruleStringSimple(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleStringSimple_Integration07(self):
+        """tests ruleStringSimple on a simple string 'test1\"abc\'123\'abc\"test2'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test1",            0, 0))
+        root.append(NodeParse(      "",         "\"",               0, 5))
+        root.append(NodeParse(      "",         "abc",              0, 6))
+        root.append(NodeParse(      "",         "\'",               0, 9))
+        root.append(NodeParse(      "",         "123",              0, 10))
+        root.append(NodeParse(      "",         "\'",               0, 13))
+        root.append(NodeParse(      "",         "abc",              0, 14))
+        root.append(NodeParse(      "",         "\"",               0, 17))
+        root.append(NodeParse(      "",         "test2",            0, 18))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test1",           0, 0))
+        expected.append(NodeParse(  "string",   "abc\'123\'abc",   0, 5))
+        expected.append(NodeParse(  "",         "test2",           0, 18))
+
+        result : ParseNode = self.parser.ruleStringSimple(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleStringSimple_Null(self):
+        """tests ruleStringSimple on a null string"""
+
+        root : ParseNode = NodeParse()
+
+        expected : ParseNode = NodeParse()
+
+        result : ParseNode = self.parser.ruleStringSimple(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleStringSimple_AllSpaces(self):
+        """tests ruleStringSimple on a string of spaces '    '"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         " ",                0, 0))
+        root.append(NodeParse(      "",         " ",                0, 1))
+        root.append(NodeParse(      "",         " ",                0, 2))
+        root.append(NodeParse(      "",         " ",                0, 3))
+
+        expected : ParseNode = root.copyDeep()
+
+        result : ParseNode = self.parser.ruleStringSimple(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+        
+    def test_RuleStringSimple_ExceptionMismatched(self):
+        """Tests fuleStringSimple raises an exception on mismatched quotes '\'test'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\'",               0, 0))
+        root.append(NodeParse(      "",         "test",             0, 1))
+
+        self.assertRaises(Exception, self.parser.ruleStringSimple, root)
+
+    def test_RuleStringSimple_ExceptionTreeNotNodeParse(self):
+        """tests ruleStringSimple raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleStringSimple, tree)
+
+    def test_RuleFilterLineComments_Integration01(self):
+        """tests ruleFilterLineComments on a string 'Hello World!'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",            0, 0))
+        root.append(NodeParse(      "",         " ",                0, 5))
+        root.append(NodeParse(      "",         "World",            0, 6))
+        root.append(NodeParse(      "",         "!",                0, 11))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",            0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 5))
+        expected.append(NodeParse(  "",         "World",            0, 6))
+        expected.append(NodeParse(  "",         "!",                0, 11))
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_Integration02(self):
+        """tests ruleFilterLineComments on a string 'Hello World! #comment'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",            0, 0))
+        root.append(NodeParse(      "",         " ",                0, 5))
+        root.append(NodeParse(      "",         "World",            0, 6))
+        root.append(NodeParse(      "",         "!",                0, 11))
+        root.append(NodeParse(      "",         " ",                0, 12))
+        root.append(NodeParse(      "",         "#",                0, 13))
+        root.append(NodeParse(      "",         "comment",          0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",            0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 5))
+        expected.append(NodeParse(  "",         "World",            0, 6))
+        expected.append(NodeParse(  "",         "!",                0, 11))
+        expected.append(NodeParse(  "",         " ",                0, 12))
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_Integration03(self):
+        """tests ruleFilterLineComments on a string 'test #test\n #test\n\t\\#test'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",             0, 0))
+        root.append(NodeParse(      "",         " ",                0, 4))
+        root.append(NodeParse(      "",         "#",                0, 5))
+        root.append(NodeParse(      "",         "test",             0, 6))
+        root.append(NodeParse(      "",         "\n",               0, 10))
+        root.append(NodeParse(      "",         " ",                1, 0))
+        root.append(NodeParse(      "",         "#",                1, 1))
+        root.append(NodeParse(      "",         "test",             1, 2))
+        root.append(NodeParse(      "",         "\n",               1, 6))
+        root.append(NodeParse(      "",         "\t",               2, 0))
+        root.append(NodeParse(      "",         "\\",               2, 1))
+        root.append(NodeParse(      "",         "#",                2, 2))
+        root.append(NodeParse(      "",         "test",             2, 3))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",             0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 4))
+        expected.append(NodeParse(  "",         "\n",               0, 10))
+        expected.append(NodeParse(  "",         " ",                1, 0))
+        expected.append(NodeParse(  "",         "\n",               1, 6))
+        expected.append(NodeParse(  "",         "\t",               2, 0))
+        expected.append(NodeParse(  "",         "\\",               2, 1))
+        expected.append(NodeParse(  "",         "#",                2, 2))
+        expected.append(NodeParse(  "",         "test",             2, 3))
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_Integration04(self):
+        """tests ruleFilterLineComments on a string 'test test \\# test #abc abc abc \\n abc \n test test'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",             0, 0))
+        root.append(NodeParse(      "",         " ",                0, 4))
+        root.append(NodeParse(      "",         "test",             0, 5))
+        root.append(NodeParse(      "",         " ",                0, 9))
+        root.append(NodeParse(      "",         "\\",               0, 10))
+        root.append(NodeParse(      "",         "#",                0, 11))
+        root.append(NodeParse(      "",         " ",                0, 12))
+        root.append(NodeParse(      "",         "test",             0, 13))
+        root.append(NodeParse(      "",         " ",                0, 17))
+        root.append(NodeParse(      "",         "#",                0, 18))
+        root.append(NodeParse(      "",         "abc",              0, 19))
+        root.append(NodeParse(      "",         " ",                0, 22))
+        root.append(NodeParse(      "",         "abc",              0, 23))
+        root.append(NodeParse(      "",         " ",                0, 26))
+        root.append(NodeParse(      "",         "abc",              0, 27))
+        root.append(NodeParse(      "",         " ",                0, 30))
+        root.append(NodeParse(      "",         "\\",               0, 31))
+        root.append(NodeParse(      "",         "n",                0, 32))
+        root.append(NodeParse(      "",         " ",                0, 33))
+        root.append(NodeParse(      "",         "abc",              0, 34))
+        root.append(NodeParse(      "",         " ",                0, 37))
+        root.append(NodeParse(      "",         "\n",               0, 38))
+        root.append(NodeParse(      "",         " ",                1, 0))
+        root.append(NodeParse(      "",         "test",             1, 1))
+        root.append(NodeParse(      "",         " ",                1, 5))
+        root.append(NodeParse(      "",         "test",             1, 6))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",             0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 4))
+        expected.append(NodeParse(  "",         "test",             0, 5))
+        expected.append(NodeParse(  "",         " ",                0, 9))
+        expected.append(NodeParse(  "",         "\\",               0, 10))
+        expected.append(NodeParse(  "",         "#",                0, 11))
+        expected.append(NodeParse(  "",         " ",                0, 12))
+        expected.append(NodeParse(  "",         "test",             0, 13))
+        expected.append(NodeParse(  "",         " ",                0, 17))
+        expected.append(NodeParse(  "",         "\n",               0, 38))
+        expected.append(NodeParse(  "",         " ",                1, 0))
+        expected.append(NodeParse(  "",         "test",             1, 1))
+        expected.append(NodeParse(  "",         " ",                1, 5))
+        expected.append(NodeParse(  "",         "test",             1, 6))
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_Empty(self):
+        """tests ruleFilterLineComments on an empty string ''"""
+
+        root : ParseNode = NodeParse()
+
+        expected : ParseNode = NodeParse()
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_LineAllComment(self):
+        """tests ruleFilterLineComments on a string '#comment'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "#",         0, 0))
+        root.append(NodeParse(      "",         "comment",   0, 1))
+
+        expected : ParseNode = NodeParse()
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_LineAllComment_AlternateCharacter(self):
+        """tests ruleFilterLineComments on a string '#comment', where the comment character is different"""
+
+        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+
+        for character in characters:
+            with self.subTest(character=character):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         character,   0, 0))
+                root.append(NodeParse(      "",         "comment",   0, 1))
+
+                expected : ParseNode = NodeParse()
+
+                result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+                self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_MultipleLineAllComment(self):
+        """tests ruleFilterLineComments on a string '#comment\n#comment'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "#",         0, 0))
+        root.append(NodeParse(      "",         "comment",   0, 1))
+        root.append(NodeParse(      "",         "\n",        0, 9))
+        root.append(NodeParse(      "",         "#",         0, 10))
+        root.append(NodeParse(      "",         "comment",   0, 11))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "\n",        0, 9))
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_MultipleLineAllComment_AlternateCharacter(self):
+        """tests ruleFilterLineComments on a string '#comment\n#comment', where the comment character is different"""
+
+        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+
+        for character in characters:
+            with self.subTest(character=character):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         character,   0, 0))
+                root.append(NodeParse(      "",         "comment",   0, 1))
+                root.append(NodeParse(      "",         "\n",        0, 9))
+                root.append(NodeParse(      "",         character,   0, 10))
+                root.append(NodeParse(      "",         "comment",   0, 11))
+
+                expected : ParseNode = NodeParse()
+                expected.append(NodeParse(  "",         "\n",        0, 9))
+
+                result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+                self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_LineComment(self):
+        """tests ruleFilterLineComments on a string 'test #comment'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",      0, 0))
+        root.append(NodeParse(      "",         " ",         0, 4))
+        root.append(NodeParse(      "",         "#",         0, 5))
+        root.append(NodeParse(      "",         "comment",   0, 6))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",      0, 0))
+        expected.append(NodeParse(  "",         " ",         0, 4))
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_LineComment_AlternateCharacter(self):
+        """tests ruleFilterLineComments on a string 'test #comment', where the comment character is different"""
+
+        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+
+        for character in characters:
+            with self.subTest(character=character):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         "test",      0, 0))
+                root.append(NodeParse(      "",         " ",         0, 4))
+                root.append(NodeParse(      "",         character,   0, 5))
+                root.append(NodeParse(      "",         "comment",   0, 6))
+
+                expected : ParseNode = NodeParse()
+                expected.append(NodeParse(  "",         "test",      0, 0))
+                expected.append(NodeParse(  "",         " ",         0, 4))
+
+                result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+                self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_MultipleLineComment01(self):
+        """tests ruleFilterLineComments on a string 'test #comment\n#comment'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",      0, 0))
+        root.append(NodeParse(      "",         " ",         0, 4))
+        root.append(NodeParse(      "",         "#",         0, 5))
+        root.append(NodeParse(      "",         "comment",   0, 6))
+        root.append(NodeParse(      "",         "\n",        0, 13))
+        root.append(NodeParse(      "",         "#",         1, 0))
+        root.append(NodeParse(      "",         "comment",   1, 1))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",      0, 0))
+        expected.append(NodeParse(  "",         " ",         0, 4))
+        expected.append(NodeParse(  "",         "\n",        0, 13))
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_MultipleLineComment02(self):
+        """tests ruleFilterLineComments on a string 'test #comment\ntest2#comment'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",      0, 0))
+        root.append(NodeParse(      "",         " ",         0, 4))
+        root.append(NodeParse(      "",         "#",         0, 5))
+        root.append(NodeParse(      "",         "comment",   0, 6))
+        root.append(NodeParse(      "",         "\n",        0, 13))
+        root.append(NodeParse(      "",         "test2",     1, 0))
+        root.append(NodeParse(      "",         "#",         1, 0))
+        root.append(NodeParse(      "",         "comment",   1, 1))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",      0, 0))
+        expected.append(NodeParse(  "",         " ",         0, 4))
+        expected.append(NodeParse(  "",         "\n",        0, 13))
+        expected.append(NodeParse(  "",         "test2",     1, 0))
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_MultipleLineComment_AlternateCharacter(self):
+        """tests ruleFilterLineComments on a string 'test1 #comment\ntest2#comment', where the comment character is different"""
+
+        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+
+        for character in characters:
+            with self.subTest(character=character):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         "test1",     0, 0))
+                root.append(NodeParse(      "",         " ",         0, 5))
+                root.append(NodeParse(      "",         character,   0, 6))
+                root.append(NodeParse(      "",         "comment",   0, 7))
+                root.append(NodeParse(      "",         "\n",        0, 14))
+                root.append(NodeParse(      "",         "test2",     1, 0))
+                root.append(NodeParse(      "",         character,   1, 5))
+                root.append(NodeParse(      "",         "comment",   2, 6))
+
+                expected : ParseNode = NodeParse()
+                expected.append(NodeParse(  "",         "test1",     0, 0))
+                expected.append(NodeParse(  "",         " ",         0, 5))
+                expected.append(NodeParse(  "",         "\n",        0, 14))
+                expected.append(NodeParse(  "",         "test2",     1, 0))
+
+                result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+                self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_EscapedCharacter(self):
+        """tests ruleFilterLineComments on a string '\\#comment'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\\",        0, 0))
+        root.append(NodeParse(      "",         "#",         0, 1))
+        root.append(NodeParse(      "",         "comment",   0, 2))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "\\",        0, 0))
+        expected.append(NodeParse(  "",         "#",         0, 1))
+        expected.append(NodeParse(  "",         "comment",   0, 2))
+
+        result : ParseNode = self.parser.ruleFilterLineComments(root)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_EscapedCharacter_AlternateCharacter(self):
+        """tests ruleFilterLineComments on a string '\\#comment', where the comment character is different"""
+
+        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+
+        for character in characters:
+            with self.subTest(character=character):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         "\\",        0, 0))
+                root.append(NodeParse(      "",         character,   0, 1))
+                root.append(NodeParse(      "",         "comment",   0, 2))
+
+                expected : ParseNode = NodeParse()
+                expected.append(NodeParse(  "",         "\\",        0, 0))
+                expected.append(NodeParse(  "",         character,   0, 1))
+                expected.append(NodeParse(  "",         "comment",   0, 2))
+
+                result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+                self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleFilterLineComments_ExceptionCharacterNone(self):
+        """tests ruleFilterLineComments raises an exception when character = None"""
+
+        root : ParseNode = NodeParse()
+
+        self.assertRaises(Exception, self.parser.ruleStringSimple, root, None)
+
+    def test_RuleFilterLineComments_ExceptionCharacterWrongType(self):
+        """tests ruleFilterLineComments raises an exception when character is wrong type"""
+
+        character : List[Any] = [None, 0, False, ['a'], {0 : 'a'}, NodeParse()]
+
+        for character in character:
+            with self.subTest(character=character):
+                root : ParseNode = NodeParse()
+
+                self.assertRaises(Exception, self.parser.ruleFilterLineComments, root, character)
+
+    def test_RuleFilterLineComments_ExceptionCharacterWrongLength(self):
+        """tests ruleFilterLineComments raises an exception when character is wrong length"""
+
+        characters : List[str] = ["".join(["a" for _ in range(i)]) for i in range(2, 32)]
+
+        for character in characters:
+            with self.subTest(character=character):
+                root : ParseNode = NodeParse()
+
+                self.assertRaises(Exception, self.parser.ruleFilterLineComments, root, character)
+
+    def test_RuleFilterLineComments_ExceptionTreeNotNodeParse(self):
+        """tests ruleFilterLineComments raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleFilterLineComments, tree)
+
+    def test_RuleRemoveToken_Integration01(self):
+        """tests ruleRemoveToken on a string 'Hello World!', removing nothing"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",     0, 0))
+        root.append(NodeParse(      "",         " ",         0, 5))
+        root.append(NodeParse(      "",         "World",     0, 6))
+        root.append(NodeParse(      "",         "!",         0, 11))
+
+        expected : ParseNode = root.copyDeep()
+
+        result : ParseNode = self.parser.ruleRemoveToken(root, "test")
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_Integration02(self):
+        """tests ruleRemoveToken on a string 'Hello World!', removing ' '"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",     0, 0))
+        root.append(NodeParse(      "",         " ",         0, 5))
+        root.append(NodeParse(      "",         "World",     0, 6))
+        root.append(NodeParse(      "",         "!",         0, 11))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",     0, 0))
+        expected.append(NodeParse(  "",         "World",     0, 6))
+        expected.append(NodeParse(  "",         "!",         0, 11))
+
+        result : ParseNode = self.parser.ruleRemoveToken(root, " ")
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_Integration03(self):
+        """tests ruleRemoveToken on a string 'test1\ntest2', removing '\n'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test1",     0, 0))
+        root.append(NodeParse(      "",         "\n",        0, 5))
+        root.append(NodeParse(      "",         "test2",     0, 6))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test1",     0, 0))
+        expected.append(NodeParse(  "",         "test2",     0, 6))
+
+        result : ParseNode = self.parser.ruleRemoveToken(root, "\n")
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_Integration04(self):
+        """tests ruleRemoveToken on a string 'add(arg1,arg2),mult(arg1,arg2)' (brackets are removed), removing ','"""
+
+        root : ParseNode = NodeParse()
+        rChild1 : ParseNode
+        rChild1 = NodeParse(         "",         "add",      0, 0)
+        rChild1.append(NodeParse(    "",         "arg1",     0, 5))
+        rChild1.append(NodeParse(    "",         ",",        0, 9))
+        rChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        rChild2 : ParseNode
+        rChild2 = NodeParse(         "",         "mult",     0, 4)
+        rChild2.append(NodeParse(    "",         "arg1",     0, 10))
+        rChild2.append(NodeParse(    "",         ",",        0, 14))
+        rChild2.append(NodeParse(    "",         "arg2",     0, 15))
+        root.append(rChild1)
+        root.append(NodeParse(       "",         ",",        0, 16))
+        root.append(rChild2)
+
+        expected : ParseNode = NodeParse()
+        eChild1 : ParseNode
+        eChild1 = NodeParse(         "",         "add",      0, 0)
+        eChild1.append(NodeParse(    "",         "arg1",     0, 5))
+        eChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        eChild2 : ParseNode
+        eChild2 = NodeParse(         "",         "mult",     0, 4)
+        eChild2.append(NodeParse(    "",         "arg1",     0, 10))
+        eChild2.append(NodeParse(    "",         "arg2",     0, 15))
+        expected.append(eChild1)
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleRemoveToken(root, ",")
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_Integration05(self):
+        """tests ruleRemoveToken on a string 'add(arg1,arg2),mult(arg1,arg2)' (brackets are removed), removing ',', no recursion"""
+
+        root : ParseNode = NodeParse()
+        rChild1 : ParseNode
+        rChild1 = NodeParse(         "",         "add",      0, 0)
+        rChild1.append(NodeParse(    "",         "arg1",     0, 5))
+        rChild1.append(NodeParse(    "",         ",",        0, 9))
+        rChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        rChild2 : ParseNode
+        rChild2 = NodeParse(         "",         "mult",     0, 4)
+        rChild2.append(NodeParse(    "",         "arg1",     0, 10))
+        rChild2.append(NodeParse(    "",         ",",        0, 14))
+        rChild2.append(NodeParse(    "",         "arg2",     0, 15))
+        root.append(rChild1)
+        root.append(NodeParse(       "",         ",",        0, 16))
+        root.append(rChild2)
+
+        expected : ParseNode = NodeParse()
+        eChild1 : ParseNode
+        eChild1 = NodeParse(         "",         "add",      0, 0)
+        eChild1.append(NodeParse(    "",         "arg1",     0, 5))
+        eChild1.append(NodeParse(    "",         ",",        0, 9))
+        eChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        eChild2 : ParseNode
+        eChild2 = NodeParse(         "",         "mult",     0, 4)
+        eChild2.append(NodeParse(    "",         "arg1",     0, 10))
+        eChild2.append(NodeParse(    "",         ",",        0, 14))
+        eChild2.append(NodeParse(    "",         "arg2",     0, 15))
+        expected.append(eChild1)
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleRemoveToken(root, ",", False)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_Integration06(self):
+        """tests ruleRemoveToken on a string 'a[1,2,3],b[1,2,3],c[1,b,3]' (brackets are not removed, but are folded in as children), removing 'b'"""
+
+        root : ParseNode = NodeParse()
+        rChild1 : ParseNode
+        rChild1 = NodeParse(         "",         "a",        0, 0)
+        rChild1.append(NodeParse(    "",         "[",        0, 1))
+        rChild1.append(NodeParse(    "",         "1",        0, 2))
+        rChild1.append(NodeParse(    "",         ",",        0, 3))
+        rChild1.append(NodeParse(    "",         "2",        0, 4))
+        rChild1.append(NodeParse(    "",         ",",        0, 5))
+        rChild1.append(NodeParse(    "",         "3",        0, 6))
+        rChild1.append(NodeParse(    "",         "]",        0, 7))
+        root.append(rChild1)
+        root.append(NodeParse(       "",         ",",        0, 8))
+        rChild2 : ParseNode
+        rChild2 = NodeParse(         "",         "b",        0, 9)
+        rChild2.append(NodeParse(    "",         "[",        0, 10))
+        rChild2.append(NodeParse(    "",         "1",        0, 11))
+        rChild2.append(NodeParse(    "",         ",",        0, 12))
+        rChild2.append(NodeParse(    "",         "2",        0, 13))
+        rChild2.append(NodeParse(    "",         ",",        0, 14))
+        rChild2.append(NodeParse(    "",         "3",        0, 15))
+        rChild2.append(NodeParse(    "",         "]",        0, 16))
+        root.append(rChild2)
+        root.append(NodeParse(       "",         ",",        0, 17))
+        rChild3 : ParseNode
+        rChild3 = NodeParse(         "",         "c",        0, 18)
+        rChild3.append(NodeParse(    "",         "[",        0, 19))
+        rChild3.append(NodeParse(    "",         "1",        0, 20))
+        rChild3.append(NodeParse(    "",         ",",        0, 21))
+        rChild3.append(NodeParse(    "",         "b",        0, 22))
+        rChild3.append(NodeParse(    "",         ",",        0, 23))
+        rChild3.append(NodeParse(    "",         "3",        0, 24))
+        rChild3.append(NodeParse(    "",         "]",        0, 25))
+        root.append(rChild3)
+
+        expected : ParseNode = NodeParse()
+        eChild1 : ParseNode
+        eChild1 = NodeParse(         "",         "a",        0, 0)
+        eChild1.append(NodeParse(    "",         "[",        0, 1))
+        eChild1.append(NodeParse(    "",         "1",        0, 2))
+        eChild1.append(NodeParse(    "",         ",",        0, 3))
+        eChild1.append(NodeParse(    "",         "2",        0, 4))
+        eChild1.append(NodeParse(    "",         ",",        0, 5))
+        eChild1.append(NodeParse(    "",         "3",        0, 6))
+        eChild1.append(NodeParse(    "",         "]",        0, 7))
+        expected.append(eChild1)
+        expected.append(NodeParse(   "",         ",",        0, 8))
+        expected.append(NodeParse(   "",         ",",        0, 17))
+        eChild2 : ParseNode
+        eChild2 = NodeParse(         "",         "c",        0, 18)
+        eChild2.append(NodeParse(    "",         "[",        0, 19))
+        eChild2.append(NodeParse(    "",         "1",        0, 20))
+        eChild2.append(NodeParse(    "",         ",",        0, 21))
+        eChild2.append(NodeParse(    "",         ",",        0, 23))
+        eChild2.append(NodeParse(    "",         "3",        0, 24))
+        eChild2.append(NodeParse(    "",         "]",        0, 25))
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleRemoveToken(root, "b", True)
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+
+    def test_RuleRemoveToken_Empty(self):
+        """tests ruleRemoveToken on an empty string ''"""
+
+        root : ParseNode = NodeParse()
+
+        expected : ParseNode = NodeParse()
+
+        result : ParseNode = self.parser.ruleRemoveToken(root, ",")
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_RemoveToken01(self):
+        """tests ruleRemoveToken on a string 'test', removing 'test'"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",     0, 0))
+
+        expected : ParseNode = NodeParse()
+
+        result : ParseNode = self.parser.ruleRemoveToken(root, "test")
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_RemoveToken02(self):
+        """tests ruleRemoveToken on a string f'{token}', removing token"""
+
+        tokens : List[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
+
+        for token in tokens:
+            with self.subTest(token=token):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         token,      0, 0))
+
+                expected : ParseNode = NodeParse()
+
+                result : ParseNode = self.parser.ruleRemoveToken(root, token)
+                self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_RemoveToken03(self):
+        """tests ruleRemoveToken on a string f'Hello {token}', removing token"""
+
+        tokens : List[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
+
+        for token in tokens:
+            with self.subTest(token=token):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         "Hello",    0, 0))
+                root.append(NodeParse(      "",         " ",        0, 6))
+                root.append(NodeParse(      "",         token,      0, 7))
+
+                expected : ParseNode = NodeParse()
+                expected.append(NodeParse( "",         "Hello",    0, 0))
+                expected.append(NodeParse( "",         " ",        0, 6))
+
+                result : ParseNode = self.parser.ruleRemoveToken(root, token)
+                self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_TokenWithChildren(self):
+        """tests ruleRemoveToken on a string 'a[1,2,3]'  (brackets are not removed, but are folded in as children), removing 'a' and all children"""
+
+        root : ParseNode = NodeParse()
+        rChild1 : ParseNode
+        rChild1 = NodeParse(        "",         "a",        0, 0)
+        root.append(rChild1)
+        rChild2 : ParseNode
+        rChild2 = NodeParse(        "",         "[",        0, 1)
+        rChild2.append(NodeParse(   "",         "1",        0, 2))
+        rChild2.append(NodeParse(   "",         ",",        0, 3))
+        rChild2.append(NodeParse(   "",         "2",        0, 4))
+        rChild2.append(NodeParse(   "",         ",",        0, 5))
+        rChild2.append(NodeParse(   "",         "3",        0, 6))
+        rChild2.append(NodeParse(   "",         "]",        0, 7))
+        rChild1.append(rChild2)
+
+        expected : ParseNode = NodeParse()
+
+        result : ParseNode = self.parser.ruleRemoveToken(root, "a")
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+        
+    def test_RuleRemoveToken_TokenDifferentTypes(self):
+        """tests ruleRemoveToken on different token types"""
+
+        tokens : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        for token in tokens:
+            with self.subTest(token=token):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         token,      0, 0))
+
+                expected : ParseNode = NodeParse()
+
+                result : ParseNode = self.parser.ruleRemoveToken(root, token)
+                self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveToken_ExceptionTreeNotNodeParse(self):
+        """tests ruleRemoveToken raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleRemoveToken, tree)
+
+    def test_RuleRemoveToken_ExceptionRecurseNotBool(self):
+        """tests ruleRemoveToken raises an exception when recurse is not a boolean"""
+
+        variables : List[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
+
+        for variable in variables:
+            with self.subTest(variable=variable):
+                self.assertRaises(Exception, self.parser.ruleRemoveToken, NodeParse(), None, variable)
+
 #====================================================================================================================== Main
 
 if __name__ == "__main__":
