@@ -4948,7 +4948,7 @@ class CPUsim_v4:
                     var bitLength
                     var instructionSet
                     var instructionStats
-                def checkEnvironment
+                def assertEnvironment
                 def enforceAccess
                 def int2bits
                 def bits2int
@@ -4969,15 +4969,11 @@ class CPUsim_v4:
         
         """
 
-        def __init__(self, bitLength=16):
+        def __init__(self):
             """Initializes instruction set
 
             bitLength is used to caluculate energy and latency of instructions.
             """
-            assert type(bitLength) is int
-            assert bitLength >= 1
-
-            self.bitLength : int = bitLength
 
             self.instructionSet :   Dict[
                                         Tuple[str, ...],                                    #Instruction 'op-code', will automatically (#TODO) get converted to a Tuple on import
@@ -6022,6 +6018,8 @@ class CPUsim_v4:
 
             self.nameSpace : Dict[str, NameSpaceObject] = {}
 
+            self.externalNameSpace : Dict[str, NameSpaceObject] = {} # Used for keeping track of external nameSpace elements
+
             self.Node : ParseNode = NodeParse
 
         
@@ -6034,8 +6032,11 @@ class CPUsim_v4:
             assert type(nameSpace) is dict
             assert all([type(i) is NameSpaceObject for _, i in nameSpace.items()])
 
-            self.nameSpace = nameSpace
+            #TODO should compair current namespace with new namespace and only update the new ones
+            self.externalNameSpace : Dict[str, NameSpaceObject] = nameSpace
+            self.nameSpace : Dict[str, NameSpaceObject] = {}
 
+            #TODO should return all elements that are in nameSpace, but not in externalNameSpace
             return {}
 
         def _tokenize(self, code : str) -> List[Tuple[str, int, int]] :
@@ -6807,6 +6808,7 @@ class CPUsim_v4:
                         ]
             """
             assert type(tree) is self.Node
+            assert type(recurse) is bool
             
             root : ParseNode = tree.copyInfo()
 
@@ -7655,8 +7657,9 @@ class CPUsim_v4:
             self.Node : ParseNode = NodeParse
 
             self.endianess : Literal["big", "little"] = endianess
+            self.memoryElementSize : int = memoryElementSize
 
-            self.memoryElementSize = memoryElementSize
+            self.defaultDirective : Callable[[ParseNode, Any], Tuple[0, None]] = self.null # used to autofill undefined instructions from instructionSet
             
             self.instructionSet :   Dict[
                                         Tuple(str, ...),                    # Instruction or directive
@@ -7858,6 +7861,8 @@ class CPUsim_v4:
             
             return result, None
         
+    class DecoderDefault:
+        pass
 
 class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
     def setUp(self):
