@@ -7860,11 +7860,13 @@ class CPUsim_v4:
         
 
 class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
+    def setUp(self):
+        self.compiler = CPUsim_v4.CompilerDefault
 
     def testDirInt_Int8(self):
         """Tests 8-bit ints, nothing fancy"""
 
-        compiler = CPUsim.CompilerDefault(endianess = "little", memoryElementSize = 8)
+        compiler = self.compiler(endianess = "little", memoryElementSize = 8)
 
         i : int
         for i in range(256):
@@ -7878,7 +7880,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
         endianessTest : str
         for endianessTest in ["little", "big"]:
             with self.subTest(endianessTest = endianessTest):
-                compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 8)
+                compiler = self.compiler(endianess = endianessTest, memoryElementSize = 8)
 
                 i : int
                 for i in range(2**16):
@@ -7901,7 +7903,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
         for endianessTest in ["little", "big"]:
             with self.subTest(endianessTest = endianessTest):
 
-                compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 8)
+                compiler = self.compiler(endianess = endianessTest, memoryElementSize = 8)
 
                 bitLength : int
                 for bitLength in [8, 16, 32, 64, 128]:
@@ -7930,7 +7932,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
         for endianessTest in ["little", "big"]:
             with self.subTest(endianessTest = endianessTest):
 
-                compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 8)
+                compiler = self.compiler(endianess = endianessTest, memoryElementSize = 8)
 
                 byteLength : int
                 for byteLength in [2 ** i for i in range(1, 8 + 1)]:
@@ -7975,7 +7977,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
         for endianessTest in ["little", "big"]:
             with self.subTest(endianessTest = endianessTest):
 
-                compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 7)
+                compiler = self.compiler(endianess = endianessTest, memoryElementSize = 7)
 
                 i : int
                 for i in range(2 ** 10):
@@ -7995,7 +7997,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
     def testDirAscii_HelloWorld(self):
         """Tests converting 'Hello World!'"""
 
-        compiler = CPUsim.CompilerDefault(endianess = "little", memoryElementSize = 8)
+        compiler = self.compiler(endianess = "little", memoryElementSize = 8)
 
         result : List[int] = compiler.dirAscii(NodeParse(), {}, {},
                                                 "Hello World!")[0]
@@ -8005,7 +8007,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
     def testDirAscii_7bitSquash(self):
         """Tests that input text is properly 'squashed' to 7-bit ASCII"""
 
-        compiler = CPUsim.CompilerDefault(endianess = "little", memoryElementSize = 8)
+        compiler = self.compiler(endianess = "little", memoryElementSize = 8)
 
         i : int
         for i in range(256):
