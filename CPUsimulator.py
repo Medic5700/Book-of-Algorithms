@@ -4490,6 +4490,7 @@ class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with 
         #         self.child))
         #     )
 
+        i : int
         for i in range(len(self.child)):
             newNode.append(self.child[i].copyDeep())
         return newNode
@@ -4500,6 +4501,7 @@ class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with 
         assert type(newNode) is self.__class__
 
         index = None
+        i : int
         for i in range(len(self.child)):
             if self.child[i] is oldNode:
                 index = i
@@ -4540,6 +4542,7 @@ class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with 
         removeNode.nodeNext = None
         removeNode.nodePrevious = None
 
+        i : int
         for i in range(len(removeNode.child) - 1, -1, -1):
             removeNode.remove(removeNode.child[i])
 
@@ -4551,6 +4554,7 @@ class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with 
         assert type(node) is self.__class__
 
         index : int = None
+        i : int
         for i in range(len(self.child)):
             if self.child[i] is node:
                 index = i
@@ -4592,6 +4596,7 @@ class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with 
         
         self.child.pop(index)
         
+        i : int
         for i in range(len(removeNode.child) - 1, -1, -1):
             removeNode.remove(removeNode.child[i])
 
@@ -4604,7 +4609,7 @@ class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with 
 
         block : str = ""
         line : str = ""
-        for i in range(depth):
+        for _ in range(depth):
             line += "    "
         line += repr(self.token)
         line = line.ljust(64, " ")
@@ -4618,6 +4623,7 @@ class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with 
 
         childLines : List[str] = [i.__repr__(depth+1) for i in self.child]
         block += line
+        i : str
         for i in childLines:
             block += i
 
@@ -4681,6 +4687,7 @@ class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with 
         if len(a.child) != len(self.child):
             result = False
         else:
+            i : int
             for i in range(len(self.child)):
                 if not self.child[i - 1].dataEqual(a.child[i - 1]):
                     result = False
@@ -4689,7 +4696,7 @@ class NodeParse: # Named NodeParse instead of ParseNode to avoid conflicts with 
 
 @dataclass
 class NameSpaceObject:
-    type : Literal["alias", "directive", "instruction", "label", "registerBank"]
+    type : Literal["registerAlias", "directive", "psudoInstruction", "instruction", "label", "registerBank"]
     key : Any
     value : Any = None
     replace : Any = None
@@ -5942,6 +5949,7 @@ class CPUsim_v4:
             lineNum : int = 0
             characterNum : int = 0
             tokenLength : int = 0
+            j : str # char
             for j in code:
                 if _isName(j): #creates tokens from everything that could be a variable name
                     token += j
@@ -5993,6 +6001,7 @@ class CPUsim_v4:
 
             root : ParseNode = tree.copyInfo()
 
+            i : ParseNode
             for i in tree.child:
                 if type(i.token) is str:
                     if i.token.isdigit():
@@ -6033,6 +6042,7 @@ class CPUsim_v4:
 
             root : ParseNode = tree.copyInfo()
 
+            i : ParseNode
             for i in tree.child:
                 if type(i.token) == str:
                     if i.token.startswith("0x") or i.token.startswith("0X"):
@@ -6079,6 +6089,7 @@ class CPUsim_v4:
 
             stack : str = "\n"
 
+            i : ParseNode
             for i in tree.child:
                 #if previous == "\n" and current == "\n" do nothing, else copy Node
                 if i != "\n" or stack != "\n":
@@ -6149,6 +6160,7 @@ class CPUsim_v4:
             Edge: 1 -> 0: found newline
             Edge: 1 -> 1: did not find newline, copy token
             '''
+            i : ParseNode
             for i in tree.child:
                 logging.debug(debugHelper(inspect.currentframe()) + repr(i.token))
                 if stack != None: #State 0: at beginning of line
@@ -6278,6 +6290,7 @@ class CPUsim_v4:
             Edge 1 -> 1 iff token != quote: append string with token
             Edge 1 -> 0 iff token == quote: copy string to node, append to root
             '''
+            i : ParseNode
             for i in tree.child:
                 if stack == None: #the 'looking for an opening quote' State 0
                     if i != "\"" and i != "\'": #Edge 0 -> 0
@@ -6410,6 +6423,7 @@ class CPUsim_v4:
             1 -> 1 iff token != \n : do nothing
             1 -> 0 iff token == \n : append \n to root
             '''
+            i : ParseNode
             for i in tree.child:
                 if stack == None:
                     if i != character:
@@ -6477,6 +6491,7 @@ class CPUsim_v4:
             root : ParseNode = tree.copyInfo()
             stack : List[Tuple[str, ParseNode]] = []
 
+            i : ParseNode
             for i in tree.child:
                 '''
                 if openbracket
@@ -6528,6 +6543,7 @@ class CPUsim_v4:
 
             labels : Dict[str, ParseNode] = {}
 
+            i : ParseNode
             for i in tree.child:
                 if (i.nodePrevious == previous or i.nodePrevious == None) and i.nodeNext == ":":
                     temp : ParseNode = i.copyDeep()
@@ -6559,6 +6575,7 @@ class CPUsim_v4:
             root : ParseNode = tree.copyInfo()
             keys : List[str] = [i.lower() for i in nameSpace.keys()]
 
+            i : ParseNode
             for i in tree.child:
                 if type(i.token) is str:
                     if i.token.lower() in keys:
@@ -6665,12 +6682,14 @@ class CPUsim_v4:
             
             root : ParseNode = tree.copyInfo()
 
+            i : ParseNode
             for i in tree.child:
                 if i != token:
                     root.append(i.copyDeep())
 
             if recurse:
                 newRoot : ParseNode = tree.copyInfo()
+                i : ParseNode
                 for i in root.child:
                     newRoot.append(self.ruleRemoveToken(i.copyDeep(), token, True))
                 root = newRoot
@@ -6689,6 +6708,7 @@ class CPUsim_v4:
             result : List[ParseNode] = []
             current : ParseNode = self.Node(tokenType, None, 0, 0)
 
+            i : ParseNode
             for i in tree.child:
                 if i == splitToken:
                     result.append(current)
@@ -6700,6 +6720,7 @@ class CPUsim_v4:
                 result.append(current)
 
             #Goes through all 'lines' and sets lineNum and charNum to the values of the first child Node in them
+            i : ParseNode
             for i in result:
                 if len(i.child) != 0:
                     i.lineNum = i.child[0].lineNum
@@ -6786,6 +6807,7 @@ class CPUsim_v4:
             tokenFound : bool = False
 
             #checks if there is a splitToken in children
+            i : ParseNode
             for i in tree.child:
                 if i == splitToken:
                     tokenFound = True
@@ -6793,6 +6815,7 @@ class CPUsim_v4:
 
             if tokenFound:
                 stack : List[ParseNode] = []
+                i : ParseNode
                 for i in tree.child:
                     if i == splitToken:
                         logging.debug(debugHelper(inspect.currentframe()) + str(stack))
@@ -6816,6 +6839,7 @@ class CPUsim_v4:
                     root.append(temp)
                     
             else: #the splitToken not found case
+                i : ParseNode
                 for i in tree.child:
                     temp : ParseNode = None
                     if recurse:
@@ -6839,6 +6863,7 @@ class CPUsim_v4:
             logging.debug(debugHelper(inspect.currentframe()) + "EnterFunction \n" + str(tree))
             root : ParseNode = tree.copyInfo()
 
+            i : ParseNode
             for i in tree.child:
                 logging.debug(debugHelper(inspect.currentframe()) + "i \n" + str(i))
                 if i.type == "container":  
@@ -6882,6 +6907,7 @@ class CPUsim_v4:
             assert type(tree) is self.Node
 
             root : ParseNode = tree.copyInfo()
+            i : ParseNode
             for i in tree.child:
                 temp : ParseNode = i.copyDeep()
                 if type(temp.token) is str:
@@ -6945,18 +6971,22 @@ class CPUsim_v4:
 
             root : ParseNode = tree.copyInfo()
 
+            i : ParseNode
             for i in tree.child:
                 temp : List[ParseNode] = []
                 if type(i.token) is str and i.token in alias: #if alias token found, tokenize it's replacement string, and add that series of tokens to root
+                    j : Tuple[str, int, int]
                     for j in self._tokenize(alias[i.token]):
                         temp.append(self.Node("token", j[0], i.lineNum, i.charNum))
                 else:
                     temp.append(i.copyInfo())
 
+                j : ParseNode
                 for j in i.child: #if alias token has children, add children to first token of the replacement tokens
                     temp[0].append(j.copyDeep)
                 
                 #append tokens to root
+                j : ParseNode
                 for j in temp:
                     root.append(j)
 
@@ -7040,11 +7070,13 @@ class CPUsim_v4:
                 pass
             if len(tree.child) == 1:
                 if tree.child[0].token in containerTokens:
+                    i : ParseNode
                     for i in tree.child[0].child:
                         children.append(i.copyDeep())
                 else:
                     children.append(tree.child[0].copyDeep())
             if len(tree.child) > 1:
+                i : ParseNode
                 for i in tree.child:
                     if i.token in containerTokens:
                         temp = i.copyDeep()
@@ -7053,6 +7085,7 @@ class CPUsim_v4:
                     else:
                         children.append(i.copyDeep())
 
+            i : ParseNode
             for i in children:
                 root.append(self.ruleFilterContainerKeepChildren(i, containerTokens))
             
@@ -7113,8 +7146,11 @@ class CPUsim_v4:
             
             #tokenizes sourceCode, and turns it into a Node Tree
             root : ParseNode = self.Node("root")
-            for i in self._tokenize(sourceCode):
-                root.append(self.Node("token", i[0], i[1], i[2]))
+            token : str
+            lineNum : int
+            charNum : int
+            for token, lineNum, charNum in self._tokenize(sourceCode):
+                root.append(self.Node("token", token, lineNum, charNum))
 
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
@@ -7138,7 +7174,7 @@ class CPUsim_v4:
 
             root, labels = self.ruleFindLabels(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root) + "\nlabels: " + str(labels))
-            i = 0
+            i : int = 0
             while i < len(root.child): #removes the label nodes, as they don't need to be executed
                 if root.child[i].type == "label":
                     root.remove(root.child[i])
@@ -7164,20 +7200,23 @@ class CPUsim_v4:
 
             # This will roll containers trailing a namespace object into a child of namespace object
             filteredNameSpace : Dict[NameSpaceObject] = {}
+            i : str
+            j : NameSpaceObject
             for i, j in self.nameSpace.items():
                 if j.type in ["instruction", "directive", "registerBank"]:
                     filteredNameSpace[i] = j
             root = self.ruleNestContainersIntoInstructions(root, filteredNameSpace, True)
             logging.error(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
 
-            temp : List[self.Node] = self.ruleSplitLines(root, "line", "\n")
+            temp : List[ParseNode] = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
+            i : ParseNode
             for i in temp:
                 root.append(i)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
 
             #removes empty lines/empty line nodes
-            i = 0
+            i : int = 0
             while i < len(root.child):
                 if len(root.child[i].child) == 0:
                     root.remove(root.child[i])
@@ -7484,7 +7523,7 @@ class CPUsim_v4:
 
             self.Node : ParseNode = NodeParse
 
-            self.endianess = endianess
+            self.endianess : Literal["big", "little"] = endianess
 
             self.memoryElementSize = memoryElementSize
             
@@ -7602,6 +7641,7 @@ class CPUsim_v4:
             result : List[int] = []
 
             character : int = 0
+            i : str # chr
             for i in text:
                 character = ord(i) & (2**7 - 1) #Squashish ascii to 7-bits
                 result.append(character)
@@ -7668,6 +7708,7 @@ class CPUsim_v4:
 
             modulus : int = 0
             memoryElement : int = 0
+            i : int
             for i in numberBits: # Takes Least Significant 'not Byte' and appends it to the result
                 memoryElement = memoryElement + (i << modulus)
                 modulus += 1
@@ -7693,6 +7734,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
 
         compiler = CPUsim.CompilerDefault(endianess = "little", memoryElementSize = 8)
 
+        i : int
         for i in range(256):
             result : Tuple[List[int], None] = compiler.dirInt(NodeParse(), {}, {},
                                                                 i, 8)
@@ -7701,10 +7743,12 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
     def testDirInt_Int16(self):
         """Tests 16-bit ints, over 2 memory elements, with both endianess"""
 
+        endianessTest : str
         for endianessTest in ["little", "big"]:
             with self.subTest(endianessTest = endianessTest):
                 compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 8)
 
+                i : int
                 for i in range(2**16):
                     with self.subTest(i = i):
                         x_0 = i & (2**8 - 1) # takes lower 8 bits
@@ -7721,14 +7765,17 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
     def testDirInt_8BitSweep(self):
         """Sweeps a single toggeled bit across multiple bitLengths, for both endianess"""
 
+        endianessTest : str
         for endianessTest in ["little", "big"]:
             with self.subTest(endianessTest = endianessTest):
 
                 compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 8)
 
+                bitLength : int
                 for bitLength in [8, 16, 32, 64, 128]:
                     with self.subTest(bitLength=bitLength):
 
+                        i : int
                         for i in range(bitLength):
                             with self.subTest(i = i):
 
@@ -7747,11 +7794,13 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
     def testDirInt_MaxInt(self):
         """Attempts to store the maxium value in an int of multiple bitLengths and both endianess"""
 
+        endianessTest : str
         for endianessTest in ["little", "big"]:
             with self.subTest(endianessTest = endianessTest):
 
                 compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 8)
 
+                byteLength : int
                 for byteLength in [2 ** i for i in range(1, 8 + 1)]:
                     with self.subTest(bitLength=byteLength):
 
@@ -7759,6 +7808,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
                                                             2**(8 * byteLength) - 1, 8 * byteLength)[0]
 
                         resultProcessed : int = 0
+                        j : int
                         for j in range(byteLength):
                             resultProcessed = (resultProcessed << 8) + result[j]
 
@@ -7789,11 +7839,13 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
             result = [2, 0]
         """
 
+        endianessTest : str
         for endianessTest in ["little", "big"]:
             with self.subTest(endianessTest = endianessTest):
 
                 compiler = CPUsim.CompilerDefault(endianess = endianessTest, memoryElementSize = 7)
 
+                i : int
                 for i in range(2 ** 10):
                     with self.subTest(i=i):
 
@@ -7823,6 +7875,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
 
         compiler = CPUsim.CompilerDefault(endianess = "little", memoryElementSize = 8)
 
+        i : int
         for i in range(256):
             with self.subTest(i = i):
                 result : List[int] = compiler.dirAscii(NodeParse(), {}, {},
@@ -7884,6 +7937,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
+        tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
                 self.assertRaises(Exception, self.parser.ruleCastInts, tree)
@@ -7937,6 +7991,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
+        tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
                 self.assertRaises(Exception, self.parser.ruleCastHex, tree)
@@ -7998,6 +8053,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
+        tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
                 self.assertRaises(Exception, self.parser.ruleFilterLineComments, tree)
@@ -8130,6 +8186,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
+        tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
                 self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, tree)
@@ -8312,6 +8369,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
+        tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
                 self.assertRaises(Exception, self.parser.ruleStringSimple, tree)
@@ -8465,6 +8523,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
 
+        character : str # chr
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
@@ -8497,6 +8556,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
 
+        character : str # chr
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
@@ -8533,6 +8593,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
 
+        character : str # chr
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
@@ -8595,6 +8656,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
 
+        character : str # chr
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
@@ -8637,6 +8699,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
 
+        character : str # chr
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
@@ -8664,6 +8727,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         character : List[Any] = [None, 0, False, ['a'], {0 : 'a'}, NodeParse()]
 
+        character : Any
         for character in character:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
@@ -8675,6 +8739,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         characters : List[str] = ["".join(["a" for _ in range(i)]) for i in range(2, 32)]
 
+        character : str
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
@@ -8686,6 +8751,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
+        tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
                 self.assertRaises(Exception, self.parser.ruleFilterLineComments, tree)
@@ -8894,6 +8960,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         tokens : List[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
 
+        token : Any
         for token in tokens:
             with self.subTest(token=token):
                 root : ParseNode = NodeParse()
@@ -8909,6 +8976,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         tokens : List[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
 
+        token : Any
         for token in tokens:
             with self.subTest(token=token):
                 root : ParseNode = NodeParse()
@@ -8950,6 +9018,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         tokens : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
+        token : Any
         for token in tokens:
             with self.subTest(token=token):
                 root : ParseNode = NodeParse()
@@ -8965,6 +9034,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
+        tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
                 self.assertRaises(Exception, self.parser.ruleRemoveToken, tree)
@@ -8974,6 +9044,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         variables : List[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
 
+        variable : Any
         for variable in variables:
             with self.subTest(variable=variable):
                 self.assertRaises(Exception, self.parser.ruleRemoveToken, NodeParse(), None, variable)
