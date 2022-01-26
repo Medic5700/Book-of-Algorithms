@@ -284,8 +284,8 @@ import sys
 version = sys.version_info
 assert version[0] == 3 and version[1] >= 8
 
-import copy #copy.deepcopy() required because states are a nested dictionary, and need to be copied instead of referenced
-import functools #used for partial functions when executioning 'instruction operations'
+import copy # copy.deepcopy() required because states are a nested dictionary, and need to be copied instead of referenced
+import functools # used for partial functions when executioning 'instruction operations'
 import unittest
 import random
 
@@ -297,8 +297,8 @@ from abc import ABC, abstractmethod # used for abstract classes
 
 #debugging and logging stuff
 import logging
-import inspect #used for logging, also used to assertion testing
-debugHighlight : Callable[[int], bool] = lambda _ : False #debugHighlight = lambda x : 322 <= x <= 565 #will highlight the debug lines between those number, or set to -1 to highlight nothing
+import inspect # used for logging, also used to assertion testing
+debugHighlight : Callable[[int], bool] = lambda _ : False # debugHighlight = lambda x : 322 <= x <= 565 #will highlight the debug lines between those number, or set to -1 to highlight nothing
 def debugHelper(frame : "Frame Object") -> str:
     """Takes in a frame object, returns a string representing debug location info (IE: the line number and container name of the debug call)
 
@@ -313,22 +313,22 @@ def debugHelper(frame : "Frame Object") -> str:
     """
     assert inspect.isframe(frame)
 
-    global debugHighlight #Callable[[int], bool]
+    global debugHighlight # Callable[[int], bool]
     if 'debugHighlight' not in globals():
         debugHighlight = lambda _ : False
     
-    #textRed : str = "\u001b[31m" #forground red
-    textTeal : str = "\u001b[96m" #forground teal
-    ANSIend : str = "\u001b[0m" #resets ANSI colours and formatting
+    #textRed : str = "\u001b[31m" # forground red
+    textTeal : str = "\u001b[96m" # forground teal
+    ANSIend : str = "\u001b[0m" # resets ANSI colours and formatting
 
     line : str = ""
 
     if debugHighlight(frame.f_lineno):
         line += textTeal
    
-    line += "<container>\"" + str(frame.f_code.co_name) + "\"" #the name of the encapuslating method that the frame was generated in
-    line += "[" + str(frame.f_code.co_firstlineno).rjust(4, '0') + "]" #the line number of the encapsulating method that the frame was generated in
-    line += "@line[" + str(frame.f_lineno).rjust(4, '0') + "]" #the line number when the frame was generate
+    line += "<container>\"" + str(frame.f_code.co_name) + "\"" # he name of the encapuslating method that the frame was generated in
+    line += "[" + str(frame.f_code.co_firstlineno).rjust(4, '0') + "]" # the line number of the encapsulating method that the frame was generated in
+    line += "@line[" + str(frame.f_lineno).rjust(4, '0') + "]" # the line number when the frame was generate
     line += " = "
 
     if debugHighlight(frame.f_lineno):
@@ -4798,29 +4798,121 @@ class CPUsim_v4:
     """
 
     def __init__(self):
-        pass
-
-
+        """#TODO
+        
         """
 
+        self._InstructionSet_Instance : Type[self.InstructionSetDefault] = None
+        self._Display_Instance : Type[self.DisplaySilent] = None
+        self._Parser_Instance : Type[self.ParserDefault] = None
+        self._MMMU_Instance : Type[self.MMMUDefault] = None
+        self._Compiler_Instance : Type[self.CompilerDefault] = None
+        self._Decoder_Instance : Type[self.DecoderDefault] = None
+
+        self._postTickMemoryAdjuster : Callable[[], None] = None
+
+        self._nameSpace : Dict[str, Dict[Literal["type", "replace"], Any]] = {}
+
+        self.setDisplay(self.DisplaySimpleAndClean())
+        self.setInstructionSet(self.InstructionSetDefault())
+        self.setParser(self.ParserDefault())
+        self.setDecoder(self.DecoderDefault())
+        self.setPostTickMemoryAdjuster(self._postTickMemoryAdjusterDefault)
+
+        MMMU = self.MMMUDefault()
+        self.setMMMU(MMMU)
+
+    def setInstructionSet(self, instructionSet_Instance) -> None:
+        """Takes in a instatiated instruction set
         
+        #TODO pass through, needs proper implimentation
+        """
+        assert type(instructionSet_Instance) != None
+        assert type(instructionSet_Instance.instructionSet) is dict
 
+        self._InstructionSet_Instance = instructionSet_Instance
 
+    def setParser(self, parser_Instance) -> None:
+        """Takes in a instatiated parser
+        
+        #TODO pass through, needs proper implimentation
+        """
+        assert type(parser_Instance) != None
+        assert parser_Instance.parseCode
+        assert callable(parser_Instance.parseCode)
 
+        self._Parser_Instance = parser_Instance
 
+    def setDecoder(self, decoder_Instance) -> None:
+        """Takes in a instatiated decoder
+        
+        #TODO pass through, needs proper implimentation
+        """
+        assert type(decoder_Instance) != None
 
+        self._Decoder_Instance = decoder_Instance
 
+    def setPostTickMemoryAdjuster(self, postTickMemoryAdjust : Callable[[], None]) -> None:
+        """
+        
+        #TODO pass through, needs proper implimentation
+        """
+        assert callable(postTickMemoryAdjust)
 
+        self._postTickMemoryAdjuster = postTickMemoryAdjust
 
+    def setMMMU(self, MMMU_Instance) -> None:
+        """Takes in a instatiated MMMU
+        
+        #TODO pass through, needs proper implimentation
+        """
+        assert type(MMMU_Instance) != None
 
+        self._MMMU_Instance = MMMU_Instance
 
+    class DisplaySimpleAndClean:
+        #TODO
 
+        def __init__(self):
+            self.textRed : str = "\u001b[31m" #forground red
+            self.textYellow : str = "\u001b[33m" #forground yellow, meant for register pending read/write
+            self.textTeal : str = "\u001b[96m" #forground teal, meant for register activity (read/write)
+            self.textGreen : str = "\u001b[92m" #forground green
+            self.textGrey : str = "\u001b[90m" #forground grey
+            self.backDeepBlue : str = "\u001b[48;5;17m" #background deep blue
+            self.ANSIend : str = "\u001b[0m" #resets ANSI colours
 
+        def runtime(self, 
+            readStateOld : Callable[[int, int, int or str, int or str], int], readStateOldStatus : Callable[[int, int, int or str, int or str], dict],
+            readStateNew : Callable[[int, int, int or str, int or str], int], readStateNewStatus : Callable[[int, int, int or str, int or str], dict],
+            getRegisterConfig : Callable[[int or str, int or str], dict],
+            getAllMemoryElements : Callable[[], Tuple[int, int, int or str, int or str]]
+            ):
+            pass
 
+        def runtime(self,
+            MMMUStateOld : int, MMMUStateNew : int,
+            MMMUGetMemoryKeys : Callable[[int], Tuple[int, int, int, int or str, int or str]],
+            MMMUGetRegisterConfig : Callable[[int, int, int, int or str, int or str], dict]
+            ):
+            pass
 
+        def postrun():
+            pass
 
+    class DisplaySilent:
+        """An intentionally empty definition, that will display nothing to the screen"""
 
+        def __init__(self):
+            pass
 
+        def runtime(): #TODO
+            """An intentionally empty definition, that will display nothing to the screen"""
+            pass
+
+        def postrun(): #TODO
+            """An intentionally empty definition, that will display nothing to the screen"""
+            pass
 
     class InstructionSetDefault:
         """A Mockup of the default instruction set for future use
@@ -4828,10 +4920,12 @@ class CPUsim_v4:
         A simplified instruction set implimentation, along with the building blocks for base instructions to help build an instruction set.
 
         Terminology
-            Instruction - Generic term refering to an instruction that is loaded, or an instruction that is implimented in the instructionSet, or a building block function used for the instructionSet milicode
+            Instruction - Generic term refering to an instruction that is loaded, or an instruction that is implimented in the instructionSet, 
+                or a building block function used for the instructionSet milicode
             User Instruction - Refers to the instruction loaded from a program and run on the CPU engine. IE: "add r0 r1 r2"
             ISA Instruction/ISA Instruction Set - Refers to the instruction implimented and accessable from the ISA. IE: "add" is an accessable instruction implimented by the ISA
-            Milicode - Refers to the instruction implimentation (defined in __init__) from smaller building block functions (Base Instructions). IE: {"add" : lambda e1, e2, e3, e4, e5, des, a, b: self.opAdd(e1, e2, e3, e4, e5, des, a, b)}"
+            Milicode - Refers to the instruction implimentation (defined in __init__) from smaller building block functions (Base Instructions). 
+                IE: {"add" : lambda e1, e2, e3, e4, e5, des, a, b: self.opAdd(e1, e2, e3, e4, e5, des, a, b)}"
                 Note: multiple functions can be stacked together in the definition, but the engine treats it's execution as a single ISA Instruction execution
             Base Instruction - Refers to the base instruction functions defined in this class used in milicode to impliment ISA Instructions. IE: see "def opAdd" for how addition is implimented
                 These functions are writen in a such a way that they are:
@@ -5039,7 +5133,7 @@ class CPUsim_v4:
                 "halt"      : {"cycles"         : 1,                "executionUnit" : None            },
             }
 
-        def checkEnvironment(self, funcRead : Callable[[int or str, int or str], int]) -> bool:
+        def assertEnvironment(self, funcRead : Callable[[int or str, int or str], int]) -> bool:
             """Checks if the memory layout is compatible by attempting to read necissary elements from memory, returns true is compatible"""
             assert callable(funcRead)
 
@@ -5932,7 +6026,11 @@ class CPUsim_v4:
 
         
         def updateNameSpace(self, nameSpace : Dict[str, NameSpaceObject]) -> Dict[str, NameSpaceObject]:
-            """Takes in nameSpace a dictionary whose keys represent the CPU flags, registers, instructions, etc"""
+            """Takes in nameSpace a dictionary whose keys represent the CPU flags, registers, instructions, etc. 
+            Returns nameSpace elements contained in this module that are not contained in input nameSpace
+            
+            #TODO
+            """
             assert type(nameSpace) is dict
             assert all([type(i) is NameSpaceObject for _, i in nameSpace.items()])
 
@@ -6880,7 +6978,8 @@ class CPUsim_v4:
             
             return root
 
-        def ruleNestContainersIntoInstructions(self, tree : ParseNode, nameSpace : Dict[str, NameSpaceObject], recurse : bool = True) -> ParseNode: #TODO rename, as nameSpace is not more generic then just 'instructions'
+        def ruleNestContainersIntoInstructions(self, tree : ParseNode, nameSpace : Dict[str, NameSpaceObject], recurse : bool = True) -> ParseNode: 
+            #TODO rename, as nameSpace is more generic then just 'instruction'
             """Takes in a Node Tree of arbitrary depth, and a nameSpace dict represeting instructions, registers, etc. 
             If a container node follows a nameSpace node, make container node a child of the nameSpace node.
             Returns a Node Tree of arbitrary depth.
@@ -7226,17 +7325,17 @@ class CPUsim_v4:
 
             # This is where the Node Tree is allowed to go to depth > 2
             root = self.ruleContainer(root, {"(":")", "[":"]"})
-            logging.error(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
             # This will roll containers trailing a namespace object into a child of namespace object
             filteredNameSpace : Dict[NameSpaceObject] = {}
             i : str
             j : NameSpaceObject
             for i, j in self.nameSpace.items():
-                if j.type in ["instruction", "directive", "registerBank"]:
+                if j.type in ["instruction", "directive", "registerBank", "registerAlias"]:
                     filteredNameSpace[i] = j
             root = self.ruleNestContainersIntoInstructions(root, filteredNameSpace, True)
-            logging.error(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
+            logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
 
             temp : List[ParseNode] = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
@@ -7514,8 +7613,10 @@ class CPUsim_v4:
                 hyperThreadContext should be zero when not applicable
                 using a key of "__" should be reserved for reading the raw values of a pool, without being routed through cache or other nodes
                 EX:
-                    (1234, L1Instruction, 0, 'm', 255) -> accesses memory version node 1234, fetch memory element '255' from bank 'm', with hyperThreadContext of '0', via the 'L1Instruction' memory pool
-                    (1234, L1Instruction, 0, '__', 255) -> accesses memory version node 1234, fetch raw memory element '255' from 'L1Instruction' memory pool. hyperThreadContext is not realavent
+                    (1234, L1Instruction, 0, 'm', 255) 
+                        -> accesses memory version node 1234, fetch memory element '255' from bank 'm', with hyperThreadContext of '0', via the 'L1Instruction' memory pool
+                    (1234, L1Instruction, 0, '__', 255) 
+                        -> accesses memory version node 1234, fetch raw memory element '255' from 'L1Instruction' memory pool. hyperThreadContext is not realavent
             """
             pass
 
@@ -7558,27 +7659,27 @@ class CPUsim_v4:
             self.memoryElementSize = memoryElementSize
             
             self.instructionSet :   Dict[
-                                        Tuple(str, ...),                    #Instruction or directive
+                                        Tuple(str, ...),                    # Instruction or directive
                                         Callable[
                                             [
-                                                ParseNode,                  #The parse/execution tree for a line, for feeding in arguments into a function
-                                                Dict[                       #A dictionary of pointers to labels within the assembly source code given
-                                                    str,                    #The label
-                                                    int                     #The pointer index int (will only point to a memory bank WITHIN the current bank the)
+                                                ParseNode,                  # The parse/execution tree for a line, for feeding in arguments into a function
+                                                Dict[                       # A dictionary of pointers to labels within the assembly source code given
+                                                    str,                    # The label
+                                                    int                     # The pointer index int (will only point to a memory bank WITHIN the current bank the)
                                                 ],
-                                                Dict[                       #A dictionary of aliases for memory, IE: register rt -> register r[5]
+                                                Dict[                       # A dictionary of aliases for memory, IE: register rt -> register r[5]
                                                     str,
-                                                    Tuple[int or str]       #A register
+                                                    Tuple[int or str]       # A register
                                                 ]
                                             ],
-                                            List[                           #A list because should allow for the possibility of a node outputing more then one instruction
+                                            List[                           # A list because should allow for the possibility of a node outputing more then one instruction
                                                 Tuple[
                                                     List[int],                  #TODO
-                                                        #A series of ints representing the instruction in binary, each int is one memory element. more then one int represents an instruction longer then one memory element
-                                                        #should this be a bit array? 
+                                                        # A series of ints representing the instruction in binary, each int is one memory element. 
+                                                        # More then one int represents an instruction longer then one memory element
                                                     ParseNode,                  #The parse/execution tree to be written to memory
                                                     Callable[[int], List[int]], #TODO
-                                                        #a lambda function that takes in a memory offset, and returns an output similar to the above, but taking into account the memory offset
+                                                        # a lambda function that takes in a memory offset, and returns an output similar to the above, but taking into account the memory offset
                                                     Any                         #TODO still figuring out what it needs to output, this should be some sort of readable code that could be reprocessed to adjust jumps for linking?
                                                 ]
                                             ]
@@ -7591,12 +7692,13 @@ class CPUsim_v4:
                 (".int8",)          : (lambda node, labels, alias,      n                               : self.dirInt(node, labels, alias,          n, 8))
             }
 
-        def update(self, nameSpace : None):
-            """Takes in a namespace, and updates all relavent variables
+        def updateNameSpace(self, nameSpace : Dict[str, NameSpaceObject]) -> Dict[str, NameSpaceObject]:
+            """Takes in a namespace, and updates all relavent variables. Returns a dictionary representing NameSpaceObjects to be added to the NameSpace
             
             #TODO filter out instructions, 'autofill' the self.instructionSet with opNull for any instruction not defined
             """
-            pass
+            
+            return {}
 
         def link(self, parseTree : ParseNode, labels : Dict[str, int], alias : Dict[str, Tuple[int or str]]) -> Tuple[List[int], List[int], List[ParseNode]]:
             """Takes in a parseNode representing the parse tree for the entire program, a dict of labels, and outputs a list of ints and a list of instruction lengths and execution tree nodes.
@@ -9085,8 +9187,6 @@ if __name__ == "__main__":
     #Testing
     logging.basicConfig(level = logging.ERROR)
     unittest.main(verbosity = 2, buffer = True, exit = False)
-    print("\n" + "".ljust(80, "=") + "\n")
 
     logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
-    testProgramMultiply()
     
