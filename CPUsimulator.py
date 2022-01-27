@@ -4719,7 +4719,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
         else:
             i : int
             for i in range(len(self.child)):
-                if not self.child[i - 1].dataEqual(a.child[i - 1]):
+                if not self.child[i].dataEqual(a.child[i]):
                     result = False
 
         return result
