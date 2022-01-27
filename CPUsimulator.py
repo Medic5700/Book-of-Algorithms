@@ -4643,7 +4643,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
             line += "    "
         line += repr(self.token)
         line = line.ljust(64, " ")
-        line += ":" + str(self.type).capitalize().ljust(32)
+        line += ":" + str(self.type).ljust(32)
         line += "" + str(depth).ljust(8)
 
         line += ("lineNum=" + str(self.lineNum)).ljust(16)
