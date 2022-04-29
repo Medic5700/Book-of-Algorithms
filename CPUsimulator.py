@@ -3730,13 +3730,12 @@ class TIS100:
 
 #======================================================================================================================
 
-class BrainFuck:
-
+class BrainFuck(CPUsim):
     def __init__(self):
-        CPU = CPUsim(16, defaultSetup=False)
-        CPU.configConfigRegister('dp', 0, show=True, note="Data Pointer")
-        CPU.configAddRegister('m', 8, 2**16, show=False)
-        CPU.configAddRegister('data', 8, 30000, show=False)
+        super().__init__(16, defaultSetup=False)
+        self.configConfigRegister('dp', 0, show=True, note="Data Pointer")
+        self.configAddRegister('m', 8, 2**16, show=False)
+        self.configAddRegister('data', 8, 30000, show=False)
 
 #====================================================================================================================== Testing and Verification
 
@@ -4462,6 +4461,13 @@ class ParseNode(ABC): # abstract class used exclusivly for typing, not used in t
         """Compairs the data of a different node recursively, returns True if equal, False otherwise"""
         pass
 
+@dataclass
+class NameSpaceObject:
+    type : Literal["registerAlias", "directive", "psudoInstruction", "instruction", "label", "registerBank"]
+    key : Any
+    value : Any = None
+    replace : Any = None
+
 class ParserAbstract(ABC):
     """Parses strings into an (almost) execution tree.
     ParseDefault.Node is the dataclass for storing tokens in a Node Tree.
@@ -4805,13 +4811,6 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
         return result
 
-@dataclass
-class NameSpaceObject:
-    type : Literal["registerAlias", "directive", "psudoInstruction", "instruction", "label", "registerBank"]
-    key : Any
-    value : Any = None
-    replace : Any = None
-
 class CPUsim_v4:
     """
     API #TODO overview:
@@ -4866,7 +4865,7 @@ class CPUsim_v4:
         1 latency = 1 logic gate =_approx 1 * 10 ^ -12 Seconds = 1 picoSecond / Gate
         1 cycle =_approx 1 64-bit add operation register to register =_approx 1000 picoJoules, 1000 picoSeconds = 10 ^ -9 Joules, 10 ^ -9 Seconds = 1 nanoJoule / Operation, 1 nanoSecond / Operation
 
-        Characterizing the Energy Consumption of Data Transfers and Arithmetic Operations on x86-64 Processors [2010-xx-xx], Daniel Molka, Daniel Hackenberg, Robert Schone and Matthias S. M ¨ uller
+        Characterizing the Energy Consumption of Data Transfers and Arithmetic Operations on x86-64 Processors [2010-xx-xx], Daniel Molka, Daniel Hackenberg, Robert Schone and Matthias S. Muller
 
     Ideal Computation Logic Gate running at ideal temperature of 2.73 Kelvin (temperature of the Universe)
         1 bitflip = k * T * ln(2); k = Boltzmann constant @ 1.38 * 10 ^ -23 J/K, T = Temperature in Kelvin
@@ -4963,13 +4962,13 @@ class CPUsim_v4:
             self.backDeepBlue : str = "\u001b[48;5;17m" #background deep blue
             self.ANSIend : str = "\u001b[0m" #resets ANSI colours
 
-        def runtime(self, 
-            readStateOld : Callable[[int, int, int or str, int or str], int], readStateOldStatus : Callable[[int, int, int or str, int or str], dict],
-            readStateNew : Callable[[int, int, int or str, int or str], int], readStateNewStatus : Callable[[int, int, int or str, int or str], dict],
-            getRegisterConfig : Callable[[int or str, int or str], dict],
-            getAllMemoryElements : Callable[[], Tuple[int, int, int or str, int or str]]
-            ):
-            pass
+        # def runtime(self, 
+        #     readStateOld : Callable[[int, int, int or str, int or str], int], readStateOldStatus : Callable[[int, int, int or str, int or str], dict],
+        #     readStateNew : Callable[[int, int, int or str, int or str], int], readStateNewStatus : Callable[[int, int, int or str, int or str], dict],
+        #     getRegisterConfig : Callable[[int or str, int or str], dict],
+        #     getAllMemoryElements : Callable[[], Tuple[int, int, int or str, int or str]]
+        #     ):
+        #     pass
 
         def runtime(self,
             MMMUStateOld : int, MMMUStateNew : int,
@@ -8081,6 +8080,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
         for i in range(256):
             result : Tuple[List[int], None] = compiler.dirInt(NodeParse(), {}, {},
                                                                 i, 8)
+
             self.assertEqual(result, ([i], None))
 
     def testDirInt_Int16(self):
