@@ -1817,7 +1817,7 @@ class CPUsim:
         def ruleCastInts(self, tree : Node) -> Node:
             """Takes in a Node Tree of depth 2, casts all children that are integers to integers (with labels). Returns a Node Tree of depth 2.
 
-            Does not recurse #TODO should recruse
+            Does not recurse #TODO should recurse
 
             Case: "123 456 789" =>
             Node
@@ -6055,7 +6055,7 @@ class CPUsim_v4:
                 ]
 
             Example 02: # TestParseDefaultBuildingBlocks.test__tokenizer_IntegrationMultiline
-                "test\n\nHello World" 
+                "test\n\nHello World!" 
                 ->
                 [
                     ('test',    0, 0),
@@ -6105,9 +6105,9 @@ class CPUsim_v4:
             return tokenList
 
         def ruleCastInts(self, tree : ParseNode) -> ParseNode:
-            """Takes in a Node Tree of depth 2, casts all children that are integers to integers (with labels). Returns a Node Tree of depth 2.
-
-            Does not recurse #TODO should recerse
+            """Takes in a Node Tree of depth 2, casts all children that are integers to integers (with labels). Returns a Node Tree of depth 2. Does not recurse 
+            
+            #TODO should recerse
 
             Case: # TestParseDefaultBuildingBlocks.test_RuleCastInts_Integration01
                 "123 456 789" 
@@ -6146,9 +6146,9 @@ class CPUsim_v4:
             return root
 
         def ruleCastHex(self, tree : ParseNode) -> ParseNode:
-            """Takes in a Node Tree of depth 2, casts all children that are in hex format to integers (with format of '0xFFFF' with arbitrary length). Returns a node tree of depth 2.
+            """Takes in a Node Tree of depth 2, casts all children that are in hex format to integers (with format of '0xFFFF' with arbitrary length). Returns a node tree of depth 2. Does not recurse.
 
-            Does not recurse #TODO should recurse
+            #TODO should recurse
 
             Case: # TestParseDefaultBuildingBlocks.test_RuleCastHex_Integration02
                 "0x0 0x000A 0xff" 
@@ -6227,10 +6227,8 @@ class CPUsim_v4:
 
             return root
 
-        def ruleRemoveLeadingWhitespace(self, tree : ParseNode, whiteSpace : List[str] = [" ", "\t"]) -> ParseNode:
-            """Takes in a Node Tree of depth 2, removes all white space tokens between a new line token and the next token. Returns a Node Tree of depth 2.
-            
-            Does not recurse
+        def ruleRemoveLeadingWhitespace(self, tree : ParseNode, whiteSpace : List[str] = [" ", "\t", "\r", "\f"]) -> ParseNode:
+            """Takes in a Node Tree of depth 2, removes all white space tokens between a new line token and the next token. Returns a Node Tree of depth 2. Does not recurse
 
             Case: # TestParseDefaultBuildingBlocks.test_RuleRemoveLeadingWhitespace_Integration02
                 "test test \ntest\n  \ttest\t\n     \n" 
@@ -6255,7 +6253,6 @@ class CPUsim_v4:
                     ' '     |                               
                     ' '     |
                     '\n'
-                "test test \ntest\ntest\t\n\n" 
                 ->
                 Node
                     'test'
@@ -6269,9 +6266,51 @@ class CPUsim_v4:
                     '\t'
                     '\n'    _V_
                     '\n'     A
+
+            Case: # TestParseDefaultBuildingBlocks.test_RuleRemoveLeadingWhitespace_Children01
+                'test\n\t\t\ttest[abc 123]' 
+                ->
+                Node
+                    'test'
+                    '\n'
+                    '\t'                |
+                    '\t'                |
+                    '\t'                |
+                    'test'              # Children of Node are not affected unless they are children of whitespace
+                        'abc'
+                        ' '
+                        '123'
+                ->
+                Node
+                    'test'
+                    '\n'                _V_
+                    'test'               A      # Children of Node are not affected unless they are children of whitespace
+                        'abc'
+                        ' '
+                        '123'
+
+            Case: # TestParseDefaultBuildingBlocks.test_RuleRemoveLeadingWhitespace_Children02
+                'test\n\t\t\t[abc 123]test'
+                ->
+                Node
+                    'test'
+                    '\n'
+                    '\t'                |
+                    '\t'                |
+                    '\t'                | This node will be removed, along with children
+                        'abc'           |
+                        ' '             |
+                        '123'           |
+                    'test'
+                ->
+                Node
+                    'test'
+                    '\n'                _V_
+                    'test'               A
             """
             assert type(tree) is self.Node
             assert type(whiteSpace) is list
+            assert all([type(i) is str for i in whiteSpace])
             assert all([len(i) == 1 for i in whiteSpace])
 
             root : ParseNode = tree.copyInfo()
@@ -6412,8 +6451,8 @@ class CPUsim_v4:
             charNum : int = None
 
             '''Finite State Machine
-            State 0 #Looking for an opening quote
-            State 1 #Looking for a closing quote
+            State 0 # Looking for an opening quote
+            State 1 # Looking for a closing quote
             Edge 0 -> 0 iff token != quote: append node to root
             Edge 0 -> 1 iff token == quote: setup looking for closing quote
             Edge 1 -> 1 iff token != quote: append string with token
@@ -6760,6 +6799,7 @@ class CPUsim_v4:
             Case 3: # TestParseDefaultBuildingBlocks.test_RuleRemoveToken_Integration06
                 'a[1,2,3],b[1,2,3],c[1,b,3]' (brackets are not removed, but are folded in as children)
                 ->
+                token = 'b'
                 Node
                     a
                         [
@@ -6827,9 +6867,67 @@ class CPUsim_v4:
             return root
         
         def ruleSplitLines(self, tree : ParseNode, tokenType : str = "line", splitToken : str = "\n") -> List[ParseNode]:
-            """Takes in a Node Tree of arbitrary depth. Returns a list of Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited.
+            """Takes in a Node Tree of arbitrary depth. Returns a list of Node Trees of arbitrary depth, split by the splitToken (default "\n") with the splitToken ommited. Does not recurse.
             
             #TODO should be able to recurse
+
+            Case 1: # TestParseDefaultBuildingBlocks.test_RuleSplitLines_Integration01
+                "Hello World"
+                ->
+                splitToken = '\n'
+                Node                    | This node is not carried over
+                    'Hello'
+                    ' '
+                    'World'
+                ->
+                [
+                    Node                | New container node
+                        'Hello'
+                        ' '
+                        'World'
+                ]
+
+            Case 2: # TestParseDefaultBuildingBlocks.test_RuleSplitLines_Integration02
+                "test1\ntest2"
+                ->
+                splitToken = '\n'
+                Node
+                    'test1'
+                    '\n'                | To split
+                    'test2'
+                ->
+                [
+                    Node                | New container node
+                        'test1'
+                    ,                   | splitToken is removed
+                    Node                | New container node
+                        'test2'
+                ]
+
+            Case 3: # TestParseDefaultBuildingBlocks.test_RuleSplitLines_Integration05
+                "[test1]\t[test2\ttest3]"
+                ->
+                splitToken = '\t'
+                Node
+                    Node
+                        'test1'
+                    '\t'                | To split
+                    Node
+                        'test2'
+                        '\t'            | Will not split, because nested
+                        'test3'
+                ->
+                [
+                    Node                | New container node
+                        Node
+                            'test1'
+                    Node                | New container node
+                        Node
+                            'test2'
+                            '\t'        | Not Removed
+                            'test3'
+                ]
+
             """
             assert type(tree) is self.Node
             assert type(tokenType) is str
@@ -6859,71 +6957,93 @@ class CPUsim_v4:
             return result
 
         def ruleSplitTokens(self, tree : ParseNode, tokenType : str = "line", splitToken : str = "\n", recurse : bool = True) -> ParseNode:
-            """Takes in a Node Tree of arbitrary depth. Returns a Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited, and in containers.
+            """Takes in a Node Tree of arbitrary depth. Returns a Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited, and in containers. Will recurse (default).
 
-            Case 1: splitToken = "\n"
-            Node
-                'test'
-                '\n'    #notice the splitToken '\n' is omitted
-                'abc'
-            =>
-            Node
-                None
+            Case 1: # TestParseDefaultBuildingBlocks.test_RuleSplitTokens_Integration03
+                "test\nabc"
+                ->
+                splitToken = "\n"
+                Node
                     'test'
-                None
-                    'abc' 
+                    '\n'                | To Split
+                    'abc'
+                ->
+                Node
+                    None
+                        'test'          _V_  notice the splitToken '\n' is omitted
+                    None                 A
+                        'abc' 
 
-            Case 2: splitToken = ','
-            Node
-                'test1'
-                'test2'
-                    'abc1'
-                    ','
-                    'abc2'
-                    ','
-                    'abc3'
-                    'abc4'
-            =>
-            Node
-                'test1'
-                'test2'
-                    None
-                        'abc1'
-                    None
-                        'abc2'
-                    None
-                        'abc3'
-                        'abc4'
-            
-            Case 3: splitToken = ','
-            Node
-                'test1'
-                    'abc1'
-                    ','
-                    'abc2'
-                ','
-                'test2'
-            =>
-            Node
-                None
+            Case 2: # TestParseDefaultBuildingBlocks.test_RuleSplitTokens_Integration04
+                "test1 test2[abc1,abc2,abc3 abc4]"
+                ->
+                splitToken = ','
+                recurse = True
+                Node
                     'test1'
-                        None
-                            'abc1'
-                        None
-                            'abc2'
-                None
+                    ' '
                     'test2'
+                        'abc1'
+                        ','             | To Split
+                        'abc2'
+                        ','             | To Split
+                        'abc3'
+                        ' '
+                        'abc4'
+                ->
+                Node
+                    'test1'
+                    ' '
+                    'test2'
+                        None
+                            'abc1'      _V_
+                        None             A
+                            'abc2'      _V_
+                        None             A
+                            'abc3'
+                            ' '
+                            'abc4'
+            
+            Case 3: # TestParseDefaultBuildingBlocks.test_RuleSplitTokens_Integration06
+                "test1[abc1,abc2],test2"
+                ->
+                splitToken = ','
+                recurse = True
+                Node
+                    'test1'
+                        'abc1'
+                        ','             | To Split
+                        'abc2'
+                    ','                 | To Split
+                    'test2'
+                ->
+                Node
+                    None
+                        'test1'
+                            None
+                                'abc1'  _V_
+                            None         A
+                                'abc2'  _V_
+                    None                 A
+                        'test2'
 
-            Case 4: splitToken = '\n'
-            Node
-                'test1'
-                'test2'
-                'test3'
-            =>
-            Node
-                'test1'
-                'test2'
-                'test3'
+            Case 4: # TestParseDefaultBuildingBlocks.test_RuleSplitTokens_Integration08
+                "test1 test2 test3"
+                ->    
+                splitToken = '\n'
+                Node
+                    'test1'
+                    ' '
+                    'test2'
+                    ' '
+                    'test3'
+                ->
+                Node                    | Notice how containers are NOT created if splitToken is not found
+                    'test1'
+                    ' '
+                    'test2'
+                    ' '
+                    'test3'
             """
             assert type(tree) is self.Node
             assert type(tokenType) is str
@@ -7020,14 +7140,16 @@ class CPUsim_v4:
         def ruleLowerCase(self, tree : ParseNode, recurse : bool = True) -> ParseNode:
             """Takes in a Node Tree of arbitrary depth. Sets all tokens in the Node Tree's children as lower case. Recurses by default. Returns a Node Tree of arbitrary depth.
             
-            Case 1:
+            Case:
+            'HELLO WORLD[test ABC]'
+            ->
             Node
                 'HELLO'
                 ' '
                 'WORLD'
                     'test'
                     'ABC'
-            =>
+            ->
             Node
                 'hello'
                 ' '
@@ -7036,6 +7158,7 @@ class CPUsim_v4:
                     'abc'
             """
             assert type(tree) is self.Node
+            assert recurse is bool
 
             root : ParseNode = tree.copyInfo()
             i : ParseNode
@@ -8023,36 +8146,82 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
                 self.assertEqual(result, [i & 0b01111111])
 
 class TestParseDefaultBuildingBlocks(unittest.TestCase):
+    """Tests the default building blocks of ParserDefault"""
+
     def setUp(self):
         self.parser = CPUsim_v4.ParserDefault()
 
     def test__tokenizer_HelloWorld(self):
-        """Tests the tokizer tokinizes correctly on HelloWorld"""
+        """Tests the tokizer tokinizes correctly on 'Hello World!'
+        
+        'Hello World!'
+        ->
+        [
+            ('Hello',   0, 0),
+            (' ',       0, 5),
+            ('World',   0, 6),
+            ('!',       0, 11)
+        ]
+        """
 
         raw : List[Tuple[str, int, int]] = self.parser._tokenize("Hello World!")
-        expected : List[Tuple[str, int, int]] = [   ("Hello",   0, 0), 
-                                                    (" ",       0, 5), 
-                                                    ("World",   0, 6), 
-                                                    ("!",       0, 11)]
+        expected : List[Tuple[str, int, int]] = [   
+                ("Hello",   0, 0), 
+                (" ",       0, 5), 
+                ("World",   0, 6), 
+                ("!",       0, 11)
+            ]
 
         self.assertEqual(raw, expected)
 
     def test__tokenizer_IntegrationMultiline(self):
-        """Tests the tokizer on multiline input"""
+        """Tests the tokizer on multiline input 'test\n\nHello World!'
+        
+        'test\n\nHello World!'
+        ->
+        [
+            ('test',    0, 0),
+            ('\n',      0, 4),
+            ('\n',      1, 0),
+            ('Hello',   2, 0),
+            (' ',       2, 5),
+            ('World',   2, 6),
+            ('!',       2, 11)
+        ]
+        """
 
         raw : List[Tuple[str, int, int]] = self.parser._tokenize("test\n\nHello World!")
-        expected : List[Tuple[str, int, int]] = [   ("test",    0, 0),
-                                                    ("\n",      0, 4),
-                                                    ("\n",      1, 0),
-                                                    ("Hello",   2, 0),
-                                                    (" ",       2, 5),
-                                                    ("World",   2, 6),
-                                                    ("!",       2, 11)]
+        expected : List[Tuple[str, int, int]] = [
+               ("test",    0, 0),
+                ("\n",      0, 4),
+                ("\n",      1, 0),
+                ("Hello",   2, 0),
+                (" ",       2, 5),
+                ("World",   2, 6),
+                ("!",       2, 11)
+            ]
 
         self.assertEqual(raw, expected)
 
     def test_RuleCastInts_Integration01(self):
-        """tests ruleCastInts basic test case '123 456 789'"""
+        """tests ruleCastInts basic test case '123 456 789'
+        
+        '123 456 789'
+        ->
+        Node
+            '123'
+            ' '
+            '456'
+            ' '
+            '789'
+        ->
+        Node
+            123
+            ' '
+            456
+            ' '
+            789
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "123",              0, 0))
@@ -8071,6 +8240,40 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         result : ParseNode = self.parser.ruleCastInts(root)
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
+    def test_RuleCastInts_Integration02(self):
+        """tests ruleCastInts basic test case 'Hello World!'
+        
+        'Hello World!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",            0, 0))
+        root.append(NodeParse(      "",         " ",                0, 5))
+        root.append(NodeParse(      "",         "World",            0, 6))
+        root.append(NodeParse(      "",         "!",                0, 11))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",            0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 5))
+        expected.append(NodeParse(  "",         "World",            0, 6))
+        expected.append(NodeParse(  "",         "!",                0, 11))
+
+        result : ParseNode = self.parser.ruleCastInts(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
     def test_RuleCastInts_ExceptionTreeNotNodeParse(self):
         """tests ruleCastInts raises an exception when tree is not a NodeParse object"""
 
@@ -8082,7 +8285,16 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 self.assertRaises(Exception, self.parser.ruleCastInts, tree)
 
     def test_RuleCastHex_Integration01(self):
-        """tests rulesCastHex basic test case '0xff'"""
+        """tests rulesCastHex basic test case '0xff'
+        
+        '0xff'
+        ->
+        Node
+            '0xff'
+        ->
+        Node
+            255
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "0xff",             0, 0))
@@ -8091,10 +8303,28 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "int",      255,                0, 0))
 
         result : ParseNode = self.parser.ruleCastHex(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleCastHex_Integration02(self):
-        """tests rulesCastHex basic test case '0x0 0x000A 0xff'"""
+        """tests rulesCastHex basic test case '0x0 0x000A 0xff'
+        
+        '0x0 0x000A 0xff'
+        ->
+        Node
+            '0x0'
+            ' '
+            '0x000A'
+            ' '
+            '0xff'
+        ->
+        Node
+            0
+            ' '
+            10
+            ' '
+            255
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "0x0",              0, 0))
@@ -8111,10 +8341,54 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "int",      255,                0, 0))
         
         result : ParseNode = self.parser.ruleCastHex(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
-    def test_RuleCastHex_MixedCase(self):
-        """tests ruleCastHex if the hex is formatted with mixed cases '0xfFfF'"""
+    def test_RuleCastHex_Integration03(self):
+        """tests rulesCastHex basic test case 'Hello World!'
+        
+        'Hello World!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",            0, 0))
+        root.append(NodeParse(      "",         " ",                0, 5))
+        root.append(NodeParse(      "",         "World",            0, 6))
+        root.append(NodeParse(      "",         "!",                0, 11))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",            0, 0))
+        expected.append(NodeParse(  "",         " ",                0, 5))
+        expected.append(NodeParse(  "",         "World",            0, 6))
+        expected.append(NodeParse(  "",         "!",                0, 11))
+
+        result : ParseNode = self.parser.ruleCastHex(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleCastHex_MixedCase01(self):
+        """tests ruleCastHex if the hex is formatted with mixed cases '0xfFfF'
+        
+        '0xfFfF'
+        ->
+        Node
+            '0xfFfF'                |
+        ->
+        Node
+            65535                   |
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "0xfFfF",           0, 0))
@@ -8123,6 +8397,29 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "int",      65535,              0, 0))
 
         result : ParseNode = self.parser.ruleCastHex(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleCastHex_MixedCase02(self):
+        """tests ruleCastHex if the hex is formatted with mixed cases '0Xffff'
+        
+        '0Xffff'
+        ->
+        Node
+            '0Xffff'                |
+        ->
+        Node
+            65535                   |
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "0xfFfF",           0, 0))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "int",      65535,              0, 0))
+
+        result : ParseNode = self.parser.ruleCastHex(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleCastHex_ExceptionTreeNotNodeParse(self):
@@ -8136,7 +8433,22 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 self.assertRaises(Exception, self.parser.ruleCastHex, tree)
 
     def test_RuleRemoveEmptyLines_Integration01(self):
-        """tests ruleRemoveEmptyLines on a single line, 'Hello World!'"""
+        """tests ruleRemoveEmptyLines on a single line, 'Hello World!'
+        
+        'Hello World!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "Hello",            0, 0))
@@ -8147,10 +8459,32 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected : ParseNode = root.copyDeep()
 
         result : ParseNode = self.parser.ruleRemoveEmptyLines(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveEmptyLines_Integration02(self):
-        """tests ruleRemoveEmptyLines on a multiline input, 'test\ntest\n\n\ntest\n'"""
+        """tests ruleRemoveEmptyLines on a multiline input, 'test\ntest\n\n\ntest\n'
+        
+        'test\ntest\n\n\ntest\n'
+        ->
+        Node
+            'test'
+            '\n'
+            'test'
+            '\n'                    # This node is kept
+            '\n'                    |
+            '\n'                    |
+            'test'
+            '\n'
+        ->
+        Node
+            'test'
+            '\n'
+            'test'
+            '\n'                    _V_
+            'test'                   A
+            '\n'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test",             0, 0))
@@ -8171,10 +8505,23 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "\n",               4, 4))
 
         result : ParseNode = self.parser.ruleRemoveEmptyLines(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveEmptyLines_AllEmpty(self):
-        """tests ruleRemoveEmptyLines in the case of all empty lines '\n\n\n\n'"""
+        """tests ruleRemoveEmptyLines in the case of all empty lines '\n\n\n\n'
+        
+        '\n\n\n\n'
+        ->
+        Node
+            '\n'                    |
+            '\n'                    |
+            '\n'                    |
+            '\n'                    |
+        ->
+        Node                        _V_
+                                     A
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "\n",               0, 0))
@@ -8185,6 +8532,25 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected : ParseNode = NodeParse()
         
         result : ParseNode = self.parser.ruleRemoveEmptyLines(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveEmptyLines_EmptyLines(self):
+        """tests ruleRemoveEmptyLines in the case of empty line ''
+        
+        ''
+        ->
+        Node
+        ->
+        Node
+        """
+
+        root : ParseNode = NodeParse()
+
+        expected : ParseNode = NodeParse()
+
+        result : ParseNode = self.parser.ruleRemoveEmptyLines(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveEmptyLines_ExceptionTreeNotNodeParse(self):
@@ -8198,7 +8564,22 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 self.assertRaises(Exception, self.parser.ruleFilterLineComments, tree)
 
     def test_RuleRemoveLeadingWhitespace_Integration01(self):
-        """tests ruleRemoveLeadingWhitespace on a single line, 'Hello World!'"""
+        """tests ruleRemoveLeadingWhitespace on a single line, 'Hello World!'
+        
+        'Hello World!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "Hello",            0, 0))
@@ -8209,10 +8590,48 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected : ParseNode = root.copyDeep()
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveLeadingWhitespace_Integration02(self):
-        """tests ruleRemoveLeadingWhitespace on a multiline input, 'test test \ntest\n  \ttest\t\n     \n'"""
+        """tests ruleRemoveLeadingWhitespace on a multiline input, 'test test \ntest\n  \ttest\t\n     \n'
+        
+        'test test \ntest\n  \ttest\t\n     \n'
+        -> 
+        Node
+            'test'
+            ' '
+            'test'
+            ' '
+            '\n'
+            'test'
+            '\n'
+            ' '     |
+            ' '     |
+            '\t'    |
+            'test'
+            '\t'
+            '\n'
+            ' '     |
+            ' '     |
+            ' '     |
+            ' '     |                               
+            ' '     |
+            '\n'
+        ->
+        Node
+            'test'
+            ' '
+            'test'
+            ' '
+            '\n'
+            'test'
+            '\n'    _V_
+            'test'   A
+            '\t'
+            '\n'    _V_
+            '\n'     A
+        """
 
         # "test test \ntest\n  \ttest\t\n     \n"
         root : ParseNode = NodeParse()
@@ -8251,10 +8670,20 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "\n",               3, 5))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveLeadingWhitespace_EmptyLine(self):
-        """tests ruleRemoveLeadingWhitespace on an empty line '\n'"""
+        """tests ruleRemoveLeadingWhitespace on an empty line '\n'
+        
+        '\n'
+        ->
+        Node
+            '\n'
+        ->
+        Node
+            '\n'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "\n",               0, 0))
@@ -8262,10 +8691,23 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected : ParseNode = root.copyDeep()
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveLeadingWhitespace_AllWhiteSpace(self):
-        """tests ruleRemoveLeadingWhitespace on a single line of all whitespace '    '"""
+        """tests ruleRemoveLeadingWhitespace on a single line of all whitespace '    '
+        
+        '    '
+        ->
+        Node
+            ' '                 |
+            ' '                 |
+            ' '                 |
+            ' '                 |
+        ->
+        Node                    _V_
+                                 A
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         " ",                0, 0))
@@ -8276,10 +8718,29 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected : ParseNode = NodeParse()
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
-    def test_RuleRemoveLeadingWhitespace_LeadingSpace(self):
-        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '   Hello World!'"""
+    def test_RuleRemoveLeadingWhitespace_LeadingSpace01(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '   Hello World!'
+        
+        '   Hello World!'
+        ->
+        Node
+            ' '                 |
+            ' '                 |
+            ' '                 |
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node                    _V_
+            'Hello'              A
+            ' '
+            'World'
+            '!'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         " ",                0, 0))
@@ -8297,10 +8758,71 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
-    def test_RuleRemoveLeadingWhitespace_LeadingTabbs(self):
-        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '\t\t\tHello World!'"""
+    def test_RuleRemoveLeadingWhitespace_LeadingSpace02(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '\n  Hello World!'
+        
+        '\n  Hello World!'
+        ->
+        Node
+            '\n'
+            ' '                 |
+            ' '                 |
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            '\n'                _V_
+            'Hello'              A
+            ' '
+            'World'
+            '!'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\n",               0, 0))
+        root.append(NodeParse(      "",         " ",                0, 1))
+        root.append(NodeParse(      "",         " ",                0, 2))
+        root.append(NodeParse(      "",         "Hello",            0, 3))
+        root.append(NodeParse(      "",         " ",                0, 8))
+        root.append(NodeParse(      "",         "World",            0, 9))
+        root.append(NodeParse(      "",         "!",                0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "\n",               0, 0))
+        expected.append(NodeParse(  "",         "Hello",            0, 3))
+        expected.append(NodeParse(  "",         " ",                0, 8))
+        expected.append(NodeParse(  "",         "World",            0, 9))
+        expected.append(NodeParse(  "",         "!",                0, 14))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_LeadingTabs01(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '\t\t\tHello World!'
+        
+        '\t\t\tHello World!'
+        ->
+        Node
+            '\t'                |
+            '\t'                |
+            '\t'                |
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node                    _V_
+            'Hello'              A
+            ' '
+            'World'
+            '!'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "\t",               0, 0))
@@ -8318,6 +8840,306 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_LeadingTabs02(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '\n\t\tHello World!'
+        
+        '\n\t\tHello World!'
+        ->
+        Node
+            '\n'
+            '\t'                |
+            '\t'                |
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            '\n'                _V_
+            'Hello'              A
+            ' '
+            'World'
+            '!'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\n",               0, 0))
+        root.append(NodeParse(      "",         "\t",               0, 1))
+        root.append(NodeParse(      "",         "\t",               0, 2))
+        root.append(NodeParse(      "",         "Hello",            0, 3))
+        root.append(NodeParse(      "",         " ",                0, 8))
+        root.append(NodeParse(      "",         "World",            0, 9))
+        root.append(NodeParse(      "",         "!",                0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "\n",               0, 0))
+        expected.append(NodeParse(  "",         "Hello",            0, 3))
+        expected.append(NodeParse(  "",         " ",                0, 8))
+        expected.append(NodeParse(  "",         "World",            0, 9))
+        expected.append(NodeParse(  "",         "!",                0, 14))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_LeadingCarriageReturn01(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '\r\r\rHello World!'
+        
+        '\r\r\rHello World!'
+        ->
+        Node
+            '\r'                |
+            '\r'                |
+            '\r'                |
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node                    _V_
+            'Hello'              A
+            ' '
+            'World'
+            '!'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\r",               0, 0))
+        root.append(NodeParse(      "",         "\r",               0, 1))
+        root.append(NodeParse(      "",         "\r",               0, 2))
+        root.append(NodeParse(      "",         "Hello",            0, 3))
+        root.append(NodeParse(      "",         " ",                0, 8))
+        root.append(NodeParse(      "",         "World",            0, 9))
+        root.append(NodeParse(      "",         "!",                0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",            0, 3))
+        expected.append(NodeParse(  "",         " ",                0, 8))
+        expected.append(NodeParse(  "",         "World",            0, 9))
+        expected.append(NodeParse(  "",         "!",                0, 14))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_LeadingCarriageReturn02(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '\n\r\rHello World!'
+        
+        '\n\r\rHello World!'
+        ->
+        Node
+            '\n'
+            '\r'                |
+            '\r'                |
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            '\n'                _V_
+            'Hello'              A
+            ' '
+            'World'
+            '!'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\n",               0, 0))
+        root.append(NodeParse(      "",         "\r",               0, 1))
+        root.append(NodeParse(      "",         "\r",               0, 2))
+        root.append(NodeParse(      "",         "Hello",            0, 3))
+        root.append(NodeParse(      "",         " ",                0, 8))
+        root.append(NodeParse(      "",         "World",            0, 9))
+        root.append(NodeParse(      "",         "!",                0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "\n",               0, 0))
+        expected.append(NodeParse(  "",         "Hello",            0, 3))
+        expected.append(NodeParse(  "",         " ",                0, 8))
+        expected.append(NodeParse(  "",         "World",            0, 9))
+        expected.append(NodeParse(  "",         "!",                0, 14))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+        
+    def test_RuleRemoveLeadingWhitespace_LeadingFormFeed01(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '\f\f\fHello World!'
+        
+        '\f\f\fHello World!'
+        ->
+        Node
+            '\f'                |
+            '\f'                |
+            '\f'                |
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node                    _V_
+            'Hello'              A
+            ' '
+            'World'
+            '!'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\f",               0, 0))
+        root.append(NodeParse(      "",         "\f",               0, 1))
+        root.append(NodeParse(      "",         "\f",               0, 2))
+        root.append(NodeParse(      "",         "Hello",            0, 3))
+        root.append(NodeParse(      "",         " ",                0, 8))
+        root.append(NodeParse(      "",         "World",            0, 9))
+        root.append(NodeParse(      "",         "!",                0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "Hello",            0, 3))
+        expected.append(NodeParse(  "",         " ",                0, 8))
+        expected.append(NodeParse(  "",         "World",            0, 9))
+        expected.append(NodeParse(  "",         "!",                0, 14))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_LeadingFormFeed02(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace '\n\f\fHello World!'
+        
+        '\n\f\fHello World!'
+        ->
+        Node
+            '\n'
+            '\f'                |
+            '\f'                |
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            '\n'                _V_
+            'Hello'              A
+            ' '
+            'World'
+            '!'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "\n",               0, 0))
+        root.append(NodeParse(      "",         "\f",               0, 1))
+        root.append(NodeParse(      "",         "\f",               0, 2))
+        root.append(NodeParse(      "",         "Hello",            0, 3))
+        root.append(NodeParse(      "",         " ",                0, 8))
+        root.append(NodeParse(      "",         "World",            0, 9))
+        root.append(NodeParse(      "",         "!",                0, 14))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "\n",               0, 0))
+        expected.append(NodeParse(  "",         "Hello",            0, 3))
+        expected.append(NodeParse(  "",         " ",                0, 8))
+        expected.append(NodeParse(  "",         "World",            0, 9))
+        expected.append(NodeParse(  "",         "!",                0, 14))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_Children01(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace 'test\n\t\t\ttest[abc 123]' when some tokens have children
+        
+        'test\n\t\t\ttest[abc 123]' 
+        ->
+        Node
+            'test'
+            '\n'
+            '\t'                |
+            '\t'                |
+            '\t'                |
+            'test'
+                'abc'
+                ' '
+                '123'
+        ->
+        Node
+            'test'
+            '\n'                _V_
+            'test'               A
+                'abc'
+                ' '
+                '123'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",             0, 0))
+        root.append(NodeParse(      "",         "\n",               0, 4))
+        root.append(NodeParse(      "",         "\t",               0, 5))
+        root.append(NodeParse(      "",         "\t",               0, 6))
+        root.append(NodeParse(      "",         "\t",               0, 7))
+        rChild1 : ParseNode = NodeParse("",     "test",             0, 8)
+        rChild1.append(NodeParse(   "",         "abc",              0, 12))
+        rChild1.append(NodeParse(   "",         " ",                0, 15))
+        rChild1.append(NodeParse(   "",         "123",              0, 16))
+        root.append(rChild1)
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",             0, 0))
+        expected.append(NodeParse(  "",         "\n",               0, 4))
+        eChild1 : ParseNode = NodeParse("",     "test",             0, 8)
+        eChild1.append(NodeParse(   "",         "abc",              0, 12))
+        eChild1.append(NodeParse(   "",         " ",                0, 15))
+        eChild1.append(NodeParse(   "",         "123",              0, 16))
+        expected.append(eChild1)
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
+        self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleRemoveLeadingWhitespace_Children02(self):
+        """tests ruleRemoveLeadingWhitespace on a single line of leading whitespace 'test\n\t\t\t[abc 123]test' when some tokens have children
+
+        'test\n\t\t\t[abc 123]test'
+        ->
+        Node
+            'test'
+            '\n'
+            '\t'                |
+            '\t'                |
+            '\t'                |
+                'abc'           |
+                ' '             |
+                '123'           |
+            'test'
+        ->
+        Node
+            'test'
+            '\n'                _V_
+            'test'               A
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",             0, 0))
+        root.append(NodeParse(      "",         "\n",               0, 4))
+        root.append(NodeParse(      "",         "\t",               0, 5))
+        root.append(NodeParse(      "",         "\t",               0, 6))
+        rChild : ParseNode = NodeParse("",      "\t",               0, 7)
+        rChild.append(NodeParse(    "",         "abc",              0, 12))
+        rChild.append(NodeParse(    "",         " ",                0, 15))
+        rChild.append(NodeParse(    "",         "123",              0, 16))
+        root.append(rChild)
+        root.append(NodeParse(      "",         "test",             0, 17))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test",             0, 0))
+        expected.append(NodeParse(  "",         "\n",               0, 4))
+        expected.append(NodeParse(  "",         "test",             0, 17))
+
+        result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveLeadingWhitespace_ExceptionTreeNotNodeParse(self):
@@ -8330,8 +9152,56 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             with self.subTest(tree=tree):
                 self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, tree)
 
+    def test_RuleRemoveLeadingWhiteSpace_ExceptionWhitespaceNotList(self):
+        """tests ruleRemoveLeadingWhitespace raises an exception when whitespace is not a list"""
+
+        whitespaces : List[Any] = [None, 0, False, 'a', {0 : 'a'}]
+
+        whitespace : Any
+        for whitespace in whitespaces:
+            with self.subTest(whitespace=whitespace):
+                root : ParseNode = NodeParse()
+                self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, root, whitespace)
+
+    def test_RuleRemoveLeadingWhiteSpace_ExceptionWhitespaceNotString(self):
+        """tests ruleRemoveLeadingWhitespace raises an exception when whitespace is not a string"""
+
+        whitespaces : List[Any] = [None, 0, False, [0], {0 : [0]}]
+
+        whitespace : Any
+        for whitespace in whitespaces:
+            with self.subTest(whitespace=whitespace):
+                root : ParseNode = NodeParse()
+                self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, root, [whitespace])
+
+    def test_RuleRemoveLeadingWhiteSpace_ExceptionWhitespaceStringWrongLength(self):
+        """tests ruleRemoveLeadingWhitespace raises an exception when whitespace is not a string of length 1"""
+
+        whitespaces : List[str] = [''.join(['a' for _ in range(i)]) for i in range(2, 10)]
+
+        whitespace : Any
+        for whitespace in whitespaces:
+            with self.subTest(whitespace=whitespace):
+                root : ParseNode = NodeParse()
+                self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, root, [whitespace])
+
     def test_RuleStringSimple_Integration01(self):
-        """tests ruleStringSimple on a simple string 'Hello World!'"""
+        """tests ruleStringSimple on a simple string 'Hello World!'
+        
+        'Hello World!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "Hello",            0, 0))
@@ -8346,10 +9216,25 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "!",                0, 11))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleStringSimple_Integration02(self):
-        """tests ruleStringSimple on a simple string '\'Hello World!\''"""
+        """tests ruleStringSimple on a simple string '\'Hello World!\''
+        
+        '\'Hello World!\''
+        ->
+        Node
+            '\''                V
+            'Hello'             |
+            ' '                 |
+            'World'             |
+            '!'                 |
+            '\''                A
+        ->
+        Node
+            'Hello World!'      |
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "\'",               0, 0))
@@ -8363,10 +9248,25 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "string",   "Hello World!",     0, 0))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleStringSimple_Integration03(self):
-        """tests ruleStringSimple on a simple string '\"Hello World!\"'"""
+        """tests ruleStringSimple on a simple string '\"Hello World!\"'
+        
+        '\"Hello World!\"'
+        ->
+        Node
+            '\"'                V
+            'Hello'             |
+            ' '                 |
+            'World'             |
+            '!'                 |
+            '\"'                A
+        ->
+        Node
+            'Hello World!'      |
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "\"",               0, 0))
@@ -8380,10 +9280,26 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "string",   "Hello World!",     0, 0))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleStringSimple_Integration04(self):
-        """tests ruleStringSimple on a simple string 'test \'test\''"""
+        """tests ruleStringSimple on a simple string 'test \'test\''
+        
+        'test \'test\''
+        ->
+        Node
+            'test'
+            ' '
+            '\''                V
+            'test'              |
+            '\''                A
+        ->
+        Node
+            'test'
+            ' '
+            'test'              |
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test",             0, 0))
@@ -8398,10 +9314,32 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "string",   "test",             0, 5))
         
         result : ParseNode = self.parser.ruleStringSimple(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleStringSimple_Integration05(self):
-        """tests ruleStringSimple on a simple string '\'test\n\\\'test\\\'\'\ntest'"""
+        """tests ruleStringSimple on a simple string '\'test\n\\\'test\\\'\'\ntest'
+        
+        '\'test\n\\\'test\\\'\'\ntest'
+        ->
+        Node
+            '\''                    V
+            'test'                  |
+            '\n'                    |
+            '\\'                    |
+            '\''                    |
+            'test'                  |
+            '\\'                    |
+            '\''                    |
+            '\''                    A
+            '\n'
+            'test'
+        ->
+        Node
+            'test\n\\\'test\\\''    |
+            '\n'
+            'test'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "\'",               0, 0))
@@ -8422,10 +9360,32 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "test",             0, 16))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleStringSimple_Integration06(self):
-        """tests ruleStringSimple on a simple string '\'test\n\'test\'\'\ntest'"""
+        """tests ruleStringSimple on a simple string '\'test\n\'test\'\'\ntest'
+        
+        '\'test\n\'test\'\'\ntest'
+        ->
+        Node
+            '\''                V
+            'test'              |
+            '\n'                |
+            '\''                A
+            'test'
+            '\''                V
+            '\''                A
+            '\n'
+            'test'
+        ->
+        Node
+            'test\n'            |
+            'test'
+            ''                  |
+            '\n'
+            'test'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "\'",               0, 0))
@@ -8446,10 +9406,30 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "test",             0, 14))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleStringSimple_Integration07(self):
-        """tests ruleStringSimple on a simple string 'test1\"abc\'123\'abc\"test2'"""
+        """tests ruleStringSimple on a simple string 'test1\"abc\'123\'abc\"test2'
+        
+        'test1\"abc\'123\'abc\"test2'
+        ->
+        Node
+            'test1'
+            '\"'                V
+            'abc'               |
+            '\''                |
+            '123'               |
+            '\''                |
+            'abc'               |
+            '\"'                A
+            'test2'
+        ->
+        Node
+            'test1'
+            'abc\'123\'abc'     |
+            'test2'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test1",            0, 0))
@@ -8468,20 +9448,44 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "test2",           0, 18))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleStringSimple_Null(self):
-        """tests ruleStringSimple on a null string"""
+        """tests ruleStringSimple on a null string
+        
+        ''
+        ->
+        Node
+        ->
+        Node
+        """
 
         root : ParseNode = NodeParse()
 
         expected : ParseNode = NodeParse()
 
         result : ParseNode = self.parser.ruleStringSimple(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleStringSimple_AllSpaces(self):
-        """tests ruleStringSimple on a string of spaces '    '"""
+        """tests ruleStringSimple on a string of spaces '    '
+        
+        '    '
+        ->
+        Node
+            ' '
+            ' '
+            ' '
+            ' '
+        ->
+        Node
+            ' '
+            ' '
+            ' '
+            ' '
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         " ",                0, 0))
@@ -8492,6 +9496,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected : ParseNode = root.copyDeep()
 
         result : ParseNode = self.parser.ruleStringSimple(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
         
     def test_RuleStringSimple_ExceptionMismatched(self):
@@ -8514,7 +9519,23 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 self.assertRaises(Exception, self.parser.ruleStringSimple, tree)
 
     def test_RuleFilterLineComments_Integration01(self):
-        """tests ruleFilterLineComments on a string 'Hello World!'"""
+        """tests ruleFilterLineComments on a string 'Hello World!'
+        
+        'Hello World!'
+        ->
+        character = '#'
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "Hello",            0, 0))
@@ -8529,10 +9550,32 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "!",                0, 11))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_Integration02(self):
-        """tests ruleFilterLineComments on a string 'Hello World! #comment'"""
+        """tests ruleFilterLineComments on a string 'Hello World! #comment'
+        
+        'Hello World! #comment'
+        ->
+        character = '#'
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+            ' '
+            '#'                 |
+            'comment'           |
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+            ' '                 _V_
+                                 A
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "Hello",            0, 0))
@@ -8551,10 +9594,41 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         " ",                0, 12))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_Integration03(self):
-        """tests ruleFilterLineComments on a string 'test #test\n #test\n\t\\#test'"""
+        """tests ruleFilterLineComments on a string 'test #test\n #test\n\t\\#test'
+        
+        'test #test\n #test\n\t\\#test'
+        ->
+        character = '#'
+        Node
+            'test'
+            ' '
+            '#'                 |
+            'test'              |
+            '\n'
+            ' '
+            '#'                 |
+            'test'              |
+            '\n'
+            '\t'
+            '\\'
+            '#'
+            'test'
+        ->
+        Node
+            'test'
+            ' '                 _V_
+            '\n'                 A
+            ' '                 _V_
+            '\n'                 A
+            '\t'
+            '\\'
+            '#'
+            'test'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test",             0, 0))
@@ -8583,10 +9657,59 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "test",             2, 3))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_Integration04(self):
-        """tests ruleFilterLineComments on a string 'test test \\# test #abc abc abc \\n abc \n test test'"""
+        """tests ruleFilterLineComments on a string 'test test \\# test #abc abc abc \\n abc \n test test'
+        
+        'test test \\# test #abc abc abc \\n abc \n test test'
+        ->
+        character = '#'
+        Node
+            'test'
+            ' '
+            'test'
+            ' '
+            '\\'
+            '#'
+            ' '
+            'test'
+            ' '
+            '#'                 |
+            'abc'               |
+            ' '                 |
+            'abc'               |
+            ' '                 |
+            'abc'               |
+            ' '                 |
+            '\\'                |
+            'n'                 |
+            ' '                 |
+            'abc'               |
+            ' '                 |
+            '\n'
+            ' '
+            'test'
+            ' '
+            'test'
+        ->
+        Node
+            'test'
+            ' '
+            'test'
+            ' '
+            '\\'
+            '#'
+            ' '
+            'test'
+            ' '                 _V_
+            '\n'                 A
+            ' '
+            'test'
+            ' '
+            'test'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test",             0, 0))
@@ -8633,20 +9756,40 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "test",             1, 6))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_Empty(self):
-        """tests ruleFilterLineComments on an empty string ''"""
+        """tests ruleFilterLineComments on an empty string ''
+        
+        ''
+        ->
+        Node
+        ->
+        Node
+        """
 
         root : ParseNode = NodeParse()
 
         expected : ParseNode = NodeParse()
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_LineAllComment(self):
-        """tests ruleFilterLineComments on a string '#comment'"""
+        """tests ruleFilterLineComments on a string '#comment'
+        
+        '#comment'
+        ->
+        character = '#'
+        Node
+            '#'                 |
+            'comment'           |
+        ->
+        Node                    _V_
+                                 A
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "#",         0, 0))
@@ -8655,12 +9798,24 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected : ParseNode = NodeParse()
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_LineAllComment_AlternateCharacter(self):
-        """tests ruleFilterLineComments on a string '#comment', where the comment character is different"""
+        """tests ruleFilterLineComments on a string '#comment', where the comment character is different
+        
+        '#comment'
+        ->
+        character in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|'
+        Node
+            character           |
+            'comment'           |
+        ->
+        Node                    _V_
+                                 A
+        """
 
-        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+        characters : List[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
 
         character : str # chr
         for character in characters:
@@ -8672,10 +9827,26 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 expected : ParseNode = NodeParse()
 
                 result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+
                 self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_MultipleLineAllComment(self):
-        """tests ruleFilterLineComments on a string '#comment\n#comment'"""
+        """tests ruleFilterLineComments on a string '#comment\n#comment'
+        
+        '#comment\n#comment'
+        ->
+        character = '#'
+        Node
+            '#'                 |
+            'comment'           |
+            '\n'
+            '#'                 |
+            'comment'           |
+        ->
+        Node                    _V_
+            '\n'                 A  _V_
+                                     A
+        """         
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "#",         0, 0))
@@ -8688,12 +9859,28 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "\n",        0, 9))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_MultipleLineAllComment_AlternateCharacter(self):
-        """tests ruleFilterLineComments on a string '#comment\n#comment', where the comment character is different"""
+        """tests ruleFilterLineComments on a string '#comment\n#comment', where the comment character is different
+        
+        '#comment\n#comment'
+        ->
+        character in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|'
+        Node
+            character           |
+            'comment'           |
+            '\n'
+            character           |
+            'comment'           |
+        ->
+        Node                    _V_
+            '\n'                 A  _V_
+                                     A
+        """
 
-        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+        characters : List[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
 
         character : str # chr
         for character in characters:
@@ -8709,10 +9896,25 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 expected.append(NodeParse(  "",         "\n",        0, 9))
 
                 result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+
                 self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_LineComment(self):
-        """tests ruleFilterLineComments on a string 'test #comment'"""
+        """tests ruleFilterLineComments on a string 'test #comment'
+        
+        'test #comment'
+        ->
+        character = '#'
+        Node
+            'test'
+            ' '
+            '#'                 |
+            'comment'           |
+        Node
+            'test'
+            ' '                 _V_
+                                 A
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test",      0, 0))
@@ -8725,12 +9927,28 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         " ",         0, 4))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_LineComment_AlternateCharacter(self):
-        """tests ruleFilterLineComments on a string 'test #comment', where the comment character is different"""
+        """tests ruleFilterLineComments on a string 'test #comment', where the comment character is different
+        
+        'test #comment'
+        ->
+        character in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|'
+        Node
+            'test'
+            ' '
+            character           |
+            'comment'           |
+        ->
+        Node
+            'test'
+            ' '                 _V_
+                                 A
+        """
 
-        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+        characters : List[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
 
         character : str # chr
         for character in characters:
@@ -8746,10 +9964,30 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 expected.append(NodeParse(  "",         " ",         0, 4))
 
                 result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+
                 self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_MultipleLineComment01(self):
-        """tests ruleFilterLineComments on a string 'test #comment\n#comment'"""
+        """tests ruleFilterLineComments on a string 'test #comment\n#comment'
+        
+        'test #comment\n#comment'
+        ->
+        character = '#'
+        Node
+            'test'
+            ' '
+            '#'                 |
+            'comment'           |
+            '\n'
+            '#'                 |
+            'comment'           |
+        ->
+        Node
+            'test'
+            ' '                 _V_
+            '\n'                 A  _V_
+                                     A
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test",      0, 0))
@@ -8766,10 +10004,31 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "\n",        0, 13))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_MultipleLineComment02(self):
-        """tests ruleFilterLineComments on a string 'test #comment\ntest2#comment'"""
+        """tests ruleFilterLineComments on a string 'test #comment\ntest2#comment'
+        
+        'test1 #comment\ntest2#comment'
+        ->
+        character = '#'
+        Node
+            'test1'
+            ' '
+            '#'                 |
+            'comment'           |
+            '\n'
+            'test2'
+            '#'                 |
+            'comment'           |
+        Node
+            'test1'
+            ' '                 _V_
+            '\n'                 A
+            'test2'             _V_
+                                 A
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test",      0, 0))
@@ -8788,12 +10047,33 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "test2",     1, 0))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_MultipleLineComment_AlternateCharacter(self):
-        """tests ruleFilterLineComments on a string 'test1 #comment\ntest2#comment', where the comment character is different"""
+        """tests ruleFilterLineComments on a string 'test1 #comment\ntest2#comment', where the comment character is different
+        
+        'test1 #comment\ntest2#comment'
+        ->
+        character in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|'
+        Node
+            'test1'
+            ' '
+            character           |
+            'comment'           |
+            '\n'
+            'test2'
+            character           |
+            'comment'           |
+        Node
+            'test1'
+            ' '                 _V_
+            '\n'                 A
+            'test2'             _V_
+                                 A
+        """
 
-        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+        characters : List[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
 
         character : str # chr
         for character in characters:
@@ -8815,10 +10095,25 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 expected.append(NodeParse(  "",         "test2",     1, 0))
 
                 result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+
                 self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_EscapedCharacter(self):
-        """tests ruleFilterLineComments on a string '\\#comment'"""
+        """tests ruleFilterLineComments on a string '\\#comment'
+        
+        '\\#comment'
+        ->
+        character = '#'
+        Node
+            '\\'
+            '#'
+            'comment'
+        ->
+        Node
+            '\\'
+            '#'
+            'comment'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "\\",        0, 0))
@@ -8831,10 +10126,25 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         expected.append(NodeParse(  "",         "comment",   0, 2))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_EscapedCharacter_AlternateCharacter(self):
-        """tests ruleFilterLineComments on a string '\\#comment', where the comment character is different"""
+        """tests ruleFilterLineComments on a string '\\#comment', where the comment character is different
+        
+        '\\#comment'
+        ->
+        character != '#'
+        Node
+            '\\'
+            '#'
+            'comment'
+        ->
+        Node
+            '\\'
+            '#'
+            'comment'
+        """
 
         characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
 
@@ -8852,6 +10162,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 expected.append(NodeParse(  "",         "comment",   0, 2))
 
                 result : ParseNode = self.parser.ruleFilterLineComments(root, character)
+
                 self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleFilterLineComments_ExceptionCharacterNone(self):
@@ -8896,7 +10207,23 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 self.assertRaises(Exception, self.parser.ruleFilterLineComments, tree)
 
     def test_RuleRemoveToken_Integration01(self):
-        """tests ruleRemoveToken on a string 'Hello World!', removing nothing"""
+        """tests ruleRemoveToken on a string 'Hello World!', removing nothing
+        
+        'Hello World!'
+        ->
+        token = 'test'
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+            '!'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "Hello",     0, 0))
@@ -8910,7 +10237,22 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_Integration02(self):
-        """tests ruleRemoveToken on a string 'Hello World!', removing ' '"""
+        """tests ruleRemoveToken on a string 'Hello World!', removing ' '
+        
+        'Hello World!'
+        ->
+        token = ' '
+        Node
+            'Hello'
+            ' '                 |
+            'World'
+            '!'
+        ->
+        Node
+            'Hello'             _V_
+            'World'              A
+            '!'
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "Hello",     0, 0))
@@ -8927,7 +10269,20 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_Integration03(self):
-        """tests ruleRemoveToken on a string 'test1\ntest2', removing '\n'"""
+        """tests ruleRemoveToken on a string 'test1\ntest2', removing '\n'
+        
+        'test1\ntest2'
+        ->
+        token = '\n'
+        Node
+            'test1'
+            '\n'                |
+            'test2'
+        ->
+        Node
+            'test1'             _V_
+            'test2'              A
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test1",     0, 0))
@@ -8942,7 +10297,31 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_Integration04(self):
-        """tests ruleRemoveToken on a string 'add(arg1,arg2),mult(arg1,arg2)' (brackets are removed), removing ','"""
+        """tests ruleRemoveToken on a string 'add(arg1,arg2),mult(arg1,arg2)' (brackets are removed), removing ','
+        
+        'add(arg1,arg2),mult(arg1,arg2)'
+        ->
+        token = ','
+        recurse = True
+        Node
+            'add'
+                'arg1'
+                ','             |
+                'arg2'
+            ','                 |
+            'mult'
+                'arg1'
+                ','             |
+                'arg2'
+        ->
+        Node
+            'add'
+                'arg1'          _V_
+                'arg2'           A  _V_
+            'mult'                   A
+                'arg1'          _V_
+                'arg2'           A
+        """
 
         root : ParseNode = NodeParse()
         rChild1 : ParseNode
@@ -8950,13 +10329,13 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         rChild1.append(NodeParse(    "",         "arg1",     0, 5))
         rChild1.append(NodeParse(    "",         ",",        0, 9))
         rChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        root.append(rChild1)
+        root.append(NodeParse(       "",         ",",        0, 16))
         rChild2 : ParseNode
         rChild2 = NodeParse(         "",         "mult",     0, 4)
         rChild2.append(NodeParse(    "",         "arg1",     0, 10))
         rChild2.append(NodeParse(    "",         ",",        0, 14))
         rChild2.append(NodeParse(    "",         "arg2",     0, 15))
-        root.append(rChild1)
-        root.append(NodeParse(       "",         ",",        0, 16))
         root.append(rChild2)
 
         expected : ParseNode = NodeParse()
@@ -8964,18 +10343,44 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         eChild1 = NodeParse(         "",         "add",      0, 0)
         eChild1.append(NodeParse(    "",         "arg1",     0, 5))
         eChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        expected.append(eChild1)
         eChild2 : ParseNode
         eChild2 = NodeParse(         "",         "mult",     0, 4)
         eChild2.append(NodeParse(    "",         "arg1",     0, 10))
         eChild2.append(NodeParse(    "",         "arg2",     0, 15))
-        expected.append(eChild1)
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleRemoveToken(root, ",")
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_Integration05(self):
-        """tests ruleRemoveToken on a string 'add(arg1,arg2),mult(arg1,arg2)' (brackets are removed), removing ',', no recursion"""
+        """tests ruleRemoveToken on a string 'add(arg1,arg2),mult(arg1,arg2)' (brackets are removed), removing ',', no recursion
+        
+        'add(arg1,arg2),mult(arg1,arg2)'
+        ->
+        token = ','
+        recurse = False
+        Node
+            'add'
+                'arg1'
+                ','
+                'arg2'
+            ','                 |
+            'mult'
+                'arg1'
+                ','
+                'arg2'
+        ->
+        Node
+            'add'
+                'arg1'
+                ','
+                'arg2'          _V_
+            'mult'               A
+                'arg1'
+                ','
+                'arg2'
+        """
 
         root : ParseNode = NodeParse()
         rChild1 : ParseNode
@@ -8983,13 +10388,13 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         rChild1.append(NodeParse(    "",         "arg1",     0, 5))
         rChild1.append(NodeParse(    "",         ",",        0, 9))
         rChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        root.append(rChild1)
+        root.append(NodeParse(       "",         ",",        0, 16))
         rChild2 : ParseNode
         rChild2 = NodeParse(         "",         "mult",     0, 4)
         rChild2.append(NodeParse(    "",         "arg1",     0, 10))
         rChild2.append(NodeParse(    "",         ",",        0, 14))
         rChild2.append(NodeParse(    "",         "arg2",     0, 15))
-        root.append(rChild1)
-        root.append(NodeParse(       "",         ",",        0, 16))
         root.append(rChild2)
 
         expected : ParseNode = NodeParse()
@@ -8998,19 +10403,71 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         eChild1.append(NodeParse(    "",         "arg1",     0, 5))
         eChild1.append(NodeParse(    "",         ",",        0, 9))
         eChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        expected.append(eChild1)
         eChild2 : ParseNode
         eChild2 = NodeParse(         "",         "mult",     0, 4)
         eChild2.append(NodeParse(    "",         "arg1",     0, 10))
         eChild2.append(NodeParse(    "",         ",",        0, 14))
         eChild2.append(NodeParse(    "",         "arg2",     0, 15))
-        expected.append(eChild1)
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleRemoveToken(root, ",", False)
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_Integration06(self):
-        """tests ruleRemoveToken on a string 'a[1,2,3],b[1,2,3],c[1,b,3]' (brackets are not removed, but are folded in as children), removing 'b'"""
+        """tests ruleRemoveToken on a string 'a[1,2,3],b[1,2,3],c[1,b,3]' (brackets are not removed, but are folded in as children), removing 'b'
+        
+        'a[1,2,3],b[1,2,3],c[1,b,3]'
+        ->
+        token = 'b'
+        Node
+            'a'
+                '['
+                '1'
+                ','
+                '2'
+                ','
+                '3'
+                ']'
+            ','
+            'b'                 |
+                '['             |
+                '1'             |
+                ','             |
+                '2'             |
+                ','             |
+                '3'             |
+                ']'             |
+            ','
+            'c'
+                '['
+                '1'
+                ','
+                'b'
+                ','
+                '3'
+                ']'
+        ->
+        Node
+            'a'
+                '['
+                '1'
+                ','
+                '2'
+                ','
+                '3'
+                ']'
+            ','                 _V_
+            ','                  A
+            'c'
+                '['
+                '1'
+                ','
+                'b'
+                ','
+                '3'
+                ']'
+        """
 
         root : ParseNode = NodeParse()
         rChild1 : ParseNode
@@ -9074,7 +10531,15 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
 
     def test_RuleRemoveToken_Empty(self):
-        """tests ruleRemoveToken on an empty string ''"""
+        """tests ruleRemoveToken on an empty string ''
+        
+        ''
+        ->
+        token = ','
+        Node
+        ->
+        Node
+        """
 
         root : ParseNode = NodeParse()
 
@@ -9084,7 +10549,17 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_RemoveToken01(self):
-        """tests ruleRemoveToken on a string 'test', removing 'test'"""
+        """tests ruleRemoveToken on a string 'test', removing 'test'
+        
+        'test'
+        ->
+        token = 'test'
+        Node
+            'test'              |
+        ->
+        Node                    _V_
+                                 A
+        """
 
         root : ParseNode = NodeParse()
         root.append(NodeParse(      "",         "test",     0, 0))
@@ -9095,7 +10570,17 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_RemoveToken02(self):
-        """tests ruleRemoveToken on a string f'{token}', removing token"""
+        """tests ruleRemoveToken on a string f'{token}', removing token
+        
+        f'{token}'
+        ->
+        token = token
+        Node
+            token               |
+        ->
+        Node                    _V_
+                                 A
+        """
 
         tokens : List[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
 
@@ -9111,7 +10596,21 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_RemoveToken03(self):
-        """tests ruleRemoveToken on a string f'Hello {token}', removing token"""
+        """tests ruleRemoveToken on a string f'Hello {token}', removing token
+        
+        f'Hello {token}'
+        ->
+        token = token
+        Node
+            'Hello'
+            ' '
+            token               |
+        ->
+        Node
+            'Hello'
+            ' '                 _V_
+                                 A
+        """
 
         tokens : List[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
 
@@ -9128,15 +10627,32 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 expected.append(NodeParse( "",         " ",        0, 6))
 
                 result : ParseNode = self.parser.ruleRemoveToken(root, token)
+
                 self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_TokenWithChildren(self):
-        """tests ruleRemoveToken on a string 'a[1,2,3]'  (brackets are not removed, but are folded in as children), removing 'a' and all children"""
+        """tests ruleRemoveToken on a string 'a[1,2,3]'  (brackets are not removed, but are folded in as children), removing 'a' and all children
+        
+        'a[1,2,3]'
+        ->
+        token = 'a'
+        Node
+            'a'                 |
+                '['             |
+                    '1'         |
+                    ','         |
+                    '2'         |
+                    ','         |
+                    '3'         |
+                    ']'         |
+        ->
+        Node                    _V_
+                                 A
+        """
 
         root : ParseNode = NodeParse()
         rChild1 : ParseNode
         rChild1 = NodeParse(        "",         "a",        0, 0)
-        root.append(rChild1)
         rChild2 : ParseNode
         rChild2 = NodeParse(        "",         "[",        0, 1)
         rChild2.append(NodeParse(   "",         "1",        0, 2))
@@ -9146,10 +10662,12 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         rChild2.append(NodeParse(   "",         "3",        0, 6))
         rChild2.append(NodeParse(   "",         "]",        0, 7))
         rChild1.append(rChild2)
+        root.append(rChild1)
 
         expected : ParseNode = NodeParse()
 
         result : ParseNode = self.parser.ruleRemoveToken(root, "a")
+
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
         
     def test_RuleRemoveToken_TokenDifferentTypes(self):
@@ -9166,6 +10684,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 expected : ParseNode = NodeParse()
 
                 result : ParseNode = self.parser.ruleRemoveToken(root, token)
+
                 self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
     def test_RuleRemoveToken_ExceptionTreeNotNodeParse(self):
@@ -9188,12 +10707,860 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             with self.subTest(variable=variable):
                 self.assertRaises(Exception, self.parser.ruleRemoveToken, NodeParse(), None, variable)
 
+    def test_RuleSplitLines_Integration01(self):
+        """tests ruleSplitLines on a string 'Hello World'
+        
+        'Hello World'
+        ->
+        splitToken = '\n'
+        Node
+            'Hello'
+            ' '
+            'World'
+        ->
+        [
+            'Hello'
+            ' '
+            'World'
+        ]
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",    0, 0))
+        root.append(NodeParse(      "",         " ",        0, 6))
+        root.append(NodeParse(      "",         "World",    0, 7))
+
+        expected : List[ParseNode] = []
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild1.append(NodeParse(   "",         "Hello",    0, 0))
+        eChild1.append(NodeParse(   "",         " ",        0, 6))
+        eChild1.append(NodeParse(   "",         "World",    0, 7))
+        expected.append(eChild1)
+
+        result : ParseNode = self.parser.ruleSplitLines(root)
+    
+        self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitLines_Intergration02(self):
+        """tests ruleSplitLines on a string 'test1\ntest2'
+        
+        'test1\ntest2'
+        ->
+        splitToken = '\n'
+        Node
+            'test1'
+            '\n'                |
+            'test2'
+        ->
+        [
+            Node            
+                'test1'         _A_
+            Node                 V
+                'test2'
+        ]
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test1",    0, 0))
+        root.append(NodeParse(      "",         "\n",       0, 5))
+        root.append(NodeParse(      "",         "test2",    0, 6))
+
+        expected : List[ParseNode] = []
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild1.append(NodeParse(   "",         "test1",    0, 0))
+        expected.append(eChild1)
+        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
+        eChild2.append(NodeParse(   "",         "test2",    0, 6))
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleSplitLines(root)
+
+        self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitLines_Intergration03(self):
+        """tests ruleSplitLines on a string 'test1\ntest2\n'
+        
+        'test1\ntest2\n'
+        ->
+        splitLines = '\n'
+        Node
+            'test1'
+            '\n'                |
+            'test2'
+            '\n'                |
+        ->
+        [
+            Node
+                'test1'         _A_
+            Node                 V
+                'test2'         _A_
+        ]
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test1",    0, 0))
+        root.append(NodeParse(      "",         "\n",       0, 5))
+        root.append(NodeParse(      "",         "test2",    0, 6))
+        root.append(NodeParse(      "",         "\n",       0, 11))
+
+        expected : List[ParseNode] = []
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild1.append(NodeParse(   "",         "test1",    0, 0))
+        expected.append(eChild1)
+        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
+        eChild2.append(NodeParse(   "",         "test2",    0, 6))
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleSplitLines(root)
+
+        self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitLines_Integration04(self):
+        """tests RuleSplitLines on a string 'test1\ttest2'
+        
+        'test1\ttest2'
+        ->
+        splitToken = '\t'
+        Node
+            'test1'
+            '\t'                |
+            'test2'
+        ->
+        [
+            Node
+                'test1'         _A_
+            Node                 V
+                'test2'
+        ]
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test1",    0, 0))
+        root.append(NodeParse(      "",         "\t",        0, 5))
+        root.append(NodeParse(      "",         "test2",    0, 6))
+
+        expected : List[ParseNode] = []
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild1.append(NodeParse(   "",         "test1",    0, 0))
+        expected.append(eChild1)
+        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
+        eChild2.append(NodeParse(   "",         "test2",    0, 6))
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleSplitLines(root, splitToken="\t")
+
+        self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitLines_Integration05(self):
+        """tests ruleSplitLines on a string '[test1]\t[test2\ttest3]'
+        
+        '[test1]\t[test2\ttest3]'
+        ->
+        splitToken = '\n'
+        Node
+            Node
+                'test1'
+            '\t'                    |
+            Node
+                'test2'
+                '\t'
+                'test3'
+        ->
+        [
+            Node
+                'test1'             _A_
+            Node                     V
+                Node
+                    'test2'
+                    '\t'
+                    'test3'
+        ]
+        """
+
+        root : ParseNode = NodeParse()
+        rChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        rChild1.append(NodeParse(   "",         "test1",         0, 0))
+        root.append(rChild1)
+        root.append(NodeParse(      "",         "\t",            0, 5))
+        rChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
+        rChild2.append(NodeParse(   "",         "test2",         0, 6))
+        rChild2.append(NodeParse(   "",         "\t",            0, 11))
+        rChild2.append(NodeParse(   "",         "test3",         0, 12))
+        root.append(rChild2)
+
+        expected : List[ParseNode] = []
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild2.append(NodeParse(   "",         "test1",         0, 0))
+        eChild1.append(eChild2)
+        expected.append(eChild1)
+        eChild3 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
+        eChild4 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
+        eChild4.append(NodeParse(   "",         "test2",         0, 6))
+        eChild4.append(NodeParse(   "",         "\t",            0, 11))
+        eChild4.append(NodeParse(   "",         "test3",         0, 12))
+        eChild3.append(eChild4)
+        expected.append(eChild3)
+
+        result : ParseNode = self.parser.ruleSplitLines(root, splitToken="\t")
+
+        self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitLines_DifferentSplitTokens01(self):
+        """tests ruleSplitLines on a string 'test1{splitToken}test2' where splitToken is in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r" 
+        
+        'test1{splitToken}test2'
+        ->
+        splitToken in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r"
+        Node
+            'test1'
+            splitToken              |
+            'test2'
+        ->
+        [
+            Node
+                'test1'             _A_
+            Node                     V
+                'test2'        
+        ]
+        """
+
+        splitTokens : List[str] = [i for i in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r"]
+
+        splitToken : str
+        for splitToken in splitTokens:
+            with self.subTest(splitToken=splitToken):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         "test1",    0, 0))
+                root.append(NodeParse(      "",         splitToken, 0, 5))
+                root.append(NodeParse(      "",         "test2",    0, 6))
+
+                expected : List[ParseNode] = []
+                eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+                eChild1.append(NodeParse(   "",         "test1",    0, 0))
+                expected.append(eChild1)
+                eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
+                eChild2.append(NodeParse(   "",         "test2",    0, 6))
+                expected.append(eChild2)
+
+                result : ParseNode = self.parser.ruleSplitLines(root, splitToken=splitToken)
+
+                self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitLines_DifferentSplitTokens02(self):
+        """tests ruleSplitLines on a string 'test1\u2665test2' where splittoken is NOT found in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r" 
+        
+        'test1\u2665test2'
+        ->
+        splitToken in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r"
+        Node
+            'test1'
+            '\u2665'
+            'test2'
+        ->
+        [
+            Node
+                'test1'
+                '\u2665'
+                'test2'
+        ]
+        """
+
+        splitTokens : List[str] = [i for i in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r"]
+
+        splitToken : str
+        for splitToken in splitTokens:
+            with self.subTest(splitToken=splitToken):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         "test1",    0, 0))
+                root.append(NodeParse(      "",         "\u2665",   0, 5))
+                root.append(NodeParse(      "",         "test2",    0, 6))
+
+                expected : List[ParseNode] = []
+                eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+                eChild1.append(NodeParse(   "",         "test1",    0, 0))
+                eChild1.append(NodeParse(   "",         "\u2665",   0, 5))
+                eChild1.append(NodeParse(   "",         "test2",    0, 6))
+                expected.append(eChild1)
+
+                result : ParseNode = self.parser.ruleSplitLines(root, splitToken=splitToken)
+
+                self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitLines_Empty(self):
+        """tests ruleSplitLines on an empty string
+        
+        ''
+        ->
+        Node
+        ->
+        [
+        ]
+        """
+
+        root : ParseNode = NodeParse()
+
+        expected : List[ParseNode] = []
+
+        result : ParseNode = self.parser.ruleSplitLines(root)
+
+        self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitLines_ExceptionSplitTokenNotString(self):
+        """tests ruleSplitLines raises an exception when splitToken is not a string"""
+
+        splitTokens : List[Any] = [None, 0, False, ['a'], {0 : 'a'}]
+
+        splitToken : Any
+        for splitToken in splitTokens:
+            with self.subTest(splitToken=splitToken):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         "Hello",    0, 0))
+                root.append(NodeParse(      "",         " ",        0, 6))
+                root.append(NodeParse(      "",         "World",    0, 7))
+
+                self.assertRaises(Exception, self.parser.ruleSplitLines, root, splitToken=splitToken)
+
+    def test_RuleSplitLines_ExceptionTreeNotNodeParse(self):
+        """tests ruleSplitLines raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        tree : Any
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleSplitLines, tree)
+
+    def test_RuleSplitTokens_ExceptionTreeNotNodeParse(self):
+        """tests ruleSplitTokens raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        tree : Any
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleSplitTokens, tree)
+
+    def test_RuleSplitTokens_ExceptionTokenTypeNotString(self):
+        """tests ruleSplitTokens raises an exception when tokenType is not a string"""
+
+        tokenTypes : List[Any] = [None, 0, False, ['a'], {0 : 'a'}]
+
+        tokenType : Any
+        for tokenType in tokenTypes:
+            with self.subTest(tokenType=tokenType):
+                root : ParseNode = NodeParse()
+
+                self.assertRaises(Exception, self.parser.ruleSplitTokens, root, tokenType=tokenType)
+
+
+    def test_RuleSplitTokens_ExceptionSplitTokenNotString(self):
+        """tests ruleSplitTokens raises an exception when splitToken is not a string"""
+
+        splitTokens : List[Any] = [None, 0, False, ['a'], {0 : 'a'}]
+
+        splitToken : Any
+        for splitToken in splitTokens:
+            with self.subTest(splitToken=splitToken):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         "Hello",    0, 0))
+                root.append(NodeParse(      "",         " ",        0, 6))
+                root.append(NodeParse(      "",         "World",    0, 7))
+
+                self.assertRaises(Exception, self.parser.ruleSplitTokens, root, splitToken=splitToken)
+
+    def test_RuleSplitTokens_ExceptionRecurseNotBool(self):
+        """tests ruleSplitTokens raises an exception when recurse is not a bool"""
+
+        recurses : List[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
+
+        recurse : Any
+        for recurse in recurses:
+            with self.subTest(recurse=recurse):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(      "",         "Hello",    0, 0))
+                root.append(NodeParse(      "",         " ",        0, 6))
+                root.append(NodeParse(      "",         "World",    0, 7))
+
+                self.assertRaises(Exception, self.parser.ruleSplitTokens, root, recurse=recurse)
+
+    def test_RuleSplitTokens_Integration01(self):
+        """tests ruleSplitTokens on a string 'Hello World'
+        
+        'Hello World'
+        ->
+        splitToken = '\n'
+        Node
+            'Hello'
+            ' '
+            'World'
+        ->
+        Node
+            'Hello'
+            ' '
+            'World'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",    0, 0))
+        root.append(NodeParse(      "",         " ",        0, 6))
+        root.append(NodeParse(      "",         "World",    0, 7))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(   "",         "Hello",    0, 0))
+        expected.append(NodeParse(   "",         " ",        0, 6))
+        expected.append(NodeParse(   "",         "World",    0, 7))
+
+        result : ParseNode = self.parser.ruleSplitTokens(root)
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitTokens_Integration02(self):
+        """tests ruleSplitTokens on a string 'Hello World' where splittoken is ' '
+        
+        'Hello World'
+        ->
+        splitToken = ' '
+        Node
+            'Hello'
+            ' '                 |
+            'World'
+        ->
+        Node
+            Node
+                'Hello'         _V_
+            Node                 A
+                'World'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "Hello",    0, 0))
+        root.append(NodeParse(      "",         " ",        0, 6))
+        root.append(NodeParse(      "",         "World",    0, 7))
+
+        expected : ParseNode = NodeParse()
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild1.append(NodeParse(   "",         "Hello",    0, 0))
+        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=7)
+        eChild2.append(NodeParse(   "",         "World",    0, 7))
+        expected.append(eChild1)
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=" ")
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitTokens_Integration03(self):
+        """tests ruleSplitTokens on a string 'test\nabc' where splittoken is '\n'
+        
+        'test\nabc'
+        ->
+        splitToken = '\n'
+        Node
+            'test'
+            '\n'                |
+            'abc'
+        ->
+        Node
+            Node
+                'test'          _V_
+            Node                 A
+                'abc'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test",     0, 0))
+        root.append(NodeParse(      "",         "\n",       0, 4))
+        root.append(NodeParse(      "",         "abc",      0, 5))
+
+        expected : ParseNode = NodeParse()
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild1.append(NodeParse(   "",         "test",     0, 0))
+        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=5)
+        eChild2.append(NodeParse(   "",         "abc",      0, 5))
+        expected.append(eChild1)
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleSplitTokens(root, splitToken="\n")
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitTokens_Integration04(self):
+        """tests ruleSplitTokens on a string 'test1 test2[abc1,abc2,abc3 abc4]' where splittoken is ',' and recurse is True
+        
+        'test1 test2[abc1,abc2,abc3 abc4]'
+        ->
+        splitToken = ','
+        recurse = True
+        Node
+            'test1'
+            ' '
+            'test2'
+                'abc1'
+                ','                 |
+                'abc2'
+                ','                 |
+                'abc3'
+                ' '
+                'abc4'
+        ->
+        Node
+            'test1'
+            ' '
+            'test2'
+                Node
+                    'abc1'          _V_
+                Node                 A
+                    'abc2'          _V_
+                Node                 A
+                    'abc3'
+                    ' '
+                    'abc4'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test1",    0, 0))
+        root.append(NodeParse(      "",         " ",        0, 5))
+        rChild1 : ParseNode = NodeParse("",     "test2",    0, 6)
+        rChild1.append(NodeParse(   "",         "abc1",     0, 12))
+        rChild1.append(NodeParse(   "",         ",",        0, 16))
+        rChild1.append(NodeParse(   "",         "abc2",     0, 17))
+        rChild1.append(NodeParse(   "",         ",",        0, 21))
+        rChild1.append(NodeParse(   "",         "abc3",     0, 22))
+        rChild1.append(NodeParse(   "",         " ",        0, 26))
+        rChild1.append(NodeParse(   "",         "abc4",     0, 27))
+        root.append(rChild1)
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(   "",         "test1",   0, 0))
+        expected.append(NodeParse(   "",         " ",       0, 5))
+        eChild1 : ParseNode = NodeParse("",      "test2",   0, 6)
+        eChild1A : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=12)
+        eChild1A.append(NodeParse(   "",         "abc1",    0, 12))
+        eChild1B : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=17)
+        eChild1B.append(NodeParse(   "",         "abc2",    0, 17))
+        eChild1C : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=22)
+        eChild1C.append(NodeParse(   "",         "abc3",    0, 22))
+        eChild1C.append(NodeParse(   "",         " ",       0, 26))
+        eChild1C.append(NodeParse(   "",         "abc4",    0, 27))
+        eChild1.append(eChild1A)
+        eChild1.append(eChild1B)
+        eChild1.append(eChild1C)
+        expected.append(eChild1)
+
+        result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=True)
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitTokens_Integration05(self):
+        """tests ruleSplitTokens on a string 'test1 test2[abc1,abc2,abc3 abc4]' where splittoken is ',' and recurse is False
+        
+        'test1 test2[abc1,abc2,abc3 abc4]'
+        ->
+        splitToken = ','
+        recurse = False
+        Node
+            'test1'
+            ' '
+            'test2'
+                'abc1'
+                ','
+                'abc2'
+                ','
+                'abc3'
+                ' '
+                'abc4'
+        ->
+        Node
+            'test1'
+            ' '
+            'test2'
+                'abc1'
+                ','
+                'abc2'
+                ','
+                'abc3'
+                ' '
+                'abc4'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(      "",         "test1",    0, 0))
+        root.append(NodeParse(      "",         " ",        0, 5))
+        rChild1 : ParseNode = NodeParse("",     "test2",    0, 6)
+        rChild1.append(NodeParse(   "",         "abc1",     0, 11))
+        rChild1.append(NodeParse(   "",         ",",        0, 13))
+        rChild1.append(NodeParse(   "",         "abc2",     0, 15))
+        rChild1.append(NodeParse(   "",         ",",        0, 17))
+        rChild1.append(NodeParse(   "",         "abc3",     0, 19))
+        rChild1.append(NodeParse(   "",         " ",        0, 23))
+        rChild1.append(NodeParse(   "",         "abc4",     0, 24))
+        root.append(rChild1)
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test1",    0, 0))
+        expected.append(NodeParse(  "",         " ",        0, 5))
+        eChild1 : ParseNode = NodeParse("",     "test2",    0, 6)
+        eChild1.append(NodeParse(   "",         "abc1",     0, 11))
+        eChild1.append(NodeParse(   "",         ",",        0, 13))
+        eChild1.append(NodeParse(   "",         "abc2",     0, 15))
+        eChild1.append(NodeParse(   "",         ",",        0, 17))
+        eChild1.append(NodeParse(   "",         "abc3",     0, 19))
+        eChild1.append(NodeParse(   "",         " ",        0, 23))
+        eChild1.append(NodeParse(   "",         "abc4",     0, 24))
+        expected.append(eChild1)
+
+        result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=False)
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitTokens_Integration06(self):
+        """tests ruleSplitTokens on a string 'test1[abc1,abc2],test2' where splittoken is ',' and recurse is True
+        
+        'test1[abc1,abc2],test2'
+        ->
+        splitToken = ','
+        recurse = True
+        Node
+            'test1'
+                'abc1'
+                ','                 |
+                'abc2'
+            ','                     |
+            'test2'
+        ->
+        Node
+            Node
+                'test1'
+                    Node
+                        'abc1'      _V_
+                    Node             A
+                        'abc2'      _V_
+            Node                     A
+                'test2'
+        """
+
+        root : ParseNode = NodeParse()
+        rChild1 : ParseNode = NodeParse("",     "test1",    0, 0)
+        rChild1.append(NodeParse(   "",         "abc1",     0, 6))
+        rChild1.append(NodeParse(   "",         ",",        0, 10))
+        rChild1.append(NodeParse(   "",         "abc2",     0, 11))
+        root.append(rChild1)
+        root.append(NodeParse(      "",         ",",        0, 16))
+        root.append(NodeParse(      "",         "test2",    0, 17))
+
+        expected : ParseNode = NodeParse()
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild1A : ParseNode = NodeParse("",    "test1",    0, 0)
+        eChild1A1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
+        eChild1A1.append(NodeParse( "",         "abc1",     0, 6))
+        eChild1A.append(eChild1A1)
+        eChild1A2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=11)
+        eChild1A2.append(NodeParse( "",         "abc2",     0, 11))
+        eChild1A.append(eChild1A2)
+        eChild1.append(eChild1A)
+        expected.append(eChild1)
+        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=17)
+        eChild2.append(NodeParse(   "",         "test2",    0, 17))
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=True)
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitTokens_Integration07(self):
+        """tests ruleSplitTokens on a string 'test1[abc1,abc2],test2' where splittoken is ',' and recurse is False
+        
+        'test1[abc1,abc2],test2'
+        ->
+        splitToken = ','
+        recurse = False
+        Node
+            'test1'
+                'abc1'
+                ','
+                'abc2'
+            ','                     |
+            'test2'
+        ->
+        Node
+            Node
+                'test1'
+                    'abc1'
+                    ','
+                    'abc2'          _V_
+            Node                     A
+                'test2'
+        """
+
+        root : ParseNode = NodeParse()
+        rChild1 : ParseNode = NodeParse("",     "test1",    0, 0)
+        rChild1.append(NodeParse(   "",         "abc1",     0, 6))
+        rChild1.append(NodeParse(   "",         ",",        0, 10))
+        rChild1.append(NodeParse(   "",         "abc2",     0, 11))
+        root.append(rChild1)
+        root.append(NodeParse(      "",         ",",        0, 16))
+        root.append(NodeParse(      "",         "test2",    0, 17))
+
+        expected : ParseNode = NodeParse()
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild1A : ParseNode = NodeParse("",    "test1",    0, 0)
+        eChild1A.append(NodeParse(  "",         "abc1",     0, 6))
+        eChild1A.append(NodeParse(  "",         ",",        0, 10))
+        eChild1A.append(NodeParse(  "",         "abc2",     0, 11))
+        eChild1.append(eChild1A)
+        expected.append(eChild1)
+        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=17)
+        eChild2.append(NodeParse(   "",         "test2",    0, 17))
+        expected.append(eChild2)
+
+        result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=False)
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitTokens_Integration08(self):
+        """tests ruleSplitTokens on a string 'test1 test2 test3' where splittoken is ',' is not found
+        
+        'test1 test2 test3'
+        ->
+        splitToken = ','
+        Node
+            'test1'
+            ' '
+            'test2'
+            ' '
+            'test3'
+        ->
+        Node
+            'test1'
+            ' '
+            'test2'
+            ' '
+            'test3'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(  "",         "test1",    0, 0))
+        root.append(NodeParse(  "",         " ",        0, 5))
+        root.append(NodeParse(  "",         "test2",    0, 6))
+        root.append(NodeParse(  "",         " ",        0, 11))
+        root.append(NodeParse(  "",         "test3",    0, 12))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(  "",         "test1",    0, 0))
+        expected.append(NodeParse(  "",         " ",        0, 5))
+        expected.append(NodeParse(  "",         "test2",    0, 6))
+        expected.append(NodeParse(  "",         " ",        0, 11))
+        expected.append(NodeParse(  "",         "test3",    0, 12))
+
+        result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=False)
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitTokens_Empty(self):
+        """tests ruleSplitTokens on an empty string
+        
+        ''
+        ->
+        Node
+        ->
+        Node
+        """
+
+        root : ParseNode = NodeParse(typeStr="root")
+
+        expected : ParseNode = NodeParse(typeStr="root")
+
+        result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=False)
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleSplitTokens_FlatTokenFound(self):
+        """tests ruleSplitTokens on a string 'test1,test2,test3' where splittoken is ','
+        
+        'test1,test2,test3'
+        ->
+        splittoken = ','
+        Node
+            'test1'
+            ','                     |
+            'test2'
+            ','                     |
+            'test3'
+        ->
+        Node
+            Node
+                'test1'             _V_
+            Node                     A
+                'test2'             _V_
+            Node                     A
+                'test3'
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(  "",         "test1",    0, 0))
+        root.append(NodeParse(  "",         ",",        0, 5))
+        root.append(NodeParse(  "",         "test2",    0, 6))
+        root.append(NodeParse(  "",         ",",        0, 11))
+        root.append(NodeParse(  "",         "test3",    0, 12))
+
+        expected : ParseNode = NodeParse()
+        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
+        eChild1A : ParseNode = NodeParse("",    "test1",    0, 0)
+        eChild1.append(eChild1A)
+        expected.append(eChild1)
+        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
+        eChild2.append(NodeParse(   "",         "test2",    0, 6))
+        expected.append(eChild2)
+        eChild3 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=12)
+        eChild3.append(NodeParse(   "",         "test3",    0, 12))
+        expected.append(eChild3)
+
+        result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=False)
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
+
+    def test_RuleLowerCase_ExceptionTreeNotNodeParse(self):
+        """tests ruleLowerCase raises an exception when tree is not a NodeParse object"""
+
+        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+
+        tree : Any
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(Exception, self.parser.ruleLowerCase, tree)
+
+    def test_RuleLowerCase_ExceptionRecurseNotBool(self):
+        """tests ruleLowerCase raises an exception when recurse is not a bool"""
+
+        recurses : List[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
+
+        recurse : Any
+        for recurse in recurses:
+            with self.subTest(recurse=recurse):
+                root : ParseNode = NodeParse()
+
+                self.assertRaises(Exception, self.parser.ruleLowerCase, root, recurse)
+
+
+
 #====================================================================================================================== Main
 
 if __name__ == "__main__":
-    #Testing
-    logging.basicConfig(level = logging.ERROR)
-    unittest.main(verbosity = 2, buffer = True, exit = False)
+    # #Testing
+    # # runs all tests
+    # logging.basicConfig(level = logging.ERROR)
+    # unittest.main(verbosity = 2, buffer = True, exit = False)
 
+    # run specific test from a specific testCase
+    suite = unittest.TestSuite()
+    suite.addTest(TestParseDefaultBuildingBlocks("test_RuleLowerCase_ExceptionRecurseNotBool"))
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
+    
+    # reset logging level
     logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
+    debugHighlight = lambda x : 6880 < x < 6906
+    print("\n" + "".ljust(80, "=") + "\n")
+
     
