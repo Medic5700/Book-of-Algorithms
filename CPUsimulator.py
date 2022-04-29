@@ -264,6 +264,11 @@ Test Cases to impliment:
         Would be implimented as a single CPU with hyperThreading of two threads, where the schedualer assigns instructions to specific Execution Ports based on which hyperThread the instructions are from
             IE: thread1 can assign intructions to portInt1, portInt2, portFPU. thread2 can assign instruction to portInt3, portInt4, portFPU. Thus execution unit portFPU is shared between threads
     #TODO a stack based CPU
+    IBM Z16 CPU
+        https://www.youtube.com/watch?v=z6u_oNIXFuU     # TechTechPotato - This is How IBM Will Revolutionize PC Gaming
+        All the CPU cores has a massive private L2 cache (32 MB)[normal L2 cashe is usually 512 KB]
+        When data is evicted from L2 from a particular core, the data is stored on another core's L2 cache (if there is space) and labled as virtual L3
+        When data is evicted from virtual L3, the data is stored on another CPU die/socket's L2 cache (if there is space) and labled as virtual L4
 
 #TODO Stack:
     create instruction helper that allows adding an immediate register (IE: you put in a number, and it passes out an immediate register address, AND adds an immediate register)
