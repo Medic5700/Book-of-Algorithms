@@ -4462,6 +4462,82 @@ class ParseNode(ABC): # abstract class used exclusivly for typing, not used in t
         """Compairs the data of a different node recursively, returns True if equal, False otherwise"""
         pass
 
+class ParserAbstract(ABC):
+    """Parses strings into an (almost) execution tree.
+    ParseDefault.Node is the dataclass for storing tokens in a Node Tree.
+
+    ParseDefault.parseCode("source code") is called which returns a Node Tree representing the "source code"
+
+        ParseDefault.parseCode() calls ParseDefault._tokenize() to do the initial tokenization of the "source code"
+        root -> Node
+                |- Token "test"
+                |- Token " "
+                |- Token "123"
+                |- ...
+
+        "rule functions" are called to apply various rules to the Node Tree
+        all "rule functions" are functional, and return a COPY of Nodes
+        Note: most do not recurse
+        by combining "rule functions" in different ways in ParseDefault.parseCode(), different syntaxes can be proccessed
+        root = self.ruleRemoveToken(root, " ")
+        root -> Node
+                |- Token "test"
+                |- Token "123"
+                |- ...
+        root = ruleCastInts(root)
+        root -> Node
+                |- Token "test"
+                |- Token 123
+                |- ...
+
+        return root
+    """
+
+    @abstractmethod
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def updateNameSpace(self, nameSpace : Dict[str, NameSpaceObject]) -> Dict[str, NameSpaceObject]:
+        """Takes in nameSpace a dictionary whose keys represent the CPU flags, registers, instructions, etc. 
+        Returns nameSpace elements contained in this module that are not contained in input nameSpace"""
+        pass
+
+    @abstractmethod
+    def parseCode(self, sourceCode : str) -> Tuple[ParseNode, Dict[str, ParseNode]]:
+        """Takes a string of source code, returns a parsed instruction tree and a dictionary representing labels/pointers"""
+        pass
+
+class DisplayAbstract(ABC):
+
+    @abstractmethod
+    def __init__(self):
+        pass
+
+    @abstractmethod #TODO work in progress
+    def runtime(self,
+        MMMUStateOld : int, MMMUStateNew : int,
+        MMMUGetMemoryKeys : Callable[[int], Tuple[int, int, int, int or str, int or str]],
+        MMMUGetRegisterConfig : Callable[[int, int, int, int or str, int or str], dict]
+        ):
+        pass
+
+    @abstractmethod
+    def postrun(self):
+        pass
+    
+class InstructionSetAbstract(ABC):
+    """An Instructionset implimentation"""
+
+    @abstractmethod
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def assertEnvironment(self, funcRead : Callable[[int or str, int or str], int]) -> bool:
+        """Checks if the memory layout is compatible by attempting to read necissary elements from memory, returns true is compatible"""
+        pass
+
 class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conflicts with the type ParseNode, and NodeParse seems more logical (Parse subset of root Node)
     """A data class for storing information in a tree like structure. 
 
@@ -5988,7 +6064,7 @@ class CPUsim_v4:
 
             return {"energy" : energy, "latency" : latency}
 
-    class ParserDefault:
+    class ParserDefault(ParserAbstract):
         """Parses strings into an (almost) execution tree.
         ParseDefault.Node is the dataclass for storing tokens in a Node Tree.
 
