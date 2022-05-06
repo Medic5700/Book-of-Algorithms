@@ -7804,7 +7804,7 @@ class CPUsim_v4:
         def __init__(self):
             self.poolArray : dict[int, Any] = {}
 
-        def read(self, virtualOperation : bool, transactionType : str, branchNode : int, poolEntryPoint : int, hyperThreadContext : int, key : int or str, index : int or str):
+        def read(self, virtualOperation : bool, transactionType : str, branchNode : int, poolEntryPoint : int, hyperThreadContext : int, key : int | str, index : int | str):
             """
 
             virtualOperation - indicates wheater the read should tabulate stats, or not. IE: reading data for an ISA Instruction vs reading for a debug output
@@ -7927,13 +7927,140 @@ class CPUsim_v4:
             root : ParseNode = parseTree
             lines : list[ParseNode] = [node for node in root.child]
 
-        def __parseNodeSearchDepthFirst(self, parseTree: ParseNode):
-            pass
             memory : list[int | Callable[[dict[str, int]], list[int]]] = []
             memoryNodes : list[None | ParseNode] = []
 
+            for i in lines:
+                pass
 
-        def __evaluateTree(self, parseTree: ParseNode):
+        def __recursiveSearch(self, node : ParseNode) -> tuple[list[int], ParseNode | None, list[int]]: #TODO return annotation needs rethinking
+            """
+            
+            Case 1:
+                if node.token in self.instructionSet
+            Case 2:
+                container
+            Case 3:
+                register
+            Case 4:
+                litteral (str, int, etc)
+            else:
+                pass through
+            
+            Example:
+                "add(r0, r1, r2)" 
+                -> # Handled by parser
+                Line # This is what's fed info __recursiveSearch()
+                    Add
+                        (
+                            r0
+                            r1
+                            r2
+                -> # partially processed midway through recursion
+                Line
+                    Add                         | Note that the 'containers' are eliminated
+                        ['r', 0]                | Note how the register alaises were converted to key/index pairs
+                        ['r', 1]                |
+                        ['r', 2]                |
+                -> # opAdd is called
+                Line
+                    Tuple(
+                        list[int, ...]
+                        Tuple(
+                            Add                 # ParseNode
+                                ['r', 0]
+                                ['r', 1]
+                                ['r', 2]
+                        )
+                        list[int, ...]
+                    )
+            Example:
+                "add(r[0], r[1], r[2])"
+                -> # Handled by parser
+                Line # This is what's fed info __recursiveSearch()
+                    Add
+                        (
+                            r
+                                [
+                                    0
+                            r
+                                [
+                                    1
+                            r
+                                [
+                                    2
+                -> # partially processed midway through recursion
+                Line
+                    Add                         | Note that the 'containers' are eliminated
+                        ['r', 0]                | Note how the register alaises were converted to key/index pairs
+                        ['r', 1]                |
+                        ['r', 2]                |
+                -> # opAdd is called
+                Line
+                    Tuple(
+                        list[int, ...]
+                        Tuple(
+                            Add                 # ParseNode
+                                ['r', 0]
+                                ['r', 1]
+                                ['r', 2]
+                        )
+                        list[int, ...]
+                    )
+            Example:
+                "add(r[0], r[1], r[2]), mult(r[4], r[1], r[2])"
+                -> # Handled by parser
+                Line # This is what's fed info __recursiveSearch()
+                    Add
+                        (
+                            r
+                                [
+                                    0
+                            r
+                                [
+                                    1
+                            r
+                                [
+                                    2
+                    Mult
+                        (
+                            r
+                                [
+                                    4
+                            r
+                                [
+                                    1
+                            r
+                                [
+                                    2
+                -> # partially processed midway through recursion
+                Line
+                    Add                         | Note that the 'containers' are eliminated
+                        ['r', 0]                | Note how the register alaises were converted to key/index pairs
+                        ['r', 1]                |
+                        ['r', 2]                |
+                    Mult
+                        ['r', 0]
+                        ['r', 1]
+                        ['r', 2]
+                -> # opAdd and opMult is called
+                Line
+                    Tuple(
+                        list[int, ...]
+                        Tuple(
+                            Add                 # ParseNode
+                                ['r', 0]
+                                ['r', 1]
+                                ['r', 2]
+                            Mult                # ParseNode
+                                ['r', 0]
+                                ['r', 1]
+                                ['r', 2]
+                        )
+                        list[int, ...]
+                    )
+
+            """
             pass
 
         def int2bits(self, number : int, bitLength : int) -> list[int]:
@@ -11650,5 +11777,17 @@ if __name__ == "__main__":
     logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
     debugHighlight = lambda x : 6880 < x < 6906
     print("\n" + "".ljust(80, "=") + "\n")
+
+    '''
+    class quicktest(CPUsim_v4):
+        def __init__(self):
+            super().__init__()
+            self.setDisplay(self.DisplaySimpleAndClean(0))
+    CPU = quicktest()
+    CPU.programLinkAndLoad("add(r[0], r[1], r[2]) \n halt")
+    CPU.memoryInject('r', 1, 255)
+    CPU.run
+    result : int = CPU.memoryExtract('r', 0)
+    '''
 
     
