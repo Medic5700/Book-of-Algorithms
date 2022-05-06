@@ -169,9 +169,9 @@ Data Structures:
     #register state datastructure
     #state['key']['index'] = int(value)
     #see 'def configConfigRegister' for full discription/initialization
-    var state : Dict[
+    var state : dict[
         var key : str,
-        Dict[
+        dict[
             var index : int or str,
             var value : int
         ]
@@ -181,14 +181,14 @@ Data Structures:
     #register config datastructure
     #config['key']['index']['property'] = value
     #see 'def configConfigRegister' for full discription/initialization
-    var config : Dict[
+    var config : dict[
         var key : str,
-        Dict[
+        dict[
             var index : int or str,
-            Dict[
+            dict[
                 -> 'bitLength' : str        = int
                 -> 'show' : str             = bool
-                -> 'alias' : str            = List[str]
+                -> 'alias' : str            = list[str]
                 -> 'latencyCycles' : str    = int
                 -> 'energy' : str           = int
                 -> 'note' : str             = str
@@ -287,7 +287,7 @@ Test Cases to impliment:
 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
 import sys
 version = sys.version_info
-assert version[0] == 3 and version[1] >= 8
+assert version[0] == 3 and version[1] >= 10
 
 import copy # copy.deepcopy() required because states are a nested dictionary, and need to be copied instead of referenced
 import functools # used for partial functions when executioning 'instruction operations'
@@ -295,7 +295,7 @@ import unittest
 import random
 
 #Some stuff for more complex annotation typing
-from typing import Any, Callable, Dict, Generic, List, Literal, Text, Tuple, Type, TypeVar
+from typing import Any, Callable, Generic, Literal, Optional, Type, TypeVar
 
 from dataclasses import dataclass # used for namespace objects (dictionaries just wasn't going to cut it)
 from abc import ABC, abstractmethod # used for abstract classes
@@ -585,17 +585,17 @@ class CPUsim:
         self.bitLength : int = bitLength #the length of the registers in bits
 
         '''core engine variables, used by a number of different functions, classes, etc. It's assumed that these variables always exist'''
-        self.state      : Dict[str, Dict[str or int, int]] = {}
-        self.lastState  : Dict[str, Dict[str or int, int]] = {}
-        self.config     : Dict[str, Dict[str or int, dict]] = {}
+        self.state      : dict[str, dict[str or int, int]] = {}
+        self.lastState  : dict[str, dict[str or int, int]] = {}
+        self.config     : dict[str, dict[str or int, dict]] = {}
         self.stats : dict = {} #FUTURE used to keep track of CPU counters, like instruction executed, energy used, etc
         self.engine : dict = {} #FUTURE used to keep track of CPU engine information?, should it be merged with self.stats?
 
         self.engine["run"] = False 
 
         #TODO find a better structure for this
-        self.engine["labels"] : Dict[str, int] = None
-        self.engine["instructionArray"] : List["Nodes"] = None
+        self.engine["labels"] : dict[str, int] = None
+        self.engine["instructionArray"] : list["Nodes"] = None
         self.engine["sourceCode"] : str = None
         self.engine["sourceCodeLineNumber"] : int = None #TODO this should be an array of ints, to represent multiple instructions being executed
         self.engine["tick"] : int = 0
@@ -611,14 +611,14 @@ class CPUsim:
         self._displayPostRun : Callable[[], None] = lambda : None
         #self.configSetInstructionSet
         self.userInstructionSet : __class__ = None
-        self._instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Args"], None]] = {}
+        self._instructionSet : dict[str, Callable[[dict, dict, dict, dict, "Args"], None]] = {}
         self._directives : dict = {}
         #self.configSetParser
         self.userPraser : __class__ = None
         self._parseCode : Callable[[str], "Node"] = lambda x : None
         self._updateNameSpace : "function" = lambda x, y : None #TODO change name to _parseUpdate()
         #self.configSetPostCycleFunction
-        self.userPostCycle : Callable[[dict], Tuple[dict, dict]] = lambda x : (x, x)
+        self.userPostCycle : Callable[[dict], tuple[dict, dict]] = lambda x : (x, x)
         #self.configAddAlias
         self._tokenAlias : dict = {}
 
@@ -746,7 +746,7 @@ class CPUsim:
 
         self._computeNamespace()
 
-    def configSetPostCycleFunction(self, postCycle : Callable[[Dict[str, Dict[str or int, int]]], Tuple[Dict[str, Dict[str or int, int]], Dict[str, Dict[str or int, int]]]]):
+    def configSetPostCycleFunction(self, postCycle : Callable[[dict[str, dict[str or int, int]]], tuple[dict[str, dict[str or int, int]], dict[str, dict[str or int, int]]]]):
         """Takes in a function that is executed after every execution cycle.
 
         Function must take in a dictionary currentState representing the current state
@@ -795,7 +795,7 @@ class CPUsim:
 
         self._computeNamespace()
 
-    def configConfigRegister(self, register : str, index : int or str, bitLength : int = None, show : bool = None, alias : List[str] = None, latencyCycles : int = None, energy : int = None, note : str = None, ):
+    def configConfigRegister(self, register : str, index : int or str, bitLength : int = None, show : bool = None, alias : list[str] = None, latencyCycles : int = None, energy : int = None, note : str = None, ):
         """Takes in a key/value pair representing a register/memory element, and takes in arguments for detailed configuration of that register/memory element
 
         if a key/value pair does not exist, it will be created
@@ -912,7 +912,7 @@ class CPUsim:
 
         return self.state[t1][t2]
 
-    def _postCycleUserDefault(self, currentState : Dict[str, Dict[str or int, int]]) -> Tuple[Dict[str, Dict[str or int, int]], Dict[str, Dict[str or int, int]]]:
+    def _postCycleUserDefault(self, currentState : dict[str, dict[str or int, int]]) -> tuple[dict[str, dict[str or int, int]], dict[str, dict[str or int, int]]]:
         """Takes in a dictionary currentState, returns a tuple containing two dictionaries representing the oldState and the newState, respectivly.
 
         resets all required registers and flags between instructions, copies current state into lastState"""
@@ -953,9 +953,9 @@ class CPUsim:
         logging.info(debugHelper(inspect.currentframe()) + "linkAndLoad parseTree = " + "\n" + str(parseTree))
 
         assemmbledObject = self.compileDefault(self._instructionSet, self._directives)
-        instructionArray : List["Node" or None] = [] #instructionArray is list of instruction nodes
-        memoryArray : List[int] = [] #memoryArray is an integer array of memory elements/registers
-        compileLabels : Dict[str, int] = {} #compileLabels is labels, a dictionary accossiating 'labels' to a specific memory addresses
+        instructionArray : list["Node" or None] = [] #instructionArray is list of instruction nodes
+        memoryArray : list[int] = [] #memoryArray is an integer array of memory elements/registers
+        compileLabels : dict[str, int] = {} #compileLabels is labels, a dictionary accossiating 'labels' to a specific memory addresses
         instructionArray, memoryArray, compileLabels = assemmbledObject.compile(self.config, parseTree, parseLabels)
         
         #some checks on the returned values from compile function
@@ -1040,7 +1040,7 @@ class CPUsim:
             self.key : str = key
             self.index : str or int = index
 
-    def _evaluateNested(self, tree : "Node") -> Tuple["Object"]:
+    def _evaluateNested(self, tree : "Node") -> tuple["Object"]:
         #logging.info(debugHelper(inspect.currentframe()) + "Recurse\n" + str(tree))
 
         if tree.token in self._instructionSet.keys():
@@ -1188,11 +1188,11 @@ class CPUsim:
             self.directives = directives
 
         '''
-        def compileOld(self, oldState, config, executionTree : "Node") -> Tuple[List["Node"], List[int], Dict[str, int]]:
+        def compileOld(self, oldState, config, executionTree : "Node") -> tuple[list["Node"], list[int], dict[str, int]]:
             #assumes the instruction array is register array "m"
             
-            instructionArray : List["Node"] = [None for i in range(len(oldState["m"]))]
-            memoryArray : List[int] = [0 for i in range(len(oldState["m"]))]
+            instructionArray : list["Node"] = [None for i in range(len(oldState["m"]))]
+            memoryArray : list[int] = [0 for i in range(len(oldState["m"]))]
             labels : dict = {}
 
             #scans for labels, removes labels from execution tree
@@ -1209,7 +1209,7 @@ class CPUsim:
             return instructionArray, memoryArray, labels
         '''
 
-        def compile(self, config : dict, executionTree : "Node", parseLabels : Dict[str, "Node"]) -> Tuple[List["Node"], List[int], Dict[str, int]]:
+        def compile(self, config : dict, executionTree : "Node", parseLabels : dict[str, "Node"]) -> tuple[list["Node"], list[int], dict[str, int]]:
             """Takes in in a dict containing the config information of registers, A node representing an execution tree, and parseLabels a dict (where key is the label, and value is a line number).
             Returns a list of Tree Nodes (representing each instruction), A list of ints (representing the program memory/binary), and a dictionary of labels (where each value corisponds to a memory index)
 
@@ -1223,9 +1223,9 @@ class CPUsim:
 
             logging.debug(debugHelper(inspect.currentframe()) + "compile input ExecutionTree = \n" + str(executionTree))
 
-            instructionArray : List["Node"] = []
-            memoryArray : List[int] = []
-            labels : Dict[str, int] = {} #Note: needs to handle multiple keys refering to the same value
+            instructionArray : list["Node"] = []
+            memoryArray : list[int] = []
+            labels : dict[str, int] = {} #Note: needs to handle multiple keys refering to the same value
 
             for i in range(len(executionTree.child)): #goes through program line by line
                 tempInstruction = executionTree.child[i].copyDeep()
@@ -1285,8 +1285,8 @@ class CPUsim:
             lineEngine += "\n"
 
             #calculate column widths
-            registers : List[Tuple[str, str or int]] = []
-            maxWidths : Dict[str, int] = {
+            registers : list[tuple[str, str or int]] = []
+            maxWidths : dict[str, int] = {
                                             "key":3, #3 since 'imm' doesn't show up in every cycle
                                             "index":0, 
                                             "bitLength":0, 
@@ -1532,9 +1532,9 @@ class CPUsim:
 
         def update(
             self, 
-            instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Args"], None]], 
+            instructionSet : dict[str, Callable[[dict, dict, dict, dict, "Args"], None]], 
             directives : dict,
-            tokenAlias : Dict[str, str]
+            tokenAlias : dict[str, str]
             ):
             pass
 
@@ -1726,7 +1726,7 @@ class CPUsim:
 
                 line += "\n"
 
-                childLines : List[str] = [i.__repr__(depth+1) for i in self.child]
+                childLines : list[str] = [i.__repr__(depth+1) for i in self.child]
                 block += line
                 for i in childLines:
                     block += i
@@ -1773,7 +1773,7 @@ class CPUsim:
                 while len(self.child) != 0:
                     self.remove(self.child[0])
 
-        def _tokenize(self, code : str) -> List[Tuple[str, int, int]] :
+        def _tokenize(self, code : str) -> list[tuple[str, int, int]] :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line). 
             
             No characters are filtered out
@@ -1794,7 +1794,7 @@ class CPUsim:
             #done like this to easily add extra characters
             _isName : Callable[[str], bool] = lambda x : x.isalnum() or x in "_" #returns True is character can be in a name, False otherwise
 
-            tokenList : List[Tuple[str, int, int]] = []
+            tokenList : list[tuple[str, int, int]] = []
             token : str = ""
             lineNum : int = 0
             characterNum : int = 0
@@ -1932,7 +1932,7 @@ class CPUsim:
 
             return root
 
-        def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : List[str] = [" ", "\t"]) -> Node:
+        def ruleRemoveLeadingWhitespace(self, tree : Node, whiteSpace : list[str] = [" ", "\t"]) -> Node:
             """Takes in a Node Tree of depth 2, removes all white space tokens between a new line token and the next token. Returns a Node Tree of depth 2.
             
             Does not recurse
@@ -2144,7 +2144,7 @@ class CPUsim:
 
             return root
 
-        def ruleContainer(self, tree : Node, containers : Dict[str, str] = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> Node:
+        def ruleContainer(self, tree : Node, containers : dict[str, str] = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> Node:
             """Takes in a Node Tree of depth 2, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers. Returns a Node Tree of arbitrary depth.
 
             Containers are of the form {"opening bracket": "closing bracket", ...}
@@ -2188,7 +2188,7 @@ class CPUsim:
             assert type(nodeType) is str
 
             root : self.Node = tree.copyInfo()
-            stack : List[Tuple[str, self.Node]] = []
+            stack : list[tuple[str, self.Node]] = []
 
             for i in tree.child:
                 '''
@@ -2229,7 +2229,7 @@ class CPUsim:
 
             return root
 
-        def ruleFindLabels(self, tree : Node) -> Tuple[Node, Dict[str, Node]]:
+        def ruleFindLabels(self, tree : Node) -> tuple[Node, dict[str, Node]]:
             """Takes in a Node Tree of depth 2, attempts to find a label that is immidiatly followed by a ":", returns a Node Tree of depth 2, and a dictionary of labels
             
             Does not recurse"""
@@ -2239,7 +2239,7 @@ class CPUsim:
             previous : str = "\n"
             skipToken : bool = False
 
-            labels : Dict[str, self.Node] = {}
+            labels : dict[str, self.Node] = {}
 
             for i in tree.child:
                 if (i.nodePrevious == previous or i.nodePrevious == None) and i.nodeNext == ":":
@@ -2269,7 +2269,7 @@ class CPUsim:
             assert type(tokenType) is str
 
             root : self.Node = tree.copyInfo()
-            keys : List[str]= [i.lower() for i in nameSpace.keys()]
+            keys : list[str]= [i.lower() for i in nameSpace.keys()]
 
             for i in tree.child:
                 if type(i.token) is str:
@@ -2333,7 +2333,7 @@ class CPUsim:
 
             return root
         
-        def ruleSplitLines(self, tree : Node, tokenType : str = "line", splitToken : str = "\n") -> List[Node]:
+        def ruleSplitLines(self, tree : Node, tokenType : str = "line", splitToken : str = "\n") -> list[Node]:
             """Takes in a Node Tree of arbitrary depth. Returns a list of Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited.
             
             #TODO should be able to recurse
@@ -2342,7 +2342,7 @@ class CPUsim:
             assert type(tokenType) is str
             assert type(splitToken) is str
 
-            result : List[self.Node] = []
+            result : list[self.Node] = []
             current : self.Node = self.Node(tokenType, None, 0, 0)
 
             for i in tree.child:
@@ -2446,7 +2446,7 @@ class CPUsim:
                     tokenFound = True
 
             if tokenFound:
-                stack : List[self.Node] = []
+                stack : list[self.Node] = []
                 for i in tree.child:
                     if i == splitToken:
                         temp : self.Node = self.Node(tokenType, None, stack[0].lineNum, stack[0].charNum)
@@ -2540,7 +2540,7 @@ class CPUsim:
             
             return root
 
-        def ruleApplyAlias(self, tree : Node, alias : Dict[str, str]) -> Node:
+        def ruleApplyAlias(self, tree : Node, alias : dict[str, str]) -> Node:
             """Takes in a Node Tree of Depth 2. If a token is in alias, replaces that token, then tokenizes it. Returns a Node Tree of Depth 2.
             
             Case 1: alias = {'123': 'hello world'}
@@ -2618,7 +2618,7 @@ class CPUsim:
             #TODO
             pass
 
-        def parseCode(self, sourceCode : str) -> Tuple[Node, Dict[str, Node]]:
+        def parseCode(self, sourceCode : str) -> tuple[Node, dict[str, Node]]:
             """Takes a string of source code, returns a parsed instruction tree
             
             Takes source code of the form:
@@ -2722,7 +2722,7 @@ class CPUsim:
             root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
 
-            temp : List[self.Node] = self.ruleSplitLines(root, "line", "\n")
+            temp : list[self.Node] = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
             for i in temp:
                 root.append(i)
@@ -2752,7 +2752,7 @@ class CPUsim:
         """
 
         def __init__(self):
-            self.instructionSet : Dict[str, Callable[[dict, dict, dict, dict, "Arguments (Optional)"], None]] = {
+            self.instructionSet : dict[str, Callable[[dict, dict, dict, dict, "Arguments (Optional)"], None]] = {
                 "nop"   : self.opNop,
                 "add"   : self.opAdd,
                 "mult"  : self.opMultiply,
@@ -2774,7 +2774,7 @@ class CPUsim:
 
             self.directives : dict = {}
 
-        def redirect(self, redirection : str, register : str, index : str or int) -> Tuple[str, int]:
+        def redirect(self, redirection : str, register : str, index : str or int) -> tuple[str, int]:
             """Takes in redirection as a pointer to the memory array to access, and a register index pair. Returns a key index pair corrispoding to redirection as key, index as value stored in register[index]"""
             assert type(redirection) is str
             assert type(register) is str
@@ -2782,7 +2782,7 @@ class CPUsim:
 
             return (redirection, register[index])
 
-        def enforceImm(self, registerTuple : Tuple[str, int], bitLength : int = None) -> Tuple[str, int]:
+        def enforceImm(self, registerTuple : tuple[str, int], bitLength : int = None) -> tuple[str, int]:
             """Takes in a register key index pair. Returns a register key index pair iff key is 'imm' for immediate. Raises an Exception otherwise
             
             #TODO this should be replaced with a more generic function that allows for restricting access to a specific register. IE: The 'add' instruction destination can only be 'accumulate' register
@@ -2800,10 +2800,10 @@ class CPUsim:
 
             return registerTuple
 
-        def enforceRegisterAccess(self, registerTuple : Tuple[str, int], key : str = None, index : str = None) -> Tuple[str, int]:
+        def enforceRegisterAccess(self, registerTuple : tuple[str, int], key : str = None, index : str = None) -> tuple[str, int]:
             pass #TODO
 
-        def int2bits(self, number : int, bitLength : int) -> List[int]:
+        def int2bits(self, number : int, bitLength : int) -> list[int]:
             """Takes a bitLength, and a number where ((0 - 2**bitLength) // 2 <= number < 2**bitLength). Returns a bit int array representing the number, zero index is least significant bit
             
             For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
@@ -2818,7 +2818,7 @@ class CPUsim:
             bitArray = [number >> i & 1 for i in range(bitLength)] #index 0 is least significant bit
             return bitArray
 
-        def bits2int(self, bitArray : List[int or bool]) -> int:
+        def bits2int(self, bitArray : list[int or bool]) -> int:
             """Takes in a bit (int or bool) array where zero index is least significant bit. Returns the positive number is represents"""
             assert type(bitArray) is list
             assert len(bitArray) > 0
@@ -3080,7 +3080,7 @@ class CPUsim:
         def opHalt(self, oldState, newState, config, engine):
             engine["run"] = False
 
-        def dirString(self, config) -> List[int]:
+        def dirString(self, config) -> list[int]:
             #TODO
             pass
 
@@ -3218,7 +3218,7 @@ class RiscV:
 
         self.CPU = CPU
 
-    def postCycle(self, currentState : dict) -> Tuple[dict, dict]:
+    def postCycle(self, currentState : dict) -> tuple[dict, dict]:
         """Takes in the currentState dict, returns a tuple containing the oldState dict, and the newState dict
 
         resets CPU Flags to zero (if there are CPU Flags)
@@ -3397,7 +3397,7 @@ class RiscV:
 
     class RiscVParser(CPUsim.ParseDefault):
 
-        def parseCode(self, sourceCode : str) -> Tuple["Node", Dict[str, "Node"]]:
+        def parseCode(self, sourceCode : str) -> tuple["Node", dict[str, "Node"]]:
             """Takes a string of code, returns a parsed instruction tree
             
             Takes source code of the form:
@@ -3559,7 +3559,7 @@ class RiscV:
             root = self.ruleNestContainersIntoInstructions(root, self.nameSpace, True)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
 
-            temp : List[self.Node] = self.ruleSplitLines(root, "line", "\n")
+            temp : list[self.Node] = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
             for i in temp:
                 root.append(i)
@@ -3585,7 +3585,7 @@ class RiscV:
 
             return root, self.labels
 
-        def ruleContainerTokensFollowingInstruction(self, tree : "Node", nameSpace : Dict[str, Any]) -> "Node":
+        def ruleContainerTokensFollowingInstruction(self, tree : "Node", nameSpace : dict[str, Any]) -> "Node":
             """Takes in a Node Tree of arbitrary depth, and a nameSpace dictionary. Returns a Node Tree of arbitrary depth.
             If an instruction token is found, all following tokens are made children of the instruction token.
 
@@ -3671,7 +3671,7 @@ class TIS100:
 
         self.CPU = CPU
 
-    def postCycle(self, currentState : dict) -> Tuple[dict, dict]:
+    def postCycle(self, currentState : dict) -> tuple[dict, dict]:
         """
         """
         assert type(currentState) is dict
@@ -3725,7 +3725,7 @@ class TIS100:
             self.directives : dict = {}
 
     class TIS100Parser(CPUsim.ParseDefault):
-        def parseCode(self, sourceCode : str) -> Tuple["Node", Dict[str, "Node"]]:
+        def parseCode(self, sourceCode : str) -> tuple["Node", dict[str, "Node"]]:
             pass
 
 #======================================================================================================================
@@ -3748,7 +3748,7 @@ class TestDefault(unittest.TestCase):
                 CPU = CPUsim(bitLength)
                 CPU.configSetDisplay(CPU.DisplaySilent())
 
-                r : List[int] = [random.randint(0, 2**bitLength -1) for _ in range(8)]
+                r : list[int] = [random.randint(0, 2**bitLength -1) for _ in range(8)]
                 for i, value in enumerate(r):
                     CPU.inject('r', i, value)
                     t1 : int = CPU.extract('r', i)
@@ -3776,7 +3776,7 @@ class TestDefault(unittest.TestCase):
 
                 CPU.linkAndLoad(program)
 
-                a : List[int] = [random.randint(0, 2**(bitLength - 1) - 1) for _ in range(4)] #generates numbers that are half the max storable size of a register with the given bitLength
+                a : list[int] = [random.randint(0, 2**(bitLength - 1) - 1) for _ in range(4)] #generates numbers that are half the max storable size of a register with the given bitLength
 
                 for i, j in enumerate(a):
                     CPU.inject('r', i, j)
@@ -3809,7 +3809,7 @@ class TestDefault(unittest.TestCase):
 
                 CPU.linkAndLoad(program)
 
-                a : List[int] = [random.randint(0, 2**(bitLength - 1) - 1) for _ in range(2)] #generates numbers that are half the max storable size of a register with the given bitLength
+                a : list[int] = [random.randint(0, 2**(bitLength - 1) - 1) for _ in range(2)] #generates numbers that are half the max storable size of a register with the given bitLength
 
                 for i, j in enumerate(a):
                     CPU.inject('r', i, j)
@@ -3845,7 +3845,7 @@ class TestDefaultInstructionSet(unittest.TestCase):
             with self.subTest(bitLength=bitLength):
                 for i in range(2**bitLength):
                     with self.subTest(i = i):
-                        bitArray : List[int] = CPUsim.InstructionSetDefault.int2bits(None, i, bitLength) #since InstructionSetDefault is not initalized, have to pass in 'None' for 'self'
+                        bitArray : list[int] = CPUsim.InstructionSetDefault.int2bits(None, i, bitLength) #since InstructionSetDefault is not initalized, have to pass in 'None' for 'self'
                         result : int = CPUsim.InstructionSetDefault.bits2int(None, bitArray)
 
                         self.assertEqual(
@@ -3861,7 +3861,7 @@ class TestDefaultInstructionSet(unittest.TestCase):
             with self.subTest(bitLength=bitLength):
                 for i in range(0, 0 - (2**bitLength // 2), -1):
                     with self.subTest(i = i):
-                        bitArray : List[int] = CPUsim.InstructionSetDefault.int2bits(None, i, bitLength) #since InstructionSetDefault is not initalized, have to pass in 'None' for 'self'
+                        bitArray : list[int] = CPUsim.InstructionSetDefault.int2bits(None, i, bitLength) #since InstructionSetDefault is not initalized, have to pass in 'None' for 'self'
                         result : int = CPUsim.InstructionSetDefault.bits2int(None, bitArray)
 
                         self.assertEqual(
@@ -3907,8 +3907,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
-                bList : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                aList : list[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                bList : list[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -3927,8 +3927,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)]
-                bList : List[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)]
+                aList : list[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)]
+                bList : list[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)]
 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -3947,8 +3947,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)]
-                bList : List[int] = [0 for _ in range(8)]
+                aList : list[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)]
+                bList : list[int] = [0 for _ in range(8)]
 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -3975,8 +3975,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
-                bList : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                aList : list[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                bList : list[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -3995,8 +3995,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
-                bList : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                aList : list[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                bList : list[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -4015,8 +4015,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
-                bList : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                aList : list[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                bList : list[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -4035,8 +4035,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
-                bList : List[int] = [0 for _ in range(8)]
+                aList : list[int] = [random.randint(0, 2**bitLength - 1) for _ in range(8)]
+                bList : list[int] = [0 for _ in range(8)]
 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -4055,8 +4055,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(2**(bitLength//2 - 2) - 1, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
-                bList : List[int] = [0 for _ in range(8)]
+                aList : list[int] = [random.randint(2**(bitLength//2 - 2) - 1, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
+                bList : list[int] = [0 for _ in range(8)]
                 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -4074,8 +4074,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(2**(bitLength//2 - 2) - 1, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
-                bList : List[int] = [0 for _ in range(8)]
+                aList : list[int] = [random.randint(2**(bitLength//2 - 2) - 1, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
+                bList : list[int] = [0 for _ in range(8)]
                 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -4098,8 +4098,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
-                bList : List[int] = [0 for _ in range(8)]
+                aList : list[int] = [random.randint(0, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
+                bList : list[int] = [0 for _ in range(8)]
                 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -4117,8 +4117,8 @@ class TestDefaultInstructionSet(unittest.TestCase):
         for bitLength in [4, 8, 16]:
             with self.subTest(bitLength=bitLength):
                 #Inputs
-                aList : List[int] = [random.randint(2**(bitLength//2 - 2) - 1, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
-                bList : List[int] = [0 for _ in range(8)]
+                aList : list[int] = [random.randint(2**(bitLength//2 - 2) - 1, 2**(bitLength//2) - 1) for _ in range(8)] #picks a random int such that the upper half of the register is not 0
+                bList : list[int] = [0 for _ in range(8)]
                 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -4193,8 +4193,8 @@ class TestDefaultSimplePrograms(unittest.TestCase):
         bitLength : int
         for bitLength in [2, 4, 8, 16, 32]:
             with self.subTest(bitLength=bitLength):
-                aList : List[int] = [random.randint(0, 2**(bitLength) - 1) for _ in range(8)]
-                bList : List[int] = [random.randint(0, 2**(bitLength) - 1) for _ in range(8)]
+                aList : list[int] = [random.randint(0, 2**(bitLength) - 1) for _ in range(8)]
+                bList : list[int] = [random.randint(0, 2**(bitLength) - 1) for _ in range(8)]
 
                 for a, b in zip(aList, bList):
                     with self.subTest(a=a, b=b):
@@ -4320,8 +4320,8 @@ class TestRISCV(unittest.TestCase):
 
     def testRISCVProgram_multiply2(self):
         """Runs a 'multiply' program with various inputs"""
-        aList : List[int] = [random.randint(0, 2**32 - 1) for _ in range(16)]
-        bList : List[int] = [random.randint(0, 2**32 - 1) for _ in range(16)]
+        aList : list[int] = [random.randint(0, 2**32 - 1) for _ in range(16)]
+        bList : list[int] = [random.randint(0, 2**32 - 1) for _ in range(16)]
 
         for a, b in zip(aList, bList):
             with self.subTest(a=a, b=b):
@@ -4406,7 +4406,7 @@ class ParseNode(ABC): # abstract class used exclusivly for typing, not used in t
     """
     
     @abstractmethod
-    def __init__(self, typeStr : str = None, token : Any = None, lineNum : int = None, charNum : int = None):
+    def __init__(self, typeStr : Optional[str | None] = None, token : Optional[Any] = None, lineNum : Optional[int | None] = None, charNum : Optional[int | None] = None):
         pass
     
     @abstractmethod
@@ -4447,12 +4447,12 @@ class ParseNode(ABC): # abstract class used exclusivly for typing, not used in t
         pass
     
     @abstractmethod
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other : Any) -> bool:
         """A custom equals comparision. Takes in another object other, and compaires it to self.token. Returns True if equal, False otherwise"""
         pass
     
     @abstractmethod
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other : Any) -> bool:
         """A custom not equals comparision. Takes in another object other, and compaires it to self.token. Returns True if not equal, False otherwise"""
         pass
 
@@ -4504,13 +4504,13 @@ class ParserAbstract(ABC):
         pass
 
     @abstractmethod
-    def updateNameSpace(self, nameSpace : Dict[str, NameSpaceObject]) -> Dict[str, NameSpaceObject]:
+    def updateNameSpace(self, nameSpace : dict[str, NameSpaceObject]) -> dict[str, NameSpaceObject]:
         """Takes in nameSpace a dictionary whose keys represent the CPU flags, registers, instructions, etc. 
         Returns nameSpace elements contained in this module that are not contained in input nameSpace"""
         pass
 
     @abstractmethod
-    def parseCode(self, sourceCode : str) -> Tuple[ParseNode, Dict[str, ParseNode]]:
+    def parseCode(self, sourceCode : str) -> tuple[ParseNode, dict[str, ParseNode]]:
         """Takes a string of source code, returns a parsed instruction tree and a dictionary representing labels/pointers"""
         pass
 
@@ -4523,8 +4523,8 @@ class DisplayAbstract(ABC):
     @abstractmethod #TODO work in progress
     def runtime(self,
         MMMUStateOld : int, MMMUStateNew : int,
-        MMMUGetMemoryKeys : Callable[[int], Tuple[int, int, int, int or str, int or str]],
-        MMMUGetRegisterConfig : Callable[[int, int, int, int or str, int or str], dict]
+        MMMUGetMemoryKeys : Callable[[int], tuple[int, int, int, int | str, int | str]],
+        MMMUGetRegisterConfig : Callable[[int, int, int, int | str, int | str], dict]
         ):
         pass
 
@@ -4540,7 +4540,7 @@ class InstructionSetAbstract(ABC):
         pass
 
     @abstractmethod
-    def assertEnvironment(self, funcRead : Callable[[int or str, int or str], int]) -> bool:
+    def assertEnvironment(self, funcRead : Callable[[int | str, int | str], int]) -> bool:
         """Checks if the memory layout is compatible by attempting to read necissary elements from memory, returns true is compatible"""
         pass
 
@@ -4551,7 +4551,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
     Note: __eq__() and __ne__() are implimented to make it easier for compairsions with Node.token and other values.
     """
 
-    def __init__(self, typeStr : str = None, token : Any = None, lineNum : int = None, charNum : int = None):
+    def __init__(self, typeStr : Optional[str] = None, token : Optional[Any] = None, lineNum : Optional[int] = None, charNum : Optional[int] = None):
         assert type(typeStr) is str or typeStr == None
         
         assert type(lineNum) is int or lineNum == None
@@ -4738,7 +4738,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
         line += "\n"
 
-        childLines : List[str] = [i.__repr__(depth+1) for i in self.child]
+        childLines : list[str] = [i.__repr__(depth+1) for i in self.child]
         block += line
         i : str
         for i in childLines:
@@ -4746,7 +4746,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
         return block
         
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other : Any) -> bool:
         """A custom equals comparision. Takes in another object other, and compaires it to self.token. Returns True if equal, False otherwise"""
         #logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
 
@@ -4756,7 +4756,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
         else:
             return self.token == other
 
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other : Any) -> bool:
         """A custom not equals comparision. Takes in another object other, and compaires it to self.token. Returns True if not equal, False otherwise"""
         #logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
 
@@ -4891,7 +4891,7 @@ class CPUsim_v4:
 
         self._postTickMemoryAdjuster : Callable[[], None] = None
 
-        self._nameSpace : Dict[str, Dict[Literal["type", "replace"], Any]] = {}
+        self._nameSpace : dict[str, dict[Literal["type", "replace"], Any]] = {}
 
         self.setDisplay(self.DisplaySimpleAndClean())
         self.setInstructionSet(self.InstructionSetDefault())
@@ -4966,18 +4966,18 @@ class CPUsim_v4:
         #     readStateOld : Callable[[int, int, int or str, int or str], int], readStateOldStatus : Callable[[int, int, int or str, int or str], dict],
         #     readStateNew : Callable[[int, int, int or str, int or str], int], readStateNewStatus : Callable[[int, int, int or str, int or str], dict],
         #     getRegisterConfig : Callable[[int or str, int or str], dict],
-        #     getAllMemoryElements : Callable[[], Tuple[int, int, int or str, int or str]]
+        #     getAllMemoryElements : Callable[[], tuple[int, int, int or str, int or str]]
         #     ):
         #     pass
 
         def runtime(self,
             MMMUStateOld : int, MMMUStateNew : int,
-            MMMUGetMemoryKeys : Callable[[int], Tuple[int, int, int, int or str, int or str]],
-            MMMUGetRegisterConfig : Callable[[int, int, int, int or str, int or str], dict]
+            MMMUGetMemoryKeys : Callable[[int], tuple[int, int, int, int | str, int | str]],
+            MMMUGetRegisterConfig : Callable[[int, int, int, int | str, int | str], dict]
             ):
             pass
 
-        def postrun():
+        def postrun(self):
             pass
 
     class DisplaySilent:
@@ -5055,22 +5055,22 @@ class CPUsim_v4:
             bitLength is used to caluculate energy and latency of instructions.
             """
 
-            self.instructionSet :   Dict[
-                                        Tuple[str, ...],                                    #Instruction 'op-code', will automatically (#TODO) get converted to a Tuple on import
-                                        Tuple[                                              #Instruction functions will automatically (#TODO) get converted to a list in import
+            self.instructionSet :   dict[
+                                        tuple[str, ...],                                    # Instruction 'op-code', will automatically (#TODO) get converted to a Tuple on import
+                                        tuple[                                              # Instruction functions will automatically (#TODO) get converted to a list in import
                                             Callable[
                                                 [
-                                                    Callable[[int or str, int or str], int],       #MMMU read function
-                                                    Callable[[int or str, int or str], None],      #MMMU write function
-                                                    Callable[[int or str, int or str], dict],      #MMMU get config function
-                                                    Dict[                                   #Engine Functions
+                                                    Callable[[int | str, int | str], int],      # MMMU read function
+                                                    Callable[[int | str, int | str], None],     # MMMU write function
+                                                    Callable[[int | str, int | str], dict],     # MMMU get config function
+                                                    dict[                                   # Engine Functions
                                                         str,
                                                         Callable[[Any], Any]                                                    
                                                     ],                                   
-                                                    dict,                                   #Engine info
-                                                    Tuple[int or str, int or str],                 #Optional Additional register arguments passed to instruction
+                                                    dict,                                   # Engine info
+                                                    tuple[int | str, int | str],                # Optional Additional register arguments passed to instruction
                                                     Any
-                                                ],                                   #Optional Additional register arguments passed to instruction
+                                                ],                                   # Optional Additional register arguments passed to instruction
                                                 None
                                             ]
                                         ]
@@ -5095,25 +5095,25 @@ class CPUsim_v4:
                 ("shiftl",)     : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a                  : self.opShiftL(fRead, fWrite, fConfig, EFunc, EStatus,         des, a, fWrite("imm", 0, 1))), #TODO #Allows adding an immediate value, and returns an immediate key/index pair
                 ("shiftr",)     : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a                  : self.opShiftR(fRead, fWrite, fConfig, EFunc, EStatus,         des, a, fWrite("imm", 0, 1), False)), #TODO #Allows adding an immediate value, and returns an immediate key/index pair
 
-                #TODO #This essentially makes a table-lookup to datastructure in another part of the CPU simulator where you can define what happens (IE: a direct function call, or a jump to an OS subroutine)
+                #TODO # This essentially makes a table-lookup to datastructure in another part of the CPU simulator where you can define what happens (IE: a direct function call, or a jump to an OS subroutine)
                 ("halt",)       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                               : self.sysCallSimple(fRead, fWrite, fConfig, EFunc, EStatus,    "halt"))
                 #"halt"     : self.microcode(0xFFFF)    #TODO #This explicidly jumps to a predefined subroutine that is outside of the typical memory layout (IE: a special memory section kind of like how IMM registers is handled now)
 
                 #"addTest"  : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a, b               : self.opAdd(fRead, fWrite, fConfig, EFunc, EStatus,        des, ("m", fRead(a)), b))   #Indirect Memory Addressing
             }
 
-            self.instructionEnergy :    Dict[
-                                            Tuple[str, ...],
-                                            Tuple[
+            self.instructionEnergy :    dict[
+                                            tuple[str, ...],
+                                            tuple[
                                                 Callable[
                                                     [
-                                                        Callable[[int or str, int or str], int],       #MMMU read function
-                                                        Callable[[int or str, int or str], None],      #MMMU write function
-                                                        Callable[[int or str, int or str], dict],      #MMMU get config function
-                                                        Tuple[int or str, int or str],                 #Optional Additional register arguments passed to instruction
+                                                        Callable[[int | str, int | str], int],          # MMMU read function
+                                                        Callable[[int | str, int | str], None],         # MMMU write function
+                                                        Callable[[int | str, int | str], dict],         # MMMU get config function
+                                                        tuple[int | str, int | str],                    # Optional Additional register arguments passed to instruction
                                                         Any
                                                     ],
-                                                    Dict[                                       #Returns energy/latency info to engine for tabulation
+                                                    dict[                                       # Returns energy/latency info to engine for tabulation
                                                         Literal["energy", "latency"],
                                                         int
                                                     ]
@@ -5149,9 +5149,9 @@ class CPUsim_v4:
             #self.instructionStats is optional, and will be automatically (#TODO) filled in when loaded
             #for energy and latency, 1 is normalized to 1-ish logic gates-ish
             #length is unused, but is for the assembler to compute how much memory each instruction takes, 1 is 1 byte (don't know all the edge cases that could break a simple assignment like this)
-            self.instructionStats :     Dict[
-                                            Tuple[str, ...],
-                                            Dict[
+            self.instructionStats :     dict[
+                                            tuple[str, ...],
+                                            dict[
                                                 Literal["energy", "latency", "cycles", "length", "executionUnit"],
                                                 int or str or Literal["none", "alu", "int", "float", "branch", "load", "vector"]
                                             ]
@@ -5180,11 +5180,11 @@ class CPUsim_v4:
 
             #self.instructionStats is optional, and will be automatically (#TODO) filled in when loaded
             #for energy and latency, 1 is normalized to 1-ish logic gates-ish
-            self.instructionStats :     Dict[
-                                            Tuple[str, ...],
-                                            Dict[
+            self.instructionStats :     dict[
+                                            tuple[str, ...],
+                                            dict[
                                                 Literal["cycles", "executionUnit"],
-                                                None or int or str or Literal["none", "alu", "int", "float", "branch", "load", "vector"]
+                                                None | int | str | Literal["none", "alu", "int", "float", "branch", "load", "vector"]
                                             ]
                                         ]
             self.instructionStats = {
@@ -5209,7 +5209,7 @@ class CPUsim_v4:
                 "halt"      : {"cycles"         : 1,                "executionUnit" : None            },
             }
 
-        def assertEnvironment(self, funcRead : Callable[[int or str, int or str], int]) -> bool:
+        def assertEnvironment(self, funcRead : Callable[[int | str, int | str], int]) -> bool:
             """Checks if the memory layout is compatible by attempting to read necissary elements from memory, returns true is compatible"""
             assert callable(funcRead)
 
@@ -5219,7 +5219,7 @@ class CPUsim_v4:
             except:
                 logging.info(debugHelper(inspect.currentframe()) + "InstructionSet not compatible with current Memory Layout")
             
-        def int2bits(self, number : int, bitLength : int) -> List[int]:
+        def int2bits(self, number : int, bitLength : int) -> list[int]:
             """Takes a bitLength, and a number where ((0 - 2**bitLength) // 2 <= number < 2**bitLength). Returns a bit int array representing the number, zero index is least significant bit
             
             For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
@@ -5234,7 +5234,7 @@ class CPUsim_v4:
 
             return bitArray
 
-        def bits2int(self, bitArray : List[int or bool]) -> int:
+        def bits2int(self, bitArray : list[int or bool]) -> int:
             """Takes in a bit (int or bool) array where zero index is least significant bit. Returns the positive number is represents"""
             assert type(bitArray) is list
             assert len(bitArray) > 0
@@ -5242,7 +5242,7 @@ class CPUsim_v4:
 
             return sum([bit << i for i, bit in enumerate(bitArray)])
 
-        def microEnforceAccess(self, register : Tuple[int or str, int or str], key : str) -> Tuple[int or str, int or str]:
+        def microEnforceAccess(self, register : tuple[int | str, int | str], key : str) -> tuple[int | str, int | str]:
             """returns register tuple iff register[0] matches key, raises exception otherwise"""
             assert type(register) is tuple or type(register) is list
             assert len(register) == 2
@@ -5254,7 +5254,7 @@ class CPUsim_v4:
             return register
 
         def microSyscall(self,
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict,
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict,
             operation : str):
             """Takes in a string indicating what syscall to call, and passes that call to the engine"""
             assert callable(funcRead)
@@ -5270,9 +5270,9 @@ class CPUsim_v4:
             engineFunc["syscall"](operation)
 
         def microSelectBits(self,
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None],
-            registerA : Tuple[str, int or str],
-            bitStart : int, bitEnd: int) -> Tuple[int or str, int or str]:
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None],
+            registerA : tuple[str, int | str],
+            bitStart : int, bitEnd: int) -> tuple[int | str, int | str]:
             """Takes a register, selects the bits starting at bitStart inclusive and ending at bitEnd inclusive. Takes result, adds it as an immediate register, returns the register address
             
             Note: bit 0 is least significant bit
@@ -5300,7 +5300,7 @@ class CPUsim_v4:
             return registerB
 
         def opNop(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict):
             """The 'No Operation' instruction, it does nothing"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5312,8 +5312,8 @@ class CPUsim_v4:
             pass #Does nothing
 
         def opAdd(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]):
             """Adds registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5346,8 +5346,8 @@ class CPUsim_v4:
             funcWrite(registerDestination, c)
 
         def opMultiply(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]):
             """Multiplies registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5380,8 +5380,8 @@ class CPUsim_v4:
             funcWrite(registerDestination, c)
 
         def opTwosCompliment(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str]):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str]):
             """Takes value from registerA, performs twos compliment, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5404,8 +5404,8 @@ class CPUsim_v4:
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
             inputNumber : int = a & (2**bitLength - 1) #Cuts down number to correct bitLength BEFORE converting it
-            bitArray : List[int] = [inputNumber >> i & 1 for i in range(bitLength)] #Converts to bit array, index 0 is least significant bit
-            bitArray : List[int] = [not i for i in bitArray] #performs the bitwise NOT operation
+            bitArray : list[int] = [inputNumber >> i & 1 for i in range(bitLength)] #Converts to bit array, index 0 is least significant bit
+            bitArray : list[int] = [not i for i in bitArray] #performs the bitwise NOT operation
             result : int = sum([bit << i for i, bit in enumerate(bitArray)])
             result += 1
 
@@ -5414,8 +5414,8 @@ class CPUsim_v4:
             funcWrite(registerDestination, result)
 
         def opAND(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]):
             """Performs AND operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5448,8 +5448,8 @@ class CPUsim_v4:
             funcWrite(registerDestination, c)
 
         def opOR(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]):
             """Performs OR operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5482,8 +5482,8 @@ class CPUsim_v4:
             funcWrite(registerDestination, c)
 
         def opXOR(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]):
             """Performs XOR operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5516,8 +5516,8 @@ class CPUsim_v4:
             funcWrite(registerDestination, c)
 
         def opNOT(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str]):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str]):
             """Performs NOT operation on registerA, stores result in registerDesintation"""
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5540,7 +5540,7 @@ class CPUsim_v4:
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
             inputNumber : int = a & (2**bitLength - 1) #Cuts down number to correct bitLength BEFORE converting it
-            bitArray : List[int] = [inputNumber >> i & 1 for i in range(bitLength)] #Converts to bit array, index 0 is least significant bit
+            bitArray : list[int] = [inputNumber >> i & 1 for i in range(bitLength)] #Converts to bit array, index 0 is least significant bit
             bitArray = [not i for i in bitArray] #performs the bitwise NOT operation
             result : int = sum([bit << i for i, bit in enumerate(bitArray)])
 
@@ -5549,9 +5549,9 @@ class CPUsim_v4:
             funcWrite(registerDestination, result)
 
         def opJump(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
             mode : Literal["goto", "<", "<=", ">", ">=", "==", "!="],
-            gotoIndex : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str] = None, registerB : Tuple[int or str, int or str] = None):
+            gotoIndex : tuple[int | str, int | str], registerA : tuple[int | str, int | str] = None, registerB : tuple[int | str, int | str] = None):
             """Conditional jump to gotoIndex, conditional on mode, and optional registers a and b
 
             #TODO needs to handle signed and unsigned ints
@@ -5594,7 +5594,7 @@ class CPUsim_v4:
                 assert type(registerB) is type(None)
             
             pointer : int = funcRead(gotoIndex)
-            pc : List[str, int] = ("pc", 0)
+            pc : list[str, int] = ("pc", 0)
 
             if mode == "goto":
                 funcWrite(pc, pointer)
@@ -5616,8 +5616,8 @@ class CPUsim_v4:
                     funcWrite(pc, pointer)
 
         def opShiftL(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerShiftOffset : Tuple[int or str, int or str]):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerShiftOffset : tuple[int | str, int | str]):
             """Takes registerA, shifts left by amount registerShiftOffset, stores result in registerDestination
             
             will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
@@ -5658,8 +5658,8 @@ class CPUsim_v4:
             funcWrite(registerDestination, result)
 
         def opShiftR(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerShiftOffset : Tuple[int or str, int or str], arithmetic : bool = False):
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerShiftOffset : tuple[int | str, int | str], arithmetic : bool = False):
             """Takes registerA, shifts it right by registerShiftOffset (performs arithmetic right shift if arithmetic == True), stores result in registerDestination
             
             If registerDestination bitLength is greater then registerA bitLength:
@@ -5716,8 +5716,8 @@ class CPUsim_v4:
             funcWrite(registerDestination, result)
 
         def opRotate(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerShiftOffset : Tuple[int or str, int or str], 
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerShiftOffset : tuple[int | str, int | str], 
             leftOrRight : Literal["left", "right"]):
             """Takes registerA, rotates bits left or right (depending on leftOrRight) by rigsterShiftOffset amount. Result is then trunked to fit into registerDestination
             
@@ -5772,8 +5772,8 @@ class CPUsim_v4:
             funcWrite(registerDestination, result)
 
         def opCopyElement(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str],
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str],
             trunkOrExtend : Literal["trunk", "extend"] = 'trunk'):
             """Copies a value from registerA to registerDestination
             
@@ -5822,8 +5822,8 @@ class CPUsim_v4:
 
         '''
         def opCopy(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : Dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str],
+            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+            registerDestination : tuple[int or str, int or str], registerA : tuple[int or str, int or str],
             trunkOrExtend : Literal["trunk", "extend"], multiElement : bool, bitsToCopy : int):
             """Copies a value from registerA to registerDestination
             
@@ -5870,9 +5870,9 @@ class CPUsim_v4:
         '''
 
         def engAdd_RippleCarry(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]
-            ) -> Dict[Literal["energy", "latency"], int]:
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
+            ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of ripple carry add operation on those registers. Returns the energy and latency as a dictionary
             
             The value of the registers are not used, only the size of the registers
@@ -5910,9 +5910,9 @@ class CPUsim_v4:
             return {"energy" : energy, "latency" : latency}
 
         def engMultiply_ShiftAdd1(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]
-            ) -> Dict[Literal["energy", "latency"], int]:
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
+            ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
 
             The value of the registers are not used, only the size of the registers
@@ -5950,9 +5950,9 @@ class CPUsim_v4:
             return {"energy" : energy, "latency" : latency}
 
         def engMultiply_ShiftAdd2(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]
-            ) -> Dict[Literal["energy", "latency"], int]:
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
+            ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
 
             The value of the registers are not used, only the size of the registers
@@ -5990,9 +5990,9 @@ class CPUsim_v4:
             return {"energy" : energy, "latency" : latency}
 
         def engAND(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str], registerB : Tuple[int or str, int or str]
-            ) -> Dict[Literal["energy", "latency"], int]:
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
+            ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
             
             The value of the registers are not used, only the size of the registers
@@ -6029,9 +6029,9 @@ class CPUsim_v4:
             return {"energy" : energy, "latency" : latency}
 
         def engNOT(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], 
-            registerDestination : Tuple[int or str, int or str], registerA : Tuple[int or str, int or str]
-            ) -> Dict[Literal["energy", "latency"], int]:
+            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
+            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str]
+            ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
             
             The value of the registers are not used, only the size of the registers
@@ -6096,14 +6096,14 @@ class CPUsim_v4:
 
         def __init__(self):
 
-            self.nameSpace : Dict[str, NameSpaceObject] = {}
+            self.nameSpace : dict[str, NameSpaceObject] = {}
 
-            self.externalNameSpace : Dict[str, NameSpaceObject] = {} # Used for keeping track of external nameSpace elements
+            self.externalNameSpace : dict[str, NameSpaceObject] = {} # Used for keeping track of external nameSpace elements
 
             self.Node : ParseNode = NodeParse
 
         
-        def updateNameSpace(self, nameSpace : Dict[str, NameSpaceObject]) -> Dict[str, NameSpaceObject]:
+        def updateNameSpace(self, nameSpace : dict[str, NameSpaceObject]) -> dict[str, NameSpaceObject]:
             """Takes in nameSpace a dictionary whose keys represent the CPU flags, registers, instructions, etc. 
             Returns nameSpace elements contained in this module that are not contained in input nameSpace
             
@@ -6113,13 +6113,13 @@ class CPUsim_v4:
             assert all([type(i) is NameSpaceObject for _, i in nameSpace.items()])
 
             #TODO should compair current namespace with new namespace and only update the new ones
-            self.externalNameSpace : Dict[str, NameSpaceObject] = nameSpace
-            self.nameSpace : Dict[str, NameSpaceObject] = {}
+            self.externalNameSpace : dict[str, NameSpaceObject] = nameSpace
+            self.nameSpace : dict[str, NameSpaceObject] = {}
 
             #TODO should return all elements that are in nameSpace, but not in externalNameSpace
             return {}
 
-        def _tokenize(self, code : str) -> List[Tuple[str, int, int]] :
+        def _tokenize(self, code : str) -> list[tuple[str, int, int]] :
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line)(zero indexed). 
             
             No characters are filtered out
@@ -6153,7 +6153,7 @@ class CPUsim_v4:
             #done like this to easily add extra characters
             _isName : Callable[[str], bool] = lambda x : x.isalnum() or x in "_" #returns True is character can be in a name, False otherwise
 
-            tokenList : List[Tuple[str, int, int]] = []
+            tokenList : list[tuple[str, int, int]] = []
             token : str = ""
             lineNum : int = 0
             characterNum : int = 0
@@ -6307,7 +6307,7 @@ class CPUsim_v4:
 
             return root
 
-        def ruleRemoveLeadingWhitespace(self, tree : ParseNode, whiteSpace : List[str] = [" ", "\t", "\r", "\f"]) -> ParseNode:
+        def ruleRemoveLeadingWhitespace(self, tree : ParseNode, whiteSpace : list[str] = [" ", "\t", "\r", "\f"]) -> ParseNode:
             """Takes in a Node Tree of depth 2, removes all white space tokens between a new line token and the next token. Returns a Node Tree of depth 2. Does not recurse
 
             Case: # TestParseDefaultBuildingBlocks.test_RuleRemoveLeadingWhitespace_Integration02
@@ -6693,7 +6693,7 @@ class CPUsim_v4:
 
             return root
 
-        def ruleContainer(self, tree : ParseNode, containers : Dict[str, str] = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> ParseNode:
+        def ruleContainer(self, tree : ParseNode, containers : dict[str, str] = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> ParseNode:
             """Takes in a Node Tree of depth 2, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers. Returns a Node Tree of arbitrary depth.
 
             Containers are of the form {"opening bracket": "closing bracket", ...}
@@ -6737,7 +6737,7 @@ class CPUsim_v4:
             assert type(nodeType) is str
 
             root : ParseNode = tree.copyInfo()
-            stack : List[Tuple[str, ParseNode]] = []
+            stack : list[tuple[str, ParseNode]] = []
 
             i : ParseNode
             for i in tree.child:
@@ -6779,7 +6779,7 @@ class CPUsim_v4:
 
             return root
 
-        def ruleFindLabels(self, tree : ParseNode) -> Tuple[ParseNode, Dict[str, ParseNode]]:
+        def ruleFindLabels(self, tree : ParseNode) -> tuple[ParseNode, dict[str, ParseNode]]:
             """Takes in a Node Tree of depth 2, attempts to find a label that is immidiatly followed by a ":", returns a Node Tree of depth 2, and a dictionary of labels
             
             Does not recurse"""
@@ -6789,7 +6789,7 @@ class CPUsim_v4:
             previous : str = "\n"
             skipToken : bool = False
 
-            labels : Dict[str, ParseNode] = {}
+            labels : dict[str, ParseNode] = {}
 
             i : ParseNode
             for i in tree.child:
@@ -6810,7 +6810,7 @@ class CPUsim_v4:
 
             return (root, labels)
 
-        def ruleLabelNamespace(self, tree : ParseNode, nameSpace : Dict[str, NameSpaceObject]) -> ParseNode:
+        def ruleLabelNamespace(self, tree : ParseNode, nameSpace : dict[str, NameSpaceObject]) -> ParseNode:
             """Takes in a node tree, and a nameSpace. Labels all nodes that are in nameSpace as 'NameSpace'. Returns Node Tree of depth 2.
             
             Does not recurse
@@ -6821,7 +6821,7 @@ class CPUsim_v4:
             #TODO assert that all values are NameSpaceObjects?
 
             root : ParseNode = tree.copyInfo()
-            keys : List[str] = [i.lower() for i in nameSpace.keys()]
+            keys : list[str] = [i.lower() for i in nameSpace.keys()]
 
             i : ParseNode
             for i in tree.child:
@@ -6946,7 +6946,7 @@ class CPUsim_v4:
 
             return root
         
-        def ruleSplitLines(self, tree : ParseNode, tokenType : str = "line", splitToken : str = "\n") -> List[ParseNode]:
+        def ruleSplitLines(self, tree : ParseNode, tokenType : str = "line", splitToken : str = "\n") -> list[ParseNode]:
             """Takes in a Node Tree of arbitrary depth. Returns a list of Node Trees of arbitrary depth, split by the splitToken (default "\n") with the splitToken ommited. Does not recurse.
             
             #TODO should be able to recurse
@@ -7012,8 +7012,9 @@ class CPUsim_v4:
             assert type(tree) is self.Node
             assert type(tokenType) is str
             assert type(splitToken) is str
+            #TODO should test if splitToken is len == 0 with accompanying unit test
 
-            result : List[ParseNode] = []
+            result : list[ParseNode] = []
             current : ParseNode = self.Node(tokenType, None, 0, 0)
 
             i : ParseNode
@@ -7144,7 +7145,7 @@ class CPUsim_v4:
             logging.debug(debugHelper(inspect.currentframe()) + "tokenFound=\t" + str(tokenFound))
 
             if tokenFound:
-                stack : List[ParseNode] = []
+                stack : list[ParseNode] = []
                 i : ParseNode
                 for i in tree.child:
                     if i == splitToken:
@@ -7180,7 +7181,7 @@ class CPUsim_v4:
             
             return root
 
-        def ruleNestContainersIntoInstructions(self, tree : ParseNode, nameSpace : Dict[str, NameSpaceObject], recurse : bool = True) -> ParseNode: 
+        def ruleNestContainersIntoInstructions(self, tree : ParseNode, nameSpace : dict[str, NameSpaceObject], recurse : bool = True) -> ParseNode: 
             #TODO rename, as nameSpace is more generic then just 'instruction'
             """Takes in a Node Tree of arbitrary depth, and a nameSpace dict represeting instructions, registers, etc. 
             If a container node follows a nameSpace node, make container node a child of the nameSpace node.
@@ -7252,7 +7253,7 @@ class CPUsim_v4:
             
             return root
 
-        def ruleApplyAlias(self, tree : ParseNode, alias : Dict[str, str]) -> ParseNode:
+        def ruleApplyAlias(self, tree : ParseNode, alias : dict[str, str]) -> ParseNode:
             """Takes in a Node Tree of Depth 2. If a token is in alias, replaces that token, then tokenizes it. Returns a Node Tree of Depth 2.
             
             Case 1: alias = {'123': 'hello world'}
@@ -7307,9 +7308,9 @@ class CPUsim_v4:
 
             i : ParseNode
             for i in tree.child:
-                temp : List[ParseNode] = []
+                temp : list[ParseNode] = []
                 if type(i.token) is str and i.token in alias: #if alias token found, tokenize it's replacement string, and add that series of tokens to root
-                    j : Tuple[str, int, int]
+                    j : tuple[str, int, int]
                     for j in self._tokenize(alias[i.token]):
                         temp.append(self.Node("token", j[0], i.lineNum, i.charNum))
                 else:
@@ -7326,7 +7327,7 @@ class CPUsim_v4:
 
             return root
 
-        def ruleFilterContainerKeepChildren(self, tree : ParseNode, containerTokens : List[Any]) -> ParseNode:
+        def ruleFilterContainerKeepChildren(self, tree : ParseNode, containerTokens : list[Any]) -> ParseNode:
             """Takes in a Node Tree of arbitrary depth, recursivly removes any tokens in token (containers) while keeping children. Returns a Node Tree.
 
             Example 01: 
@@ -7425,7 +7426,7 @@ class CPUsim_v4:
             
             return root
 
-        def parseCode(self, sourceCode : str) -> Tuple[ParseNode, Dict[str, ParseNode]]:
+        def parseCode(self, sourceCode : str) -> tuple[ParseNode, dict[str, ParseNode]]:
             """Takes a string of source code, returns a parsed instruction tree and a dictionary representing labels/pointers
             
             Takes source code of the form:
@@ -7533,7 +7534,7 @@ class CPUsim_v4:
             logging.debug(debugHelper(inspect.currentframe()) + "ruleContainer: " + "\n" + str(root))
 
             # This will roll containers trailing a namespace object into a child of namespace object
-            filteredNameSpace : Dict[NameSpaceObject] = {}
+            filteredNameSpace : dict[NameSpaceObject] = {}
             i : str
             j : NameSpaceObject
             for i, j in self.nameSpace.items():
@@ -7542,7 +7543,7 @@ class CPUsim_v4:
             root = self.ruleNestContainersIntoInstructions(root, filteredNameSpace, True)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleNestContainersIntoInstructions: " + "\n" + str(root))
 
-            temp : List[ParseNode] = self.ruleSplitLines(root, "line", "\n")
+            temp : list[ParseNode] = self.ruleSplitLines(root, "line", "\n")
             root = self.Node("root")
             i : ParseNode
             for i in temp:
@@ -7801,7 +7802,7 @@ class CPUsim_v4:
         """
 
         def __init__(self):
-            self.poolArray : Dict[int, Any] = {}
+            self.poolArray : dict[int, Any] = {}
 
         def read(self, virtualOperation : bool, transactionType : str, branchNode : int, poolEntryPoint : int, hyperThreadContext : int, key : int or str, index : int or str):
             """
@@ -7825,6 +7826,9 @@ class CPUsim_v4:
             """
             pass
 
+        def getMemoryKeys(self, versionNode : int) -> tuple[int, int, int, int | str, int | str]:
+            """
+            Returns a tuple of (branchNode, poolEntryPoint, hyperThreadContext, key, index)
             """
             pass
 
@@ -7862,29 +7866,29 @@ class CPUsim_v4:
             self.endianess : Literal["big", "little"] = endianess
             self.memoryElementSize : int = memoryElementSize
 
-            self.defaultDirective : Callable[[ParseNode, Any], Tuple[0, None]] = self.null # used to autofill undefined instructions from instructionSet
+            self.defaultDirective : Callable[[ParseNode, Any], tuple[0, None]] = self.null # used to autofill undefined instructions from instructionSet
             
-            self.instructionSet :   Dict[
+            self.instructionSet :   dict[
                                         Tuple(str, ...),                    # Instruction or directive
                                         Callable[
                                             [
                                                 ParseNode,                  # The parse/execution tree for a line, for feeding in arguments into a function
-                                                Dict[                       # A dictionary of pointers to labels within the assembly source code given
+                                                dict[                       # A dictionary of pointers to labels within the assembly source code given
                                                     str,                    # The label
                                                     int                     # The pointer index int (will only point to a memory bank WITHIN the current bank the)
                                                 ],
-                                                Dict[                       # A dictionary of aliases for memory, IE: register rt -> register r[5]
+                                                dict[                       # A dictionary of aliases for memory, IE: register rt -> register r[5]
                                                     str,
-                                                    Tuple[int or str]       # A register
+                                                    tuple[int | str]        # A register
                                                 ]
                                             ],
-                                            List[                           # A list because should allow for the possibility of a node outputing more then one instruction
-                                                Tuple[
-                                                    List[int],                  #TODO
+                                            list[                           # A list because should allow for the possibility of a node outputing more then one instruction
+                                                tuple[
+                                                    list[int],                  #TODO
                                                         # A series of ints representing the instruction in binary, each int is one memory element. 
                                                         # More then one int represents an instruction longer then one memory element
                                                     ParseNode,                  #The parse/execution tree to be written to memory
-                                                    Callable[[int], List[int]], #TODO
+                                                    Callable[[int], list[int]], #TODO
                                                         # a lambda function that takes in a memory offset, and returns an output similar to the above, but taking into account the memory offset
                                                     Any                         #TODO still figuring out what it needs to output, this should be some sort of readable code that could be reprocessed to adjust jumps for linking?
                                                 ]
@@ -7898,7 +7902,7 @@ class CPUsim_v4:
                 (".int8",)          : (lambda node, labels, alias,      n                               : self.dirInt(node, labels, alias,          n, 8))
             }
 
-        def updateNameSpace(self, nameSpace : Dict[str, NameSpaceObject]) -> Dict[str, NameSpaceObject]:
+        def updateNameSpace(self, nameSpace : dict[str, NameSpaceObject]) -> dict[str, NameSpaceObject]:
             """Takes in a namespace, and updates all relavent variables. Returns a dictionary representing NameSpaceObjects to be added to the NameSpace
             
             #TODO filter out instructions, 'autofill' the self.instructionSet with opNull for any instruction not defined
@@ -7906,7 +7910,7 @@ class CPUsim_v4:
             
             return {}
 
-        def link(self, parseTree : ParseNode, labels : Dict[str, int], alias : Dict[str, Tuple[int or str]]) -> Tuple[List[int], List[int], List[ParseNode]]:
+        def link(self, parseTree : ParseNode, labels : dict[str, int], alias : dict[str, tuple[int | str]]) -> tuple[list[int], list[int], list[ParseNode]]:
             """Takes in a parseNode representing the parse tree for the entire program, a dict of labels, and outputs a list of ints and a list of instruction lengths and execution tree nodes.
 
             for each line in the parse tree
@@ -7921,15 +7925,18 @@ class CPUsim_v4:
             """
             
             root : ParseNode = parseTree
-            lines : List[ParseNode] = [node for node in root.child]
+            lines : list[ParseNode] = [node for node in root.child]
 
         def __parseNodeSearchDepthFirst(self, parseTree: ParseNode):
             pass
+            memory : list[int | Callable[[dict[str, int]], list[int]]] = []
+            memoryNodes : list[None | ParseNode] = []
+
 
         def __evaluateTree(self, parseTree: ParseNode):
             pass
 
-        def int2bits(self, number : int, bitLength : int) -> List[int]:
+        def int2bits(self, number : int, bitLength : int) -> list[int]:
             """Takes a bitLength, and a number where ((0 - 2**bitLength) // 2 <= number < 2**bitLength). Returns a bit int array representing the number, zero index is least significant bit
             
             For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
@@ -7947,7 +7954,7 @@ class CPUsim_v4:
         def null(self,
             node : ParseNode, labels : dict, alias : dict,
             *null
-            ) -> Tuple[List[int], ParseNode]:
+            ) -> tuple[list[int], ParseNode]:
             """Takes in an arbitrary number of arguments. Returns a list of zero representing no instruction, and the node passed in
             
             'Passes through' the ParseNode, while ignoring a variable number of arguments, allowing the instruction encoiding details to be undefined
@@ -7957,14 +7964,14 @@ class CPUsim_v4:
 
         def opNop(self, 
             node : ParseNode, labels : dict, alias : dict 
-            ) -> Tuple[List[int], ParseNode]:
+            ) -> tuple[list[int], ParseNode]:
             
             return [0], node
 
         def dirAscii(self,
             node : ParseNode, labels : dict, alias : dict,
             text : str
-            ) -> Tuple[List[int], ParseNode]:
+            ) -> tuple[list[int], ParseNode]:
             """ Takes in a string, and outputs a list of ints representing the ascii of the string + None
 
             memoryElementSize must by 7 bits or greater
@@ -7976,7 +7983,7 @@ class CPUsim_v4:
             assert type(text) is str
             assert len(text) > 0
 
-            result : List[int] = []
+            result : list[int] = []
 
             character : int = 0
             i : str # chr
@@ -7989,7 +7996,7 @@ class CPUsim_v4:
         def dirInt(self,
             node : ParseNode, labels : dict, alias : dict,
             n : int, bitSize : int
-            ) -> Tuple[List[int], ParseNode]:
+            ) -> tuple[list[int], ParseNode]:
             """ Takes in a number, and a bitSize, and returns a list of ints representing the number's 'not bytes' + None
 
             If the bitSize is not a multiple of self.memoryElementSize, the number will still be represented. 
@@ -8041,8 +8048,8 @@ class CPUsim_v4:
 
             assert n < 2**bitSize
 
-            numberBits : List[int] = self.int2bits(n, bitSize) # LSB is first
-            result : List[int] = []
+            numberBits : list[int] = self.int2bits(n, bitSize) # LSB is first
+            result : list[int] = []
 
             modulus : int = 0
             memoryElement : int = 0
@@ -8078,7 +8085,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
 
         i : int
         for i in range(256):
-            result : Tuple[List[int], None] = compiler.dirInt(NodeParse(), {}, {},
+            result : tuple[list[int], None] = compiler.dirInt(NodeParse(), {}, {},
                                                                 i, 8)
 
             self.assertEqual(result, ([i], None))
@@ -8097,7 +8104,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
                         x_0 = i & (2**8 - 1) # takes lower 8 bits
                         x_1 = (i & ((2**8 - 1) << 8)) >> 8 # takes upper 8 bits
 
-                        result : List[int] = compiler.dirInt(NodeParse(), {}, {},
+                        result : list[int] = compiler.dirInt(NodeParse(), {}, {},
                                                             i, 16)[0]
 
                         if endianessTest == "little":
@@ -8122,7 +8129,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
                         for i in range(bitLength):
                             with self.subTest(i = i):
 
-                                result : List[int] = compiler.dirInt(NodeParse(), {}, {},
+                                result : list[int] = compiler.dirInt(NodeParse(), {}, {},
                                                                     (1 << i), bitLength)[0]
 
                                 if endianessTest == "little":
@@ -8147,7 +8154,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
                 for byteLength in [2 ** i for i in range(1, 8 + 1)]:
                     with self.subTest(bitLength=byteLength):
 
-                        result : List[int] = compiler.dirInt(NodeParse(), {}, {},
+                        result : list[int] = compiler.dirInt(NodeParse(), {}, {},
                                                             2**(8 * byteLength) - 1, 8 * byteLength)[0]
 
                         resultProcessed : int = 0
@@ -8195,7 +8202,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
                         x_0 = i & (2**7 - 1) # takes lower 7 bits
                         x_1 = (i & ((2**7 - 1) << 7)) >> 7 # takes upper 7 bits
 
-                        result : List[int] = compiler.dirInt(NodeParse(), {}, {},
+                        result : list[int] = compiler.dirInt(NodeParse(), {}, {},
                                                             i, 10)[0] # MemoryElement is 7 bits long, but requesting jamming 8 bits into it
 
                         if endianessTest == "little":
@@ -8208,7 +8215,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
 
         compiler = self.compiler(endianess = "little", memoryElementSize = 8)
 
-        result : List[int] = compiler.dirAscii(NodeParse(), {}, {},
+        result : list[int] = compiler.dirAscii(NodeParse(), {}, {},
                                                 "Hello World!")[0]
 
         self.assertEqual(result, [ord(i) for i in "Hello World!"])
@@ -8221,7 +8228,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
         i : int
         for i in range(256):
             with self.subTest(i = i):
-                result : List[int] = compiler.dirAscii(NodeParse(), {}, {},
+                result : list[int] = compiler.dirAscii(NodeParse(), {}, {},
                                                         chr(i))[0]
 
                 self.assertEqual(result, [i & 0b01111111])
@@ -8245,8 +8252,8 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ]
         """
 
-        raw : List[Tuple[str, int, int]] = self.parser._tokenize("Hello World!")
-        expected : List[Tuple[str, int, int]] = [   
+        raw : list[tuple[str, int, int]] = self.parser._tokenize("Hello World!")
+        expected : list[tuple[str, int, int]] = [   
                 ("Hello",   0, 0), 
                 (" ",       0, 5), 
                 ("World",   0, 6), 
@@ -8271,8 +8278,8 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ]
         """
 
-        raw : List[Tuple[str, int, int]] = self.parser._tokenize("test\n\nHello World!")
-        expected : List[Tuple[str, int, int]] = [
+        raw : list[tuple[str, int, int]] = self.parser._tokenize("test\n\nHello World!")
+        expected : list[tuple[str, int, int]] = [
                ("test",    0, 0),
                 ("\n",      0, 4),
                 ("\n",      1, 0),
@@ -8358,7 +8365,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleCastInts_ExceptionTreeNotNodeParse(self):
         """tests ruleCastInts raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -8506,7 +8513,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleCastHex_ExceptionTreeNotNodeParse(self):
         """tests ruleCastHex raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -8637,7 +8644,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveEmptyLines_ExceptionTreeNotNodeParse(self):
         """tests ruleFilterLineComments raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -9226,7 +9233,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveLeadingWhitespace_ExceptionTreeNotNodeParse(self):
         """tests ruleRemoveLeadingWhitespace raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -9236,7 +9243,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveLeadingWhiteSpace_ExceptionWhitespaceNotList(self):
         """tests ruleRemoveLeadingWhitespace raises an exception when whitespace is not a list"""
 
-        whitespaces : List[Any] = [None, 0, False, 'a', {0 : 'a'}]
+        whitespaces : list[Any] = [None, 0, False, 'a', {0 : 'a'}]
 
         whitespace : Any
         for whitespace in whitespaces:
@@ -9247,7 +9254,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveLeadingWhiteSpace_ExceptionWhitespaceNotString(self):
         """tests ruleRemoveLeadingWhitespace raises an exception when whitespace is not a string"""
 
-        whitespaces : List[Any] = [None, 0, False, [0], {0 : [0]}]
+        whitespaces : list[Any] = [None, 0, False, [0], {0 : [0]}]
 
         whitespace : Any
         for whitespace in whitespaces:
@@ -9258,7 +9265,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveLeadingWhiteSpace_ExceptionWhitespaceStringWrongLength(self):
         """tests ruleRemoveLeadingWhitespace raises an exception when whitespace is not a string of length 1"""
 
-        whitespaces : List[str] = [''.join(['a' for _ in range(i)]) for i in range(2, 10)]
+        whitespaces : list[str] = [''.join(['a' for _ in range(i)]) for i in range(2, 10)]
 
         whitespace : Any
         for whitespace in whitespaces:
@@ -9592,7 +9599,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleStringSimple_ExceptionTreeNotNodeParse(self):
         """tests ruleStringSimple raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -9896,7 +9903,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                                  A
         """
 
-        characters : List[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
+        characters : list[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
 
         character : str # chr
         for character in characters:
@@ -9961,7 +9968,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                                      A
         """
 
-        characters : List[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
+        characters : list[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
 
         character : str # chr
         for character in characters:
@@ -10029,7 +10036,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                                  A
         """
 
-        characters : List[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
+        characters : list[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
 
         character : str # chr
         for character in characters:
@@ -10154,7 +10161,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                                  A
         """
 
-        characters : List[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
+        characters : list[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
 
         character : str # chr
         for character in characters:
@@ -10227,7 +10234,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             'comment'
         """
 
-        characters : List[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
+        characters : list[str] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '~', '`', '|', ';', ':', '\'', '\"', '<', '>', '?', '/', '.', ',']
 
         character : str # chr
         for character in characters:
@@ -10256,7 +10263,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleFilterLineComments_ExceptionCharacterWrongType(self):
         """tests ruleFilterLineComments raises an exception when character is wrong type"""
 
-        character : List[Any] = [None, 0, False, ['a'], {0 : 'a'}, NodeParse()]
+        character : list[Any] = [None, 0, False, ['a'], {0 : 'a'}, NodeParse()]
 
         character : Any
         for character in character:
@@ -10268,7 +10275,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleFilterLineComments_ExceptionCharacterWrongLength(self):
         """tests ruleFilterLineComments raises an exception when character is wrong length"""
 
-        characters : List[str] = ["".join(["a" for _ in range(i)]) for i in range(2, 32)]
+        characters : list[str] = ["".join(["a" for _ in range(i)]) for i in range(2, 32)]
 
         character : str
         for character in characters:
@@ -10280,7 +10287,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleFilterLineComments_ExceptionTreeNotNodeParse(self):
         """tests ruleFilterLineComments raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -10663,7 +10670,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                                  A
         """
 
-        tokens : List[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
+        tokens : list[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
 
         token : Any
         for token in tokens:
@@ -10693,7 +10700,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                                  A
         """
 
-        tokens : List[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
+        tokens : list[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
 
         token : Any
         for token in tokens:
@@ -10754,7 +10761,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveToken_TokenDifferentTypes(self):
         """tests ruleRemoveToken on different token types"""
 
-        tokens : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        tokens : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         token : Any
         for token in tokens:
@@ -10771,7 +10778,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveToken_ExceptionTreeNotNodeParse(self):
         """tests ruleRemoveToken raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -10781,7 +10788,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveToken_ExceptionRecurseNotBool(self):
         """tests ruleRemoveToken raises an exception when recurse is not a boolean"""
 
-        variables : List[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
+        variables : list[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
 
         variable : Any
         for variable in variables:
@@ -10811,7 +10818,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         root.append(NodeParse(      "",         " ",        0, 6))
         root.append(NodeParse(      "",         "World",    0, 7))
 
-        expected : List[ParseNode] = []
+        expected : list[ParseNode] = []
         eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
         eChild1.append(NodeParse(   "",         "Hello",    0, 0))
         eChild1.append(NodeParse(   "",         " ",        0, 6))
@@ -10846,7 +10853,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         root.append(NodeParse(      "",         "\n",       0, 5))
         root.append(NodeParse(      "",         "test2",    0, 6))
 
-        expected : List[ParseNode] = []
+        expected : list[ParseNode] = []
         eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
         eChild1.append(NodeParse(   "",         "test1",    0, 0))
         expected.append(eChild1)
@@ -10884,7 +10891,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         root.append(NodeParse(      "",         "test2",    0, 6))
         root.append(NodeParse(      "",         "\n",       0, 11))
 
-        expected : List[ParseNode] = []
+        expected : list[ParseNode] = []
         eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
         eChild1.append(NodeParse(   "",         "test1",    0, 0))
         expected.append(eChild1)
@@ -10920,7 +10927,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         root.append(NodeParse(      "",         "\t",        0, 5))
         root.append(NodeParse(      "",         "test2",    0, 6))
 
-        expected : List[ParseNode] = []
+        expected : list[ParseNode] = []
         eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
         eChild1.append(NodeParse(   "",         "test1",    0, 0))
         expected.append(eChild1)
@@ -10969,7 +10976,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         rChild2.append(NodeParse(   "",         "test3",         0, 12))
         root.append(rChild2)
 
-        expected : List[ParseNode] = []
+        expected : list[ParseNode] = []
         eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
         eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
         eChild2.append(NodeParse(   "",         "test1",         0, 0))
@@ -11006,7 +11013,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ]
         """
 
-        splitTokens : List[str] = [i for i in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r"]
+        splitTokens : list[str] = [i for i in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r"]
 
         splitToken : str
         for splitToken in splitTokens:
@@ -11016,7 +11023,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 root.append(NodeParse(      "",         splitToken, 0, 5))
                 root.append(NodeParse(      "",         "test2",    0, 6))
 
-                expected : List[ParseNode] = []
+                expected : list[ParseNode] = []
                 eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
                 eChild1.append(NodeParse(   "",         "test1",    0, 0))
                 expected.append(eChild1)
@@ -11047,7 +11054,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ]
         """
 
-        splitTokens : List[str] = [i for i in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r"]
+        splitTokens : list[str] = [i for i in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r"]
 
         splitToken : str
         for splitToken in splitTokens:
@@ -11057,7 +11064,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 root.append(NodeParse(      "",         "\u2665",   0, 5))
                 root.append(NodeParse(      "",         "test2",    0, 6))
 
-                expected : List[ParseNode] = []
+                expected : list[ParseNode] = []
                 eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
                 eChild1.append(NodeParse(   "",         "test1",    0, 0))
                 eChild1.append(NodeParse(   "",         "\u2665",   0, 5))
@@ -11081,7 +11088,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         root : ParseNode = NodeParse()
 
-        expected : List[ParseNode] = []
+        expected : list[ParseNode] = []
 
         result : ParseNode = self.parser.ruleSplitLines(root)
 
@@ -11090,7 +11097,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleSplitLines_ExceptionSplitTokenNotString(self):
         """tests ruleSplitLines raises an exception when splitToken is not a string"""
 
-        splitTokens : List[Any] = [None, 0, False, ['a'], {0 : 'a'}]
+        splitTokens : list[Any] = [None, 0, False, ['a'], {0 : 'a'}]
 
         splitToken : Any
         for splitToken in splitTokens:
@@ -11105,7 +11112,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleSplitLines_ExceptionTreeNotNodeParse(self):
         """tests ruleSplitLines raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -11115,7 +11122,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleSplitTokens_ExceptionTreeNotNodeParse(self):
         """tests ruleSplitTokens raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -11125,7 +11132,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleSplitTokens_ExceptionTokenTypeNotString(self):
         """tests ruleSplitTokens raises an exception when tokenType is not a string"""
 
-        tokenTypes : List[Any] = [None, 0, False, ['a'], {0 : 'a'}]
+        tokenTypes : list[Any] = [None, 0, False, ['a'], {0 : 'a'}]
 
         tokenType : Any
         for tokenType in tokenTypes:
@@ -11138,7 +11145,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleSplitTokens_ExceptionSplitTokenNotString(self):
         """tests ruleSplitTokens raises an exception when splitToken is not a string"""
 
-        splitTokens : List[Any] = [None, 0, False, ['a'], {0 : 'a'}]
+        splitTokens : list[Any] = [None, 0, False, ['a'], {0 : 'a'}]
 
         splitToken : Any
         for splitToken in splitTokens:
@@ -11153,7 +11160,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleSplitTokens_ExceptionRecurseNotBool(self):
         """tests ruleSplitTokens raises an exception when recurse is not a bool"""
 
-        recurses : List[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
+        recurses : list[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
 
         recurse : Any
         for recurse in recurses:
@@ -11604,7 +11611,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleLowerCase_ExceptionTreeNotNodeParse(self):
         """tests ruleLowerCase raises an exception when tree is not a NodeParse object"""
 
-        trees : List[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
 
         tree : Any
         for tree in trees:
@@ -11614,7 +11621,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleLowerCase_ExceptionRecurseNotBool(self):
         """tests ruleLowerCase raises an exception when recurse is not a bool"""
 
-        recurses : List[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
+        recurses : list[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
 
         recurse : Any
         for recurse in recurses:
