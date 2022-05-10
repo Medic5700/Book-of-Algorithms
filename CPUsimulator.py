@@ -6,24 +6,34 @@ This project is geared towards demonstrating algorithms, and therefor generalize
 IE: I want to try and directly compair different assembly algorithms with a custom instruction set, and a specific memory layout.
 
 Development Stack:
-    Python 3.8 or greater (required for variable annotations support)
+    Python 3.10 or greater (required for variable annotations support)
     A terminal that supports ANSI (IE: default Ubuntu Terminal or the "Windows Terminal" app for Windows)
 
 Goals:
-    A CPU simulator that can simulate CPU instructions and architectures at a high level (performance/speed/effeiency is sacrificed)
+    A CPU simulator that can simulate CPU instructions and architectures at a high level (performance/speed/efficiency is sacrificed)
     Allows for creating and testing a CPU 'instruction set' at a high level.
     There is enough functionality to be a teaching tool.
         Allow easy creation of instruction sets for teaching/documentation/instructional purposes. 
             IE: this is everything this specific CPU instruction does and interacts with in these 15 lines of source code
         Includes a customizable (if unstable) parser to allow for parsing multiple different low level assembly languages.
-            This allows for simulating old CPUs, like the 6502 with native source code.
-            Holy Hell this is very outside the box compaired to how parsers should work.
+            This allows for simulating old CPUs (IE: the MOS 6502) with native source code.
+            (Holy Hell this is very outside the box compaired to how parsers should work.)
     Allow for meaningfull compairisons between various low level algorithms on the same architectures using various metrics (memory accesses, energy usage, etc)
     Allow for meaningfull compairisons between various architectures running the same algorithms using various metrics (energy usage, execution cycles, etc)
     A modular simulator where various things can be swapped in and out. IE: swapping in a different instruction set, different 'displays', different memory configurations, etc.
 
 Quick Start: <=========================================================================================================
-#TODO
+    This project is in the 'early prototype' stage.
+    Version 3 is usable, but is considered legacy since the changes needed to be in line with the Goals above warrented a rewrite.
+        Search for the below for class definitions and examples of how to use the CPU simulator:
+            class CPUsim
+            class TestDefaultSimplePrograms(unittest.TestCase)
+            class RiscV
+            class TestRISCV(unittest.TestCase)
+    Version 4 is not usable and is currently being worked on.
+        Search for the below for class definitions:
+            class CPUsim_v4
+            class ParseNode(ABC)
 
 Getting Started: <=====================================================================================================
     Note: this is a prototype, so the entire API is in flux
@@ -4396,7 +4406,9 @@ def testProgramMultiply():
 
     print(result)
 
-#====================================================================================================================== Mockup
+#====================================================================================================================== Code above this point is legacy code
+#====================================================================================================================== 
+#====================================================================================================================== Code below this point is version 4, activly being worked on
 
 class ParseNode(ABC): # abstract class used exclusivly for typing, not used in the program. Documentation included for help text, is mirrored FROM NodeParse. Dunder methods are not included.
     """A data class for storing information in a tree like structure. 
