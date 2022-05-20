@@ -4406,7 +4406,7 @@ def testProgramMultiply():
 
     print(result)
 
-#====================================================================================================================== Code above this point is legacy code
+#====================================================================================================================== Code above this point is mostly legacy code
 #====================================================================================================================== 
 #====================================================================================================================== Code below this point is version 4, activly being worked on
 
@@ -4527,6 +4527,7 @@ class ParserAbstract(ABC):
         pass
 
 class DisplayAbstract(ABC):
+    #TODO API still in flux
 
     @abstractmethod
     def __init__(self):
@@ -4577,12 +4578,12 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
         self.token : Any = token
         self.child : list = []
 
-        #relational references to other nodes
+        # relational references to other nodes
         self.parent : self.__class__ = None
         self.nodePrevious : self.__class__ = None
         self.nodeNext : self.__class__ = None
 
-        #the line number of the string or character position in a line, will be needed for indentation awareness if it's ever needed
+        # the line number of the string or character position in a line, will be needed for indentation awareness if it's ever needed
         self.lineNum : int = lineNum 
         self.charNum : int = charNum
 
@@ -4604,7 +4605,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
         return self.__class__(self.type, self.token, self.lineNum, self.charNum) #TODO This feels wrong, but I don't know why it's wrong
 
-    def copyDeep(self) -> ParseNode: #name is copyDeep instead of deepCopy to avoid namespace collision with copy.copyDeep()
+    def copyDeep(self) -> ParseNode: # name is copyDeep instead of deepCopy to avoid namespace collision with copy.copyDeep()
         """Creates a new node with all properties of current node including recursivly copying all children (but not relational data). Returns a node tree.
         
         Has the side effect of 'resetting' all relational links (parent, nodeNext, nodePrevious)"""
@@ -4640,23 +4641,23 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
         removeNode = self.child[index]
         
-        #'rewires' the references of the children nodes
+        # 'rewires' the references of the children nodes
         newNode.parent = self
-        if len(self.child) == 1: #case where oldNode is the only child in the list
-            #logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
+        if len(self.child) == 1: # case where oldNode is the only child in the list
+            # logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
             pass
-        elif index == 0: #case where oldNode is first child in the list, but not the only child in the list
-            #logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
+        elif index == 0: # case where oldNode is first child in the list, but not the only child in the list
+             #logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
 
             newNode.nodeNext = self.child[1]
             self.child[1].nodePrevious = newNode
-        elif index == len(self.child) - 1: #case where oldNode is the last child in the list, but not the only child in the list
-            #logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
+        elif index == len(self.child) - 1: # case where oldNode is the last child in the list, but not the only child in the list
+            # logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
 
             newNode.nodePrevious = self.child[-1]
             self.child[-1].nodeNext = newNode
-        elif 0 < index < len(self.child) -1: #case where oldNode is between two other nodes
-            #logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
+        elif 0 < index < len(self.child) -1: # case where oldNode is between two other nodes
+            # logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
 
             newNode.nodePrevious = self.child[index - 1]
             newNode.nodeNext = self.child[index + 1]
@@ -4666,7 +4667,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
         self.child[index] = newNode
 
-        #deletes oldNode
+        # deletes oldNode
         removeNode.parent = None
         removeNode.nodeNext = None
         removeNode.nodePrevious = None
@@ -4700,20 +4701,20 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
         #         self.charNum,
         #         self.child)))
 
-        #'rewires' the references of the children nodes to remove removeNode
-        if len(self.child) == 1: #case where removeNode is the only child in the list
-            #logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
+        # 'rewires' the references of the children nodes to remove removeNode
+        if len(self.child) == 1: # case where removeNode is the only child in the list
+            # logging.debug(debugHelper(inspect.currentframe()) + "only child detected")
             pass
-        elif index == 0: #case where removeNode is first child in the list, but not the only child in the list
-            #logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
+        elif index == 0: # case where removeNode is first child in the list, but not the only child in the list
+            # logging.debug(debugHelper(inspect.currentframe()) + "first child detected")
             if type(removeNode.nodeNext) is self.__class__: #TODO figure out why this is neccissary to avoid a specific error.
                 removeNode.nodeNext.nodePrevious = None
         elif index == len(self.child) - 1: #case where removeNode is the last child in the list, but not the only child in the list
-            #logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
+            # logging.debug(debugHelper(inspect.currentframe()) + "last child detected")
             if type(removeNode.nodePrevious) is self.__class__:
                 removeNode.nodePrevious.nodeNext = None
-        elif 0 < index < len(self.child) -1: #case where removeNode is between two other nodes
-            #logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
+        elif 0 < index < len(self.child) -1: # case where removeNode is between two other nodes
+            # logging.debug(debugHelper(inspect.currentframe()) + "middle child detected")
             if type(removeNode.nodePrevious) is self.__class__:
                 removeNode.nodePrevious.nodeNext = removeNode.nodeNext
             if type(removeNode.nodeNext) is self.__class__:
@@ -4760,9 +4761,9 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
         
     def __eq__(self, other : Any) -> bool:
         """A custom equals comparision. Takes in another object other, and compaires it to self.token. Returns True if equal, False otherwise"""
-        #logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
+        # logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
 
-        #return self.token == other
+        # return self.token == other
         if type(other) is self.__class__:
             return self.token == other.token
         else:
@@ -4770,15 +4771,15 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
     def __ne__(self, other : Any) -> bool:
         """A custom not equals comparision. Takes in another object other, and compaires it to self.token. Returns True if not equal, False otherwise"""
-        #logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
+        # logging.debug(debugHelper(inspect.currentframe()) + "Custom equals comparison")
 
-        #return self.token != other
+        # return self.token != other
         if type(other) is self.__class__:
             return self.token != other.token
         else:
             return self.token != other
 
-    #No longer needed since remove() cleans up enough recursivly for the python garbage collector to pick it up. This function might be useful for debugging purposes
+    # No longer needed since remove() cleans up enough recursivly for the python garbage collector to pick it up. This function might be useful for debugging purposes
     def __del__(self):
         """Decontructor, needed because the various inter-node references may make it harder for the python garbage collector to properly delete an entire tree.
         
@@ -4966,13 +4967,13 @@ class CPUsim_v4:
         #TODO
 
         def __init__(self):
-            self.textRed : str = "\u001b[31m" #forground red
-            self.textYellow : str = "\u001b[33m" #forground yellow, meant for register pending read/write
-            self.textTeal : str = "\u001b[96m" #forground teal, meant for register activity (read/write)
-            self.textGreen : str = "\u001b[92m" #forground green
-            self.textGrey : str = "\u001b[90m" #forground grey
-            self.backDeepBlue : str = "\u001b[48;5;17m" #background deep blue
-            self.ANSIend : str = "\u001b[0m" #resets ANSI colours
+            self.textRed : str = "\u001b[31m"               # forground red
+            self.textYellow : str = "\u001b[33m"            # forground yellow, meant for register pending read/write
+            self.textTeal : str = "\u001b[96m"              # forground teal, meant for register activity (read/write)
+            self.textGreen : str = "\u001b[92m"             # forground green
+            self.textGrey : str = "\u001b[90m"              # forground grey
+            self.backDeepBlue : str = "\u001b[48;5;17m"     # background deep blue
+            self.ANSIend : str = "\u001b[0m"                # resets ANSI colours
 
         # def runtime(self, 
         #     readStateOld : Callable[[int, int, int or str, int or str], int], readStateOldStatus : Callable[[int, int, int or str, int or str], dict],
@@ -5068,21 +5069,21 @@ class CPUsim_v4:
             """
 
             self.instructionSet :   dict[
-                                        tuple[str, ...],                                    # Instruction 'op-code', will automatically (#TODO) get converted to a Tuple on import
-                                        tuple[                                              # Instruction functions will automatically (#TODO) get converted to a list in import
+                                        tuple[str, ...],                                        # Instruction 'op-code', will automatically (#TODO) get converted to a Tuple on import
+                                        tuple[                                                  # Instruction functions will automatically (#TODO) get converted to a list in import
                                             Callable[
                                                 [
                                                     Callable[[int | str, int | str], int],      # MMMU read function
                                                     Callable[[int | str, int | str], None],     # MMMU write function
                                                     Callable[[int | str, int | str], dict],     # MMMU get config function
-                                                    dict[                                   # Engine Functions
+                                                    dict[                                       # Engine Functions
                                                         str,
                                                         Callable[[Any], Any]                                                    
                                                     ],                                   
-                                                    dict,                                   # Engine info
+                                                    dict,                                       # Engine info
                                                     tuple[int | str, int | str],                # Optional Additional register arguments passed to instruction
                                                     Any
-                                                ],                                   # Optional Additional register arguments passed to instruction
+                                                ],                                              # Optional Additional register arguments passed to instruction
                                                 None
                                             ]
                                         ]
@@ -5109,7 +5110,7 @@ class CPUsim_v4:
 
                 #TODO # This essentially makes a table-lookup to datastructure in another part of the CPU simulator where you can define what happens (IE: a direct function call, or a jump to an OS subroutine)
                 ("halt",)       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                               : self.sysCallSimple(fRead, fWrite, fConfig, EFunc, EStatus,    "halt"))
-                #"halt"     : self.microcode(0xFFFF)    #TODO #This explicidly jumps to a predefined subroutine that is outside of the typical memory layout (IE: a special memory section kind of like how IMM registers is handled now)
+                #"halt"     : self.microcode(0xFFFF)    #TODO # This explicidly jumps to a predefined subroutine that is outside of the typical memory layout (IE: a special memory section kind of like how IMM registers is handled now)
 
                 #"addTest"  : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a, b               : self.opAdd(fRead, fWrite, fConfig, EFunc, EStatus,        des, ("m", fRead(a)), b))   #Indirect Memory Addressing
             }
@@ -5190,8 +5191,8 @@ class CPUsim_v4:
             }
             """
 
-            #self.instructionStats is optional, and will be automatically (#TODO) filled in when loaded
-            #for energy and latency, 1 is normalized to 1-ish logic gates-ish
+            # self.instructionStats is optional, and will be automatically (#TODO) filled in when loaded
+            # for energy and latency, 1 is normalized to 1-ish logic gates-ish
             self.instructionStats :     dict[
                                             tuple[str, ...],
                                             dict[
@@ -5242,7 +5243,7 @@ class CPUsim_v4:
             assert (0 - 2**bitLength) // 2 <= number < 2**bitLength
 
             number = number & (2**bitLength - 1)
-            bitArray = [number >> i & 1 for i in range(bitLength)] #index 0 is least significant bit
+            bitArray = [number >> i & 1 for i in range(bitLength)] # index 0 is least significant bit
 
             return bitArray
 
@@ -5415,13 +5416,13 @@ class CPUsim_v4:
 
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
-            inputNumber : int = a & (2**bitLength - 1) #Cuts down number to correct bitLength BEFORE converting it
-            bitArray : list[int] = [inputNumber >> i & 1 for i in range(bitLength)] #Converts to bit array, index 0 is least significant bit
-            bitArray : list[int] = [not i for i in bitArray] #performs the bitwise NOT operation
+            inputNumber : int = a & (2**bitLength - 1) # Cuts down number to correct bitLength BEFORE converting it
+            bitArray : list[int] = [inputNumber >> i & 1 for i in range(bitLength)] # Converts to bit array, index 0 is least significant bit
+            bitArray : list[int] = [not i for i in bitArray] # performs the bitwise NOT operation
             result : int = sum([bit << i for i, bit in enumerate(bitArray)])
             result += 1
 
-            result = result & (2**bitLength - 1) #Cuts down number to correct bitLength again
+            result = result & (2**bitLength - 1) # Cuts down number to correct bitLength again
 
             funcWrite(registerDestination, result)
 
@@ -5551,12 +5552,12 @@ class CPUsim_v4:
 
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
-            inputNumber : int = a & (2**bitLength - 1) #Cuts down number to correct bitLength BEFORE converting it
-            bitArray : list[int] = [inputNumber >> i & 1 for i in range(bitLength)] #Converts to bit array, index 0 is least significant bit
-            bitArray = [not i for i in bitArray] #performs the bitwise NOT operation
+            inputNumber : int = a & (2**bitLength - 1) # Cuts down number to correct bitLength BEFORE converting it
+            bitArray : list[int] = [inputNumber >> i & 1 for i in range(bitLength)] # Converts to bit array, index 0 is least significant bit
+            bitArray = [not i for i in bitArray] # performs the bitwise NOT operation
             result : int = sum([bit << i for i, bit in enumerate(bitArray)])
 
-            result = result & (2**bitLength - 1) #Cuts down number to correct bitLength again
+            result = result & (2**bitLength - 1) # Cuts down number to correct bitLength again
 
             funcWrite(registerDestination, result)
 
@@ -5569,13 +5570,13 @@ class CPUsim_v4:
             #TODO needs to handle signed and unsigned ints
 
             mode:
-                goto    - a simple jump without any condition testing, a and b must be set to None
-                <       - less than
-                <=      - less than or equal to
-                >       - greater than
-                >=      - greater than or equal to
-                ==      - equal
-                !=      - not equal
+                goto                    - a simple jump without any condition testing, a and b must be set to None
+                <                       - less than
+                <=                      - less than or equal to
+                >                       - greater than
+                >=                      - greater than or equal to
+                ==                      - equal
+                !=                      - not equal
             """
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -5710,14 +5711,14 @@ class CPUsim_v4:
                 raise Exception("Instruction input 'registerShiftOffset' is too large to be valid")
 
             result : int = a
-            for _ in range(amount): #shift a right WITHIN bitLengthSource
+            for _ in range(amount): # shift a right WITHIN bitLengthSource
                 msb : int = 0
                 if arithmetic:
                     msb = 2**(bitLengthSource - 1) & result
                 result = result >> 1
                 result = result | msb
 
-            if bitLengthSource < bitLengthDestination: #Takes msb, and extends it out to larger bitLength bitLengthDestination if needed
+            if bitLengthSource < bitLengthDestination: # Takes msb, and extends it out to larger bitLength bitLengthDestination if needed
                 msb : int = 2**(bitLengthSource - 1) & result
                 for _ in range(bitLengthSource - 1, bitLengthDestination):
                     msb = msb | (msb << 1)
@@ -5825,7 +5826,7 @@ class CPUsim_v4:
             elif trunkOrExtend == "extend":
                 msb : int = 2**(sourceBitLength - 1) & 1
                 result = a
-                for _ in range(destinationBitLength - sourceBitLength): #Takes msb, and extends it out to larger bitLength bitLengthDestination if needed
+                for _ in range(destinationBitLength - sourceBitLength): # Takes msb, and extends it out to larger bitLength bitLengthDestination if needed
                     msb = msb << 1
                     result = result & msb
                 result = result & (2**destinationBitLength - 1)
@@ -6162,8 +6163,8 @@ class CPUsim_v4:
             assert type(code) is str
             assert len(code) > 0
 
-            #done like this to easily add extra characters
-            _isName : Callable[[str], bool] = lambda x : x.isalnum() or x in "_" #returns True is character can be in a name, False otherwise
+            # done like this to easily add extra characters
+            _isName : Callable[[str], bool] = lambda x : x.isalnum() or x in "_" # returns True is character can be in a name, False otherwise
 
             tokenList : list[tuple[str, int, int]] = []
             token : str = ""
@@ -6172,10 +6173,10 @@ class CPUsim_v4:
             tokenLength : int = 0
             j : str # char
             for j in code:
-                if _isName(j): #creates tokens from everything that could be a variable name
+                if _isName(j): # creates tokens from everything that could be a variable name
                     token += j
                     tokenLength += 1
-                else: #everything else is a special character
+                else: # everything else is a special character
                     if token != "":
                         tokenList.append((token, lineNum, characterNum - tokenLength))
                         token = ""
@@ -6183,13 +6184,13 @@ class CPUsim_v4:
                     tokenList.append((j, lineNum, characterNum))
                     tokenLength = 0
 
-                #keeps track of line and positition numbers
+                # keeps track of line and positition numbers
                 if j == "\n":
                     lineNum += 1
                     characterNum = 0
                 else:
                     characterNum += 1
-            if token != "": #adds last token
+            if token != "": # adds last token
                 tokenList.append((token, lineNum, characterNum - tokenLength))
                 token = ""
                 tokenLength = 0
@@ -6205,18 +6206,18 @@ class CPUsim_v4:
                 "123 456 789" 
                 ->
                 Node
-                    '123'   | Cast
+                    '123'               | Cast
                     ' '
-                    '456'   | Cast
+                    '456'               | Cast
                     ' '
-                    '789'   | Cast
+                    '789'               | Cast
                 ->
                 Node
-                    123     |
+                    123                 |
                     ' '
-                    456     |
+                    456                 |
                     ' '
-                    789     |
+                    789                 |
             """
             assert type(tree) is self.Node
 
@@ -6246,18 +6247,18 @@ class CPUsim_v4:
                 "0x0 0x000A 0xff" 
                 ->
                 Node
-                    '0x0'       | Cast
+                    '0x0'                Cast
                     ' '
-                    '0x000A'    | Cast
+                    '0x000A'            | Cast
                     ' '
-                    '0xff'      | Cast
+                    '0xff'              | Cast
                 ->
                 Node
-                    0           |
+                    0                   |
                     ' '
-                    10          |
+                    10                  |
                     ' '
-                    255         |
+                    255                 |
             """
             assert type(tree) is self.Node
 
@@ -6291,8 +6292,8 @@ class CPUsim_v4:
                     '\n'
                     'test'
                     '\n'    
-                    '\n'    |
-                    '\n'    |
+                    '\n'                |
+                    '\n'                |
                     'test'
                     '\n'
                 ->
@@ -6300,8 +6301,8 @@ class CPUsim_v4:
                     'test'
                     '\n'
                     'test'
-                    '\n'    _V_
-                    'test'   A
+                    '\n'                _V_
+                    'test'               A
                     '\n'
             """
             assert type(tree) is self.Node
@@ -6312,7 +6313,7 @@ class CPUsim_v4:
 
             i : ParseNode
             for i in tree.child:
-                #if previous == "\n" and current == "\n" do nothing, else copy Node
+                # if previous == "\n" and current == "\n" do nothing, else copy Node
                 if i != "\n" or stack != "\n":
                     root.append(i.copyDeep())
                     stack = i.token
@@ -6333,17 +6334,17 @@ class CPUsim_v4:
                     '\n'
                     'test'
                     '\n'
-                    ' '     |
-                    ' '     |
-                    '\t'    |
+                    ' '                 |
+                    ' '                 |
+                    '\t'                |
                     'test'
                     '\t'
                     '\n'
-                    ' '     |
-                    ' '     |
-                    ' '     |
-                    ' '     |                               
-                    ' '     |
+                    ' '                 |
+                    ' '                 |
+                    ' '                 |
+                    ' '                 |                               
+                    ' '                 |
                     '\n'
                 ->
                 Node
@@ -6353,11 +6354,11 @@ class CPUsim_v4:
                     ' '
                     '\n'
                     'test'
-                    '\n'    _V_
-                    'test'   A
+                    '\n'                _V_
+                    'test'               A
                     '\t'
-                    '\n'    _V_
-                    '\n'     A
+                    '\n'                _V_
+                    '\n'                 A
 
             Case: # TestParseDefaultBuildingBlocks.test_RuleRemoveLeadingWhitespace_Children01
                 'test\n\t\t\ttest[abc 123]' 
@@ -6407,10 +6408,10 @@ class CPUsim_v4:
 
             root : ParseNode = tree.copyInfo()
 
-            stack : str = "\n" #initialize to State 0
+            stack : str = "\n" # initialize to State 0
             if len(tree.child) != 0:
                 if tree.child[0] == "\n":
-                    stack = None #initialize to State 1
+                    stack = None # initialize to State 1
 
             ''' Finite State Machine
             State 0: at beginning of line
@@ -6423,20 +6424,20 @@ class CPUsim_v4:
             i : ParseNode
             for i in tree.child:
                 logging.debug(debugHelper(inspect.currentframe()) + repr(i.token))
-                if stack != None: #State 0: at beginning of line
-                    if i.token in whiteSpace: #Edge: 0 -> 0: found whitespace, not copying
+                if stack != None: # State 0: at beginning of line
+                    if i.token in whiteSpace: # Edge: 0 -> 0: found whitespace, not copying
                         logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 0 -> 0")
                         pass
-                    else: #Edge: 0 -> 1: found token, copying
+                    else: # Edge: 0 -> 1: found token, copying
                         logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 0 -> 1")
                         root.append(i.copyDeep())
                         stack = None
-                else: #State 1: after first token
-                    if i == "\n": #Edge: 1 -> 0: found newline
+                else: # State 1: after first token
+                    if i == "\n": # Edge: 1 -> 0: found newline
                         logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 1 -> 0")
                         stack = "\n"
                         root.append(i.copyDeep())
-                    else: #Edge: 1 -> 1: did not find newline, copy token
+                    else: # Edge: 1 -> 1: did not find newline, copy token
                         logging.debug(debugHelper(inspect.currentframe()) + "\tEdge 1 -> 1")
                         root.append(i.copyDeep())
 
@@ -6454,33 +6455,33 @@ class CPUsim_v4:
                 Node
                     'test'
                     ' '
-                    '\''                                | Convert
-                    'test'                              |
-                    '\''                                |
+                    '\''                | Convert
+                    'test'              |
+                    '\''                |
                 ->
                 Node
                     'test'
                     ' '
-                    "test"                              | string
+                    "test"              | string
 
             Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Integration05
                 "\'test\n\\\'test\\\'\'\ntest" 
                 ->
                 Node
-                    '\''                                | Convert
-                    'test'                              |
-                    '\n'                                |
-                    '\\'                                |
-                    '\''                                |
-                    'test'                              |
-                    '\\'                                |
-                    '\''                                |
-                    '\''                                |
+                    '\''                | Convert
+                    'test'              |
+                    '\n'                |
+                    '\\'                |
+                    '\''                |
+                    'test'              |
+                    '\\'                |
+                    '\''                |
+                    '\''                |
                     '\n'
                     'test'
                 ->
                 Node
-                    "test\n\\\'test\\\'"                | string
+                    "test\n\\\'test\\\'"| string
                     '\n'
                     'test'
 
@@ -6488,20 +6489,20 @@ class CPUsim_v4:
                 "\'test\n\'test\'\'\ntest" 
                 ->
                 Node
-                    '\''                                | Convert
-                    'test'                              |
-                    '\n'                                |
-                    '\''                                |
+                    '\''                | Convert
+                    'test'              |
+                    '\n'                |
+                    '\''                |
                     'test'
-                    '\''                                | Convert
-                    '\''                                |
+                    '\''                | Convert
+                    '\''                |
                     '\n'
                     'test'
                 ->
                 Node
-                    "test\n"                            | string
+                    "test\n"            | string
                     "test"
-                    ""                                  | string
+                    ""                  | string
                     "\n"
                     "test"
 
@@ -6510,18 +6511,18 @@ class CPUsim_v4:
                 ->
                 Node
                     'test1'
-                    '\"'                                | Convert
-                    'abc'                               |
-                    '\''                                |
-                    '123'                               |
-                    '\''                                |
-                    'abc'                               |
-                    '\"'                                |
+                    '\"'                | Convert
+                    'abc'               |
+                    '\''                |
+                    '123'               |
+                    '\''                |
+                    'abc'               |
+                    '\"'                |
                     'test2'
                 ->
                 Node
                     "test1"
-                    "abc\'123\'abc"                     | string
+                    "abc\'123\'abc"     | string
                     "test2"
 
             Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Null
@@ -6552,21 +6553,21 @@ class CPUsim_v4:
             '''
             i : ParseNode
             for i in tree.child:
-                if stack == None: #the 'looking for an opening quote' State 0
-                    if i != "\"" and i != "\'": #Edge 0 -> 0
+                if stack == None: # the 'looking for an opening quote' State 0
+                    if i != "\"" and i != "\'": # Edge 0 -> 0
                         root.append(i.copyDeep())
                     if i == "\"" or i == "\'":
-                        if i.nodePrevious != "\\": #Edge 0 -> 1
+                        if i.nodePrevious != "\\": # Edge 0 -> 1
                             stack = i.token
                             lineNum = i.lineNum
                             charNum = i.charNum
-                        elif i.nodePrevious == "\\": #Edge 0 -> 0
+                        elif i.nodePrevious == "\\": # Edge 0 -> 0
                             root.append(i.copyDeep())
-                elif stack != None: #the 'in a quote' State 1
-                    if i != stack: #Edge 1 -> 1
+                elif stack != None: # the 'in a quote' State 1
+                    if i != stack: # Edge 1 -> 1
                         string += str(i.token)
                     if i == stack:
-                        if i.nodePrevious != "\\": #Edge 1 -> 0
+                        if i.nodePrevious != "\\": # Edge 1 -> 0
                             temp = self.Node("string", string, lineNum, charNum)
                             root.append(temp)
 
@@ -6574,7 +6575,7 @@ class CPUsim_v4:
                             lineNum = None
                             charNum = None
                             string = ""
-                        elif i.nodePrevious == "\\": #Edge 1 -> 1
+                        elif i.nodePrevious == "\\": # Edge 1 -> 1
                             string += str(i.token)
 
             if stack != None: #TODO handle mis-matched quotes
@@ -6595,12 +6596,12 @@ class CPUsim_v4:
                 Node
                     'test'
                     ' '
-                    '#'                         | comment
-                    'test'                      |
+                    '#'                 | comment
+                    'test'              |
                     '\n'
                     ' '
-                    '#'                         | comment
-                    'test'                      |
+                    '#'                 | comment
+                    'test'              |
                     '\n'
                     '\t'
                     '\\'
@@ -6611,10 +6612,10 @@ class CPUsim_v4:
                 ->
                 Node
                     'test'
-                    ' '                         _V_
-                    '\n'                         A
-                    ' '                         _V_
-                    '\n'                         A
+                    ' '                 _V_
+                    '\n'                 A
+                    ' '                 _V_
+                    '\n'                 A
                     '\t'
                     '\\
                     '#'
@@ -6633,18 +6634,18 @@ class CPUsim_v4:
                     ' '
                     'test'
                     ' '
-                    '#'                     | comment
-                    'abc'                   |
-                    ' '                     |
-                    'abc'                   |
-                    ' '                     |
-                    'abc'                   |
-                    ' '                     |
-                    '\\'                    |
-                    'n'                     |
-                    ' '                     |
-                    'abc'                   |
-                    ' '                     |
+                    '#'                 | comment
+                    'abc'               |
+                    ' '                 |
+                    'abc'               |
+                    ' '                 |
+                    'abc'               |
+                    ' '                 |
+                    '\\'                |
+                    'n'                 |
+                    ' '                 |
+                    'abc'               |
+                    ' '                 |
                     '\n'
                     ' '
                     'test'
@@ -6660,8 +6661,8 @@ class CPUsim_v4:
                     '#'
                     ' '
                     'test'
-                    ' '                     _V_
-                    '\n'                     A
+                    ' '                 _V_
+                    '\n'                 A
                     ' '
                     'test'
                     ' '
@@ -6765,22 +6766,22 @@ class CPUsim_v4:
                     else
                         append to last element in stack
                 '''
-                if i.token in list(containers.keys()): #if open bracket
-                    #append to stack
+                if i.token in list(containers.keys()): # if open bracket
+                    # append to stack
                     temp : ParseNode = i.copyDeep()
                     temp.type = nodeType
                     stack.append((i.token, temp))
                 elif len(stack) != 0:
-                    if containers[stack[-1][0]] == i.token: #if closing bracket
-                        temp : ParseNode = stack.pop()[1] #pop from stack
+                    if containers[stack[-1][0]] == i.token: # if closing bracket
+                        temp : ParseNode = stack.pop()[1] # pop from stack
 
-                        if len(stack) != 0: #append to last element in stack, otherwise append to root
+                        if len(stack) != 0: # append to last element in stack, otherwise append to root
                             stack[-1][1].append(temp)
                         else:
                             root.append(temp)
-                    else: #not container, append to last element in stack
+                    else: # not container, append to last element in stack
                         stack[-1][1].append(i.copyDeep())
-                else: #not container, append to last element in stack, otherwise append to root
+                else: # not container, append to last element in stack, otherwise append to root
                     if len(stack) == 0:
                         root.append(i.copyDeep())
                     else:
@@ -7024,7 +7025,7 @@ class CPUsim_v4:
             assert type(tree) is self.Node
             assert type(tokenType) is str
             assert type(splitToken) is str
-            #TODO should test if splitToken is len == 0 with accompanying unit test
+            assert len(splitToken) != 0
 
             result : list[ParseNode] = []
             current : ParseNode = self.Node(tokenType, None, 0, 0)
@@ -7040,7 +7041,7 @@ class CPUsim_v4:
             if len(current.child) >= 1:
                 result.append(current)
 
-            #Goes through all 'lines' and sets lineNum and charNum to the values of the first child Node in them
+            # Goes through all 'lines' and sets lineNum and charNum to the values of the first child Node in them
             i : ParseNode
             for i in result:
                 if len(i.child) != 0:
@@ -7149,7 +7150,7 @@ class CPUsim_v4:
             root : ParseNode = tree.copyInfo()
             tokenFound : bool = False
 
-            #checks if there is a splitToken in children
+            # checks if there is a splitToken in children
             i : ParseNode
             for i in tree.child:
                 if i == splitToken:
@@ -7167,7 +7168,7 @@ class CPUsim_v4:
                             temp.append(stack.pop(0))
                         root.append(temp)
                     else:
-                        #stack.append(self.ruleSplitTokens(i.copyDeep(), tokenType, splitToken, recurse) if recurse else i.copyDeep())
+                        # stack.append(self.ruleSplitTokens(i.copyDeep(), tokenType, splitToken, recurse) if recurse else i.copyDeep())
                         temp : ParseNode = None
                         if recurse:
                             temp = self.ruleSplitTokens(i.copyDeep(), tokenType, splitToken, recurse)
@@ -7181,7 +7182,7 @@ class CPUsim_v4:
                         temp.append(stack.pop(0))
                     root.append(temp)
                     
-            else: #the splitToken not found case
+            else: # the splitToken not found case
                 i : ParseNode
                 for i in tree.child:
                     temp : ParseNode = None
@@ -7218,7 +7219,7 @@ class CPUsim_v4:
                         temp = i
                     logging.debug(debugHelper(inspect.currentframe()) + "temp \n" + str(temp))
 
-                    if type(i.nodePrevious) is self.Node: #IE: the node exists
+                    if type(i.nodePrevious) is self.Node: # IE: the node exists
                         if i.nodePrevious.token in nameSpace:
                             root.child[-1].append(temp.copyDeep())
                         else:
@@ -7233,25 +7234,63 @@ class CPUsim_v4:
         def ruleLowerCase(self, tree : ParseNode, recurse : bool = True) -> ParseNode:
             """Takes in a Node Tree of arbitrary depth. Sets all tokens in the Node Tree's children as lower case. Recurses by default. Returns a Node Tree of arbitrary depth.
             
-            Case:
-            'HELLO WORLD[test ABC]'
-            ->
-            Node
-                'HELLO'
-                ' '
-                'WORLD'
-                    'test'
-                    'ABC'
-            ->
-            Node
-                'hello'
-                ' '
-                'world'
-                    'test'
-                    'abc'
+            Case 1: # TestParseDefaultBuildingBlocks.test_RuleLowerCase_Integration02
+                "Hello World"
+                ->
+                Recurse = False
+                Node
+                    'Hello'             |
+                    ' '
+                    'World'             |
+                ->
+                Node
+                    'hello'             |
+                    ' '
+                    'world'             |
+
+            Case 2: # TestParseDefaultBuildingBlocks.test_RuleLowerCase_Integration03
+                "Hello World[ABC 123]"
+                ->
+                Recurse = False
+                Node
+                    'Hello'             |
+                    ' '
+                    'World'             |
+                        'ABC'
+                        ' '
+                        '123'
+                ->
+                Node
+                    'hello'             |
+                    ' '
+                    'world'             |
+                        'ABC'           # Notice this is not changed
+                        ' '
+                        '123'
+
+            Case 3: # TestParseDefaultBuildingBlocks.test_RuleLowerCase_Integration04
+                "Hello World[ABC 123]"
+                ->
+                Recurse = True
+                Node
+                    'Hello'             |
+                    ' '
+                    'World'             |
+                        'ABC'           |
+                        ' '
+                        '123'
+                ->
+                Node
+                    'hello'             |
+                    ' '
+                    'world'             |
+                        'abc'           |
+                        ' '
+                        '123'
+
             """
             assert type(tree) is self.Node
-            assert recurse is bool
+            assert type(recurse) is bool
 
             root : ParseNode = tree.copyInfo()
             i : ParseNode
@@ -7272,16 +7311,16 @@ class CPUsim_v4:
             Node
                 'test'
                 ' '
-                '123'       |
+                '123'                   |
                 ' '
                 'abc'
             =>
             Node
                 'test'
                 ' '
-                'hello'     | #notice how the string 'hello world' was tokenized
-                ' '         |
-                'world'     |
+                'hello'                 | #notice how the string 'hello world' was tokenized
+                ' '                     |
+                'world'                 |
                 ' '
                 'abc'
             
@@ -7289,24 +7328,24 @@ class CPUsim_v4:
             Node
                 'test'
                 ' '
-                'abc'       |
-                    'hello' |
-                    ' '     |
-                    'world' |
+                'abc'                   |
+                    'hello'             |
+                    ' '                 |
+                    'world'             |
                 ' '
                 'temp
             =>
             Node
                 'test'
                 ' '
-                '1'         | #notice how the children of 'abc' was added to the first of the replacement nodes
-                    'hello' |
-                    ' '     |
-                    'world' |
-                ' '         |
-                '2'         |
-                ' '         |
-                '3'         |
+                '1'                     | #notice how the children of 'abc' was added to the first of the replacement nodes
+                    'hello'             |
+                    ' '                 |
+                    'world'             |
+                ' '                     |
+                '2'                     |
+                ' '                     |
+                '3'                     |
                 ' '
                 'temp'
             """
@@ -7388,11 +7427,11 @@ class CPUsim_v4:
                         add
                             r
                                 0
-                            None                    | # Notice how the container was replaced with 'None', in order to maintain the structure of the tree
-                                r                   |
-                                    1               |
-                                r                   |
-                                    2               |
+                            None                                                | # Notice how the container was replaced with 'None', in order to maintain the structure of the tree
+                                r                                               |
+                                    1                                           |
+                                r                                               |
+                                    2                                           |
             
             """
             assert type(tree) is self.Node
@@ -7447,41 +7486,41 @@ class CPUsim_v4:
                             and(r[1],r[2],r[0]) #Another comment
                 label2:     jump(label1)
             Returns:
-                None                                        :Root           1       lineNum=None    charNum=None
-                    None                                    :Line           2       lineNum=2       charNum=31
-                        'add'                               :Namespace      3       lineNum=2       charNum=31
-                            '('                             :Container      4       lineNum=2       charNum=31
-                                None                        :Argument       5       lineNum=2       charNum=33
-                                    'r'                     :Namespace      6       lineNum=2       charNum=33
-                                        '['                 :Container      7       lineNum=2       charNum=33
-                                            0               :Int            8       lineNum=2       charNum=35
-                                None                        :Argument       5       lineNum=2       charNum=38
-                                    'r'                     :Namespace      6       lineNum=2       charNum=38
-                                        '['                 :Container      7       lineNum=2       charNum=38
-                                            0               :Int            8       lineNum=2       charNum=40
-                                None                        :Argument       5       lineNum=2       charNum=43
-                                    'r'                     :Namespace      6       lineNum=2       charNum=43
-                                        '['                 :Container      7       lineNum=2       charNum=43
-                                            0               :Int            8       lineNum=2       charNum=45
-                    None                                    :Line           2       lineNum=3       charNum=31
-                        'and'                               :Namespace      3       lineNum=3       charNum=31
-                            '('                             :Container      4       lineNum=3       charNum=31
-                                None                        :Argument       5       lineNum=3       charNum=33
-                                    'r'                     :Namespace      6       lineNum=3       charNum=33
-                                        '['                 :Container      7       lineNum=3       charNum=33
-                                            1               :Int            8       lineNum=3       charNum=35
-                                None                        :Argument       5       lineNum=3       charNum=38
-                                    'r'                     :Namespace      6       lineNum=3       charNum=38
-                                        '['                 :Container      7       lineNum=3       charNum=38
-                                            2               :Int            8       lineNum=3       charNum=40
-                                None                        :Argument       5       lineNum=3       charNum=43
-                                    'r'                     :Namespace      6       lineNum=3       charNum=43
-                                        '['                 :Container      7       lineNum=3       charNum=43
-                                            0               :Int            8       lineNum=3       charNum=45
-                    None                                    :Line           2       lineNum=4       charNum=32
-                        'jump'                              :Namespace      3       lineNum=4       charNum=32
-                            '('                             :Container      4       lineNum=4       charNum=32
-                                'label1'                    :Token          5       lineNum=4       charNum=39
+                None                                                            :Root           1       lineNum=None    charNum=None
+                    None                                                        :Line           2       lineNum=2       charNum=31
+                        'add'                                                   :Namespace      3       lineNum=2       charNum=31
+                            '('                                                 :Container      4       lineNum=2       charNum=31
+                                None                                            :Argument       5       lineNum=2       charNum=33
+                                    'r'                                         :Namespace      6       lineNum=2       charNum=33
+                                        '['                                     :Container      7       lineNum=2       charNum=33
+                                            0                                   :Int            8       lineNum=2       charNum=35
+                                None                                            :Argument       5       lineNum=2       charNum=38
+                                    'r'                                         :Namespace      6       lineNum=2       charNum=38
+                                        '['                                     :Container      7       lineNum=2       charNum=38
+                                            0                                   :Int            8       lineNum=2       charNum=40
+                                None                                            :Argument       5       lineNum=2       charNum=43
+                                    'r'                                         :Namespace      6       lineNum=2       charNum=43
+                                        '['                                     :Container      7       lineNum=2       charNum=43
+                                            0                                   :Int            8       lineNum=2       charNum=45
+                    None                                                        :Line           2       lineNum=3       charNum=31
+                        'and'                                                   :Namespace      3       lineNum=3       charNum=31
+                            '('                                                 :Container      4       lineNum=3       charNum=31
+                                None                                            :Argument       5       lineNum=3       charNum=33
+                                    'r'                                         :Namespace      6       lineNum=3       charNum=33
+                                        '['                                     :Container      7       lineNum=3       charNum=33
+                                            1                                   :Int            8       lineNum=3       charNum=35
+                                None                                            :Argument       5       lineNum=3       charNum=38
+                                    'r'                                         :Namespace      6       lineNum=3       charNum=38
+                                        '['                                     :Container      7       lineNum=3       charNum=38
+                                            2                                   :Int            8       lineNum=3       charNum=40
+                                None                                            :Argument       5       lineNum=3       charNum=43
+                                    'r'                                         :Namespace      6       lineNum=3       charNum=43
+                                        '['                                     :Container      7       lineNum=3       charNum=43
+                                            0                                   :Int            8       lineNum=3       charNum=45
+                    None                                                        :Line           2       lineNum=4       charNum=32
+                        'jump'                                                  :Namespace      3       lineNum=4       charNum=32
+                            '('                                                 :Container      4       lineNum=4       charNum=32
+                                'label1'                                        :Token          5       lineNum=4       charNum=39
 
                 Dict
                     "label1"    :   0
@@ -7491,7 +7530,7 @@ class CPUsim_v4:
 
             labels : dict = None
             
-            #tokenizes sourceCode, and turns it into a Node Tree
+            # tokenizes sourceCode, and turns it into a Node Tree
             root : ParseNode = self.Node("root")
             token : str
             lineNum : int
@@ -7502,7 +7541,7 @@ class CPUsim_v4:
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
             logging.debug(debugHelper(inspect.currentframe()) + "tokenized code: " + "\n" + str(root))
 
-            #Note: at this point, rules do operations on the Node Tree, but the depth of the Node Tree remains 2
+            # Note: at this point, rules do operations on the Node Tree, but the depth of the Node Tree remains 2
 
             root = self.ruleFilterLineComments(root, "#")
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFilterLineComments: " + "\n" + str(root))
@@ -7522,7 +7561,7 @@ class CPUsim_v4:
             root, labels = self.ruleFindLabels(root)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleFindLabels: " + "\n" + str(root) + "\nlabels: " + str(labels))
             i : int = 0
-            while i < len(root.child): #removes the label nodes, as they don't need to be executed
+            while i < len(root.child): # removes the label nodes, as they don't need to be executed
                 if root.child[i].type == "label":
                     root.remove(root.child[i])
                 else:
@@ -7562,7 +7601,7 @@ class CPUsim_v4:
                 root.append(i)
             logging.debug(debugHelper(inspect.currentframe()) + "ruleSplitLines: " + "\n" + str(root))
 
-            #removes empty lines/empty line nodes
+            # removes empty lines/empty line nodes
             i : int = 0
             while i < len(root.child):
                 if len(root.child[i].child) == 0:
@@ -7881,27 +7920,27 @@ class CPUsim_v4:
             self.defaultDirective : Callable[[ParseNode, Any], tuple[0, None]] = self.null # used to autofill undefined instructions from instructionSet
             
             self.instructionSet :   dict[
-                                        Tuple(str, ...),                    # Instruction or directive
+                                        Tuple(str, ...),                        # Instruction or directive
                                         Callable[
                                             [
-                                                ParseNode,                  # The parse/execution tree for a line, for feeding in arguments into a function
-                                                dict[                       # A dictionary of pointers to labels within the assembly source code given
-                                                    str,                    # The label
-                                                    int                     # The pointer index int (will only point to a memory bank WITHIN the current bank the)
+                                                ParseNode,                      # The parse/execution tree for a line, for feeding in arguments into a function
+                                                dict[                           # A dictionary of pointers to labels within the assembly source code given
+                                                    str,                        # The label
+                                                    int                         # The pointer index int (will only point to a memory bank WITHIN the current bank the)
                                                 ],
-                                                dict[                       # A dictionary of aliases for memory, IE: register rt -> register r[5]
+                                                dict[                           # A dictionary of aliases for memory, IE: register rt -> register r[5]
                                                     str,
-                                                    tuple[int | str]        # A register
+                                                    tuple[int | str]            # A register
                                                 ]
                                             ],
-                                            list[                           # A list because should allow for the possibility of a node outputing more then one instruction
+                                            list[                               # A list because should allow for the possibility of a node outputing more then one instruction
                                                 tuple[
                                                     list[int],                  #TODO
-                                                        # A series of ints representing the instruction in binary, each int is one memory element. 
-                                                        # More then one int represents an instruction longer then one memory element
-                                                    ParseNode,                  #The parse/execution tree to be written to memory
+                                                                                # A series of ints representing the instruction in binary, each int is one memory element. 
+                                                                                # More then one int represents an instruction longer then one memory element
+                                                    ParseNode,                  # The parse/execution tree to be written to memory
                                                     Callable[[int], list[int]], #TODO
-                                                        # a lambda function that takes in a memory offset, and returns an output similar to the above, but taking into account the memory offset
+                                                                                # a lambda function that takes in a memory offset, and returns an output similar to the above, but taking into account the memory offset
                                                     Any                         #TODO still figuring out what it needs to output, this should be some sort of readable code that could be reprocessed to adjust jumps for linking?
                                                 ]
                                             ]
@@ -7970,16 +8009,16 @@ class CPUsim_v4:
                             r2
                 -> # partially processed midway through recursion
                 Line
-                    Add                         | Note that the 'containers' are eliminated
-                        ['r', 0]                | Note how the register alaises were converted to key/index pairs
-                        ['r', 1]                |
-                        ['r', 2]                |
+                    Add                                                         | Note that the 'containers' are eliminated
+                        ['r', 0]                                                | Note how the register alaises were converted to key/index pairs
+                        ['r', 1]                                                |
+                        ['r', 2]                                                |
                 -> # opAdd is called
                 Line
                     Tuple(
                         list[int, ...]
                         Tuple(
-                            Add                 # ParseNode
+                            Add                                                 # ParseNode
                                 ['r', 0]
                                 ['r', 1]
                                 ['r', 2]
@@ -8003,16 +8042,16 @@ class CPUsim_v4:
                                     2
                 -> # partially processed midway through recursion
                 Line
-                    Add                         | Note that the 'containers' are eliminated
-                        ['r', 0]                | Note how the register alaises were converted to key/index pairs
-                        ['r', 1]                |
-                        ['r', 2]                |
+                    Add                                                         | Note that the 'containers' are eliminated
+                        ['r', 0]                                                | Note how the register alaises were converted to key/index pairs
+                        ['r', 1]                                                |
+                        ['r', 2]                                                |
                 -> # opAdd is called
                 Line
                     Tuple(
                         list[int, ...]
                         Tuple(
-                            Add                 # ParseNode
+                            Add                                                 # ParseNode
                                 ['r', 0]
                                 ['r', 1]
                                 ['r', 2]
@@ -8047,10 +8086,10 @@ class CPUsim_v4:
                                     2
                 -> # partially processed midway through recursion
                 Line
-                    Add                         | Note that the 'containers' are eliminated
-                        ['r', 0]                | Note how the register alaises were converted to key/index pairs
-                        ['r', 1]                |
-                        ['r', 2]                |
+                    Add                                                         | Note that the 'containers' are eliminated
+                        ['r', 0]                                                | Note how the register alaises were converted to key/index pairs
+                        ['r', 1]                                                |
+                        ['r', 2]                                                |
                     Mult
                         ['r', 0]
                         ['r', 1]
@@ -8060,7 +8099,7 @@ class CPUsim_v4:
                     Tuple(
                         list[int, ...]
                         Tuple(
-                            Add                 # ParseNode
+                            Add                                                 # ParseNode
                                 ['r', 0]
                                 ['r', 1]
                                 ['r', 2]
@@ -8086,7 +8125,7 @@ class CPUsim_v4:
             assert (0 - 2**bitLength) // 2 <= number < 2**bitLength
 
             number = number & (2**bitLength - 1)
-            bitArray = [number >> i & 1 for i in range(bitLength)] #index 0 is least significant bit
+            bitArray = [number >> i & 1 for i in range(bitLength)] # index 0 is least significant bit
 
             return bitArray
 
@@ -8127,7 +8166,7 @@ class CPUsim_v4:
             character : int = 0
             i : str # chr
             for i in text:
-                character = ord(i) & (2**7 - 1) #Squashish ascii to 7-bits
+                character = ord(i) & (2**7 - 1) # Squashish ascii to 7-bits
                 result.append(character)
 
             return result, None
@@ -8142,41 +8181,41 @@ class CPUsim_v4:
                 IE: n=255, bitSize=7 will return [127, 1] (where the '1' is the most significant 'not byte')
 
             Example:
-                endianess           = 'little'
-                memoryElementSize   = 8
-                bitLength           = 16
-                n                   = 255
-                result              = ([255, 0], None)
+                endianess               = 'little'
+                memoryElementSize       = 8
+                bitLength               = 16
+                n                       = 255
+                result                  = ([255, 0], None)
             Example:
-                endianess           = 'little'
-                memoryElementSize   = 8
-                bitLength           = 16
-                n                   = 256
-                result              = ([0, 1], None)
+                endianess               = 'little'
+                memoryElementSize       = 8
+                bitLength               = 16
+                n                       = 256
+                result                  = ([0, 1], None)
             Example:
-                endianess           = 'big'
-                memoryElementSize   = 8
-                bitLength           = 16
-                n                   = 256
-                result              = ([1, 0], None)
+                endianess               = 'big'
+                memoryElementSize       = 8
+                bitLength               = 16
+                n                       = 256
+                result                  = ([1, 0], None)
             Example:
-                endianess           = 'little'
-                memoryElementSize   = 7
-                bitLength           = 8
-                n                   = 255
-                result              = ([127, 1], None)
+                endianess               = 'little'
+                memoryElementSize       = 7
+                bitLength               = 8
+                n                       = 255
+                result                  = ([127, 1], None)
             Example:
-                endianess           = 'little'
-                memoryElementSize   = 7
-                bitLength           = 8
-                n                   = 256
-                result              = ([0, 2], None)
+                endianess               = 'little'
+                memoryElementSize       = 7
+                bitLength               = 8
+                n                       = 256
+                result                  = ([0, 2], None)
             Example:
-                endianess           = 'big'
-                memoryElementSize   = 7
-                bitLength           = 8
-                n                   = 256
-                result              = ([2, 0], None)
+                endianess               = 'big'
+                memoryElementSize       = 7
+                bitLength               = 8
+                n                       = 256
+                result                  = ([2, 0], None)
             """
 
             assert self.memoryElementSize > 1
@@ -8307,25 +8346,25 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
         """Tests that a number can still be stored when the memoryElementSize and the bitLength of the number being stored are not multiples of each other
         
         Example:
-            endianess = 'little'
-            memoryElementSize = 7
-            bitLength = 8
-            n = 255
-            result = [127, 1]
+            endianess                   = 'little'
+            memoryElementSize           = 7
+            bitLength                   = 8
+            n                           = 255
+            result                      = [127, 1]
 
         Example:
-            endianess = 'little'
-            memoryElementSize = 7
-            bitLength = 8
-            n = 256
-            result = [0, 2]
+            endianess                   = 'little'
+            memoryElementSize           = 7
+            bitLength                   = 8
+            n                           = 256
+            result                      = [0, 2]
 
         Example:
-            endianess = 'big'
-            memoryElementSize = 7
-            bitLength = 8
-            n = 256
-            result = [2, 0]
+            endianess                   = 'big'
+            memoryElementSize           = 7
+            bitLength                   = 8
+            n                           = 256
+            result                      = [2, 0]
         """
 
         endianessTest : str
@@ -8436,33 +8475,33 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '123 456 789'
         ->
         Node
-            '123'
+            '123'                       |
             ' '
-            '456'
+            '456'                       |
             ' '
-            '789'
+            '789'                       |
         ->
         Node
-            123
+            123                         |
             ' '
-            456
+            456                         |
             ' '
-            789
+            789                         |
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "123",              0, 0))
-        root.append(NodeParse(      "",         "",                 0, 0))
-        root.append(NodeParse(      "",         "456",              0, 0))
-        root.append(NodeParse(      "",         "",                 0, 0))
-        root.append(NodeParse(      "",         "789",              0, 0))
+        root.append(NodeParse(                                                  "",                 "123",              0, 0))
+        root.append(NodeParse(                                                  "",                 "",                 0, 0))
+        root.append(NodeParse(                                                  "",                 "456",              0, 0))
+        root.append(NodeParse(                                                  "",                 "",                 0, 0))
+        root.append(NodeParse(                                                  "",                 "789",              0, 0))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "int",      123,                0, 0))
-        expected.append(NodeParse(  "",         "",                 0, 0))
-        expected.append(NodeParse(  "int",      456,                0, 0))
-        expected.append(NodeParse(  "",         "",                 0, 0))
-        expected.append(NodeParse(  "int",      789,                0, 0))
+        expected.append(NodeParse(                                              "int",              123,                0, 0))
+        expected.append(NodeParse(                                              "",                 "",                 0, 0))
+        expected.append(NodeParse(                                              "int",              456,                0, 0))
+        expected.append(NodeParse(                                              "",                 "",                 0, 0))
+        expected.append(NodeParse(                                              "int",              789,                0, 0))
 
         result : ParseNode = self.parser.ruleCastInts(root)
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
@@ -8486,16 +8525,16 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",            0, 0))
-        root.append(NodeParse(      "",         " ",                0, 5))
-        root.append(NodeParse(      "",         "World",            0, 6))
-        root.append(NodeParse(      "",         "!",                0, 11))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "World",            0, 6))
+        root.append(NodeParse(                                                  "",                 "!",                0, 11))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",            0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 5))
-        expected.append(NodeParse(  "",         "World",            0, 6))
-        expected.append(NodeParse(  "",         "!",                0, 11))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 5))
+        expected.append(NodeParse(                                              "",                 "World",            0, 6))
+        expected.append(NodeParse(                                              "",                 "!",                0, 11))
 
         result : ParseNode = self.parser.ruleCastInts(root)
 
@@ -8504,12 +8543,12 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleCastInts_ExceptionTreeNotNodeParse(self):
         """tests ruleCastInts raises an exception when tree is not a NodeParse object"""
 
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleCastInts, tree)
+                self.assertRaises(AssertionError, self.parser.ruleCastInts, tree)
 
     def test_RuleCastHex_Integration01(self):
         """tests rulesCastHex basic test case '0xff'
@@ -8517,17 +8556,17 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '0xff'
         ->
         Node
-            '0xff'
+            '0xff'                      |
         ->
         Node
-            255
+            255                         |
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "0xff",             0, 0))
+        root.append(NodeParse(                                                  "",                 "0xff",             0, 0))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "int",      255,                0, 0))
+        expected.append(NodeParse(                                              "int",              255,                0, 0))
 
         result : ParseNode = self.parser.ruleCastHex(root)
 
@@ -8539,33 +8578,33 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '0x0 0x000A 0xff'
         ->
         Node
-            '0x0'
+            '0x0'                       |
             ' '
-            '0x000A'
+            '0x000A'                    |
             ' '
-            '0xff'
+            '0xff'                      |
         ->
         Node
-            0
+            0                           |
             ' '
-            10
+            10                          |
             ' '
-            255
+            255                         |
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "0x0",              0, 0))
-        root.append(NodeParse(      "",         " ",                0, 0))
-        root.append(NodeParse(      "",         "0x000A",           0, 0))
-        root.append(NodeParse(      "",         " ",                0, 0))
-        root.append(NodeParse(      "",         "0xff",             0, 0))
+        root.append(NodeParse(                                                  "",                 "0x0",              0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 0))
+        root.append(NodeParse(                                                  "",                 "0x000A",           0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 0))
+        root.append(NodeParse(                                                  "",                 "0xff",             0, 0))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "int",      0,                  0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 0))
-        expected.append(NodeParse(  "int",      10,                 0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 0))
-        expected.append(NodeParse(  "int",      255,                0, 0))
+        expected.append(NodeParse(                                              "int",              0,                  0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 0))
+        expected.append(NodeParse(                                              "int",              10,                 0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 0))
+        expected.append(NodeParse(                                              "int",              255,                0, 0))
         
         result : ParseNode = self.parser.ruleCastHex(root)
 
@@ -8590,16 +8629,16 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",            0, 0))
-        root.append(NodeParse(      "",         " ",                0, 5))
-        root.append(NodeParse(      "",         "World",            0, 6))
-        root.append(NodeParse(      "",         "!",                0, 11))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "World",            0, 6))
+        root.append(NodeParse(                                                  "",                 "!",                0, 11))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",            0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 5))
-        expected.append(NodeParse(  "",         "World",            0, 6))
-        expected.append(NodeParse(  "",         "!",                0, 11))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 5))
+        expected.append(NodeParse(                                              "",                 "World",            0, 6))
+        expected.append(NodeParse(                                              "",                 "!",                0, 11))
 
         result : ParseNode = self.parser.ruleCastHex(root)
 
@@ -8611,17 +8650,17 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '0xfFfF'
         ->
         Node
-            '0xfFfF'                |
+            '0xfFfF'                    |
         ->
         Node
-            65535                   |
+            65535                       |
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "0xfFfF",           0, 0))
+        root.append(NodeParse(                                                  "",                 "0xfFfF",           0, 0))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "int",      65535,              0, 0))
+        expected.append(NodeParse(                                              "int",              65535,              0, 0))
 
         result : ParseNode = self.parser.ruleCastHex(root)
 
@@ -8633,17 +8672,17 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '0Xffff'
         ->
         Node
-            '0Xffff'                |
+            '0Xffff'                    |
         ->
         Node
-            65535                   |
+            65535                       |
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "0xfFfF",           0, 0))
+        root.append(NodeParse(                                                  "",                 "0xfFfF",           0, 0))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "int",      65535,              0, 0))
+        expected.append(NodeParse(                                              "int",              65535,              0, 0))
 
         result : ParseNode = self.parser.ruleCastHex(root)
 
@@ -8652,12 +8691,12 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleCastHex_ExceptionTreeNotNodeParse(self):
         """tests ruleCastHex raises an exception when tree is not a NodeParse object"""
 
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleCastHex, tree)
+                self.assertRaises(AssertionError, self.parser.ruleCastHex, tree)
 
     def test_RuleRemoveEmptyLines_Integration01(self):
         """tests ruleRemoveEmptyLines on a single line, 'Hello World!'
@@ -8678,10 +8717,10 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",            0, 0))
-        root.append(NodeParse(      "",         " ",                0, 5))
-        root.append(NodeParse(      "",         "World",            0, 6))
-        root.append(NodeParse(      "",         "!",                0, 11))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "World",            0, 6))
+        root.append(NodeParse(                                                  "",                 "!",                0, 11))
 
         expected : ParseNode = root.copyDeep()
 
@@ -8698,9 +8737,9 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             'test'
             '\n'
             'test'
-            '\n'                    # This node is kept
-            '\n'                    |
-            '\n'                    |
+            '\n'                        # This node is kept
+            '\n'                        |
+            '\n'                        |
             'test'
             '\n'
         ->
@@ -8708,28 +8747,28 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             'test'
             '\n'
             'test'
-            '\n'                    _V_
-            'test'                   A
+            '\n'                        _V_
+            'test'                       A
             '\n'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",             0, 0))
-        root.append(NodeParse(      "",         "\n",               0, 4))
-        root.append(NodeParse(      "",         "test",             1, 0))
-        root.append(NodeParse(      "",         "\n",               1, 4))
-        root.append(NodeParse(      "",         "\n",               2, 0))
-        root.append(NodeParse(      "",         "\n",               3, 0))
-        root.append(NodeParse(      "",         "test",             4, 0))
-        root.append(NodeParse(      "",         "\n",               4, 4))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 4))
+        root.append(NodeParse(                                                  "",                 "test",             1, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               1, 4))
+        root.append(NodeParse(                                                  "",                 "\n",               2, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               3, 0))
+        root.append(NodeParse(                                                  "",                 "test",             4, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               4, 4))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",             0, 0))
-        expected.append(NodeParse(  "",         "\n",               0, 4))
-        expected.append(NodeParse(  "",         "test",             1, 0))
-        expected.append(NodeParse(  "",         "\n",               1, 4))
-        expected.append(NodeParse(  "",         "test",             4, 0))
-        expected.append(NodeParse(  "",         "\n",               4, 4))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 4))
+        expected.append(NodeParse(                                              "",                 "test",             1, 0))
+        expected.append(NodeParse(                                              "",                 "\n",               1, 4))
+        expected.append(NodeParse(                                              "",                 "test",             4, 0))
+        expected.append(NodeParse(                                              "",                 "\n",               4, 4))
 
         result : ParseNode = self.parser.ruleRemoveEmptyLines(root)
 
@@ -8741,20 +8780,20 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '\n\n\n\n'
         ->
         Node
-            '\n'                    |
-            '\n'                    |
-            '\n'                    |
-            '\n'                    |
+            '\n'                        |
+            '\n'                        |
+            '\n'                        |
+            '\n'                        |
         ->
-        Node                        _V_
-                                     A
+        Node                            _V_
+                                         A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\n",               0, 0))
-        root.append(NodeParse(      "",         "\n",               1, 0))
-        root.append(NodeParse(      "",         "\n",               2, 0))
-        root.append(NodeParse(      "",         "\n",               3, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               1, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               2, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               3, 0))
 
         expected : ParseNode = NodeParse()
         
@@ -8783,12 +8822,12 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveEmptyLines_ExceptionTreeNotNodeParse(self):
         """tests ruleFilterLineComments raises an exception when tree is not a NodeParse object"""
 
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleFilterLineComments, tree)
+                self.assertRaises(AssertionError, self.parser.ruleFilterLineComments, tree)
 
     def test_RuleRemoveLeadingWhitespace_Integration01(self):
         """tests ruleRemoveLeadingWhitespace on a single line, 'Hello World!'
@@ -8809,10 +8848,10 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",            0, 0))
-        root.append(NodeParse(      "",         " ",                0, 5))
-        root.append(NodeParse(      "",         "World",            0, 6))
-        root.append(NodeParse(      "",         "!",                0, 11))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "World",            0, 6))
+        root.append(NodeParse(                                                  "",                 "!",                0, 11))
 
         expected : ParseNode = root.copyDeep()
 
@@ -8833,17 +8872,17 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             '\n'
             'test'
             '\n'
-            ' '     |
-            ' '     |
-            '\t'    |
+            ' '                         |
+            ' '                         |
+            '\t'                        |
             'test'
             '\t'
             '\n'
-            ' '     |
-            ' '     |
-            ' '     |
-            ' '     |                               
-            ' '     |
+            ' '                         |
+            ' '                         |
+            ' '                         |
+            ' '                         |                               
+            ' '                         |
             '\n'
         ->
         Node
@@ -8853,48 +8892,47 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             ' '
             '\n'
             'test'
-            '\n'    _V_
-            'test'   A
+            '\n'                        _V_
+            'test'                       A
             '\t'
-            '\n'    _V_
-            '\n'     A
+            '\n'                        _V_
+            '\n'                         A
         """
 
-        # "test test \ntest\n  \ttest\t\n     \n"
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",             0, 0))
-        root.append(NodeParse(      "",         " ",                0, 4))
-        root.append(NodeParse(      "",         "test",             0, 5))
-        root.append(NodeParse(      "",         " ",                0, 9))
-        root.append(NodeParse(      "",         "\n",               0, 10))
-        root.append(NodeParse(      "",         "test",             1, 0))
-        root.append(NodeParse(      "",         "\n",               1, 4))
-        root.append(NodeParse(      "",         " ",                2, 0))
-        root.append(NodeParse(      "",         " ",                2, 1))
-        root.append(NodeParse(      "",         "\t",               2, 2))
-        root.append(NodeParse(      "",         "test",             2, 3))
-        root.append(NodeParse(      "",         "\t",               2, 7))
-        root.append(NodeParse(      "",         "\n",               2, 8))
-        root.append(NodeParse(      "",         " ",                3, 0))
-        root.append(NodeParse(      "",         " ",                3, 1))
-        root.append(NodeParse(      "",         " ",                3, 2))
-        root.append(NodeParse(      "",         " ",                3, 3))
-        root.append(NodeParse(      "",         " ",                3, 4))
-        root.append(NodeParse(      "",         "\n",               3, 5))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 4))
+        root.append(NodeParse(                                                  "",                 "test",             0, 5))
+        root.append(NodeParse(                                                  "",                 " ",                0, 9))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 10))
+        root.append(NodeParse(                                                  "",                 "test",             1, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               1, 4))
+        root.append(NodeParse(                                                  "",                 " ",                2, 0))
+        root.append(NodeParse(                                                  "",                 " ",                2, 1))
+        root.append(NodeParse(                                                  "",                 "\t",               2, 2))
+        root.append(NodeParse(                                                  "",                 "test",             2, 3))
+        root.append(NodeParse(                                                  "",                 "\t",               2, 7))
+        root.append(NodeParse(                                                  "",                 "\n",               2, 8))
+        root.append(NodeParse(                                                  "",                 " ",                3, 0))
+        root.append(NodeParse(                                                  "",                 " ",                3, 1))
+        root.append(NodeParse(                                                  "",                 " ",                3, 2))
+        root.append(NodeParse(                                                  "",                 " ",                3, 3))
+        root.append(NodeParse(                                                  "",                 " ",                3, 4))
+        root.append(NodeParse(                                                  "",                 "\n",               3, 5))
 
         # "test test \ntest\ntest\t\n\n"
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",             0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 4))
-        expected.append(NodeParse(  "",         "test",             0, 5))
-        expected.append(NodeParse(  "",         " ",                0, 9))
-        expected.append(NodeParse(  "",         "\n",               0, 10))
-        expected.append(NodeParse(  "",         "test",             1, 0))
-        expected.append(NodeParse(  "",         "\n",               1, 4))
-        expected.append(NodeParse(  "",         "test",             2, 3))
-        expected.append(NodeParse(  "",         "\t",               2, 7))
-        expected.append(NodeParse(  "",         "\n",               2, 8))
-        expected.append(NodeParse(  "",         "\n",               3, 5))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 4))
+        expected.append(NodeParse(                                              "",                 "test",             0, 5))
+        expected.append(NodeParse(                                              "",                 " ",                0, 9))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 10))
+        expected.append(NodeParse(                                              "",                 "test",             1, 0))
+        expected.append(NodeParse(                                              "",                 "\n",               1, 4))
+        expected.append(NodeParse(                                              "",                 "test",             2, 3))
+        expected.append(NodeParse(                                              "",                 "\t",               2, 7))
+        expected.append(NodeParse(                                              "",                 "\n",               2, 8))
+        expected.append(NodeParse(                                              "",                 "\n",               3, 5))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -8913,7 +8951,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\n",               0, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 0))
 
         expected : ParseNode = root.copyDeep()
 
@@ -8927,20 +8965,20 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '    '
         ->
         Node
-            ' '                 |
-            ' '                 |
-            ' '                 |
-            ' '                 |
+            ' '                         |
+            ' '                         |
+            ' '                         |
+            ' '                         |
         ->
-        Node                    _V_
-                                 A
+        Node                            _V_
+                                         A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         " ",                0, 0))
-        root.append(NodeParse(      "",         " ",                0, 1))
-        root.append(NodeParse(      "",         " ",                0, 2))
-        root.append(NodeParse(      "",         " ",                0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 1))
+        root.append(NodeParse(                                                  "",                 " ",                0, 2))
+        root.append(NodeParse(                                                  "",                 " ",                0, 3))
 
         expected : ParseNode = NodeParse()
 
@@ -8954,35 +8992,35 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '   Hello World!'
         ->
         Node
-            ' '                 |
-            ' '                 |
-            ' '                 |
+            ' '                         |
+            ' '                         |
+            ' '                         |
             'Hello'
             ' '
             'World'
             '!'
         ->
-        Node                    _V_
-            'Hello'              A
+        Node                            _V_
+            'Hello'                      A
             ' '
             'World'
             '!'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         " ",                0, 0))
-        root.append(NodeParse(      "",         " ",                0, 1))
-        root.append(NodeParse(      "",         " ",                0, 2))
-        root.append(NodeParse(      "",         "Hello",            0, 3))
-        root.append(NodeParse(      "",         " ",                0, 8))
-        root.append(NodeParse(      "",         "World",            0, 9))
-        root.append(NodeParse(      "",         "!",                0, 14))
+        root.append(NodeParse(                                                  "",                 " ",                0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 1))
+        root.append(NodeParse(                                                  "",                 " ",                0, 2))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 8))
+        root.append(NodeParse(                                                  "",                 "World",            0, 9))
+        root.append(NodeParse(                                                  "",                 "!",                0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",            0, 3))
-        expected.append(NodeParse(  "",         " ",                0, 8))
-        expected.append(NodeParse(  "",         "World",            0, 9))
-        expected.append(NodeParse(  "",         "!",                0, 14))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 3))
+        expected.append(NodeParse(                                              "",                 " ",                0, 8))
+        expected.append(NodeParse(                                              "",                 "World",            0, 9))
+        expected.append(NodeParse(                                              "",                 "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -8995,36 +9033,36 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         Node
             '\n'
-            ' '                 |
-            ' '                 |
+            ' '                         |
+            ' '                         |
             'Hello'
             ' '
             'World'
             '!'
         ->
         Node
-            '\n'                _V_
-            'Hello'              A
+            '\n'                        _V_
+            'Hello'                      A
             ' '
             'World'
             '!'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\n",               0, 0))
-        root.append(NodeParse(      "",         " ",                0, 1))
-        root.append(NodeParse(      "",         " ",                0, 2))
-        root.append(NodeParse(      "",         "Hello",            0, 3))
-        root.append(NodeParse(      "",         " ",                0, 8))
-        root.append(NodeParse(      "",         "World",            0, 9))
-        root.append(NodeParse(      "",         "!",                0, 14))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 1))
+        root.append(NodeParse(                                                  "",                 " ",                0, 2))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 8))
+        root.append(NodeParse(                                                  "",                 "World",            0, 9))
+        root.append(NodeParse(                                                  "",                 "!",                0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "\n",               0, 0))
-        expected.append(NodeParse(  "",         "Hello",            0, 3))
-        expected.append(NodeParse(  "",         " ",                0, 8))
-        expected.append(NodeParse(  "",         "World",            0, 9))
-        expected.append(NodeParse(  "",         "!",                0, 14))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 0))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 3))
+        expected.append(NodeParse(                                              "",                 " ",                0, 8))
+        expected.append(NodeParse(                                              "",                 "World",            0, 9))
+        expected.append(NodeParse(                                              "",                 "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -9036,35 +9074,35 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '\t\t\tHello World!'
         ->
         Node
-            '\t'                |
-            '\t'                |
-            '\t'                |
+            '\t'                        |
+            '\t'                        |
+            '\t'                        |
             'Hello'
             ' '
             'World'
             '!'
         ->
-        Node                    _V_
-            'Hello'              A
+        Node                            _V_
+            'Hello'                      A
             ' '
             'World'
             '!'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\t",               0, 0))
-        root.append(NodeParse(      "",         "\t",               0, 1))
-        root.append(NodeParse(      "",         "\t",               0, 2))
-        root.append(NodeParse(      "",         "Hello",            0, 3))
-        root.append(NodeParse(      "",         " ",                0, 8))
-        root.append(NodeParse(      "",         "World",            0, 9))
-        root.append(NodeParse(      "",         "!",                0, 14))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 0))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 1))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 2))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 8))
+        root.append(NodeParse(                                                  "",                 "World",            0, 9))
+        root.append(NodeParse(                                                  "",                 "!",                0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",            0, 3))
-        expected.append(NodeParse(  "",         " ",                0, 8))
-        expected.append(NodeParse(  "",         "World",            0, 9))
-        expected.append(NodeParse(  "",         "!",                0, 14))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 3))
+        expected.append(NodeParse(                                              "",                 " ",                0, 8))
+        expected.append(NodeParse(                                              "",                 "World",            0, 9))
+        expected.append(NodeParse(                                              "",                 "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -9077,36 +9115,36 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         Node
             '\n'
-            '\t'                |
-            '\t'                |
+            '\t'                        |
+            '\t'                        |
             'Hello'
             ' '
             'World'
             '!'
         ->
         Node
-            '\n'                _V_
-            'Hello'              A
+            '\n'                        _V_
+            'Hello'                      A
             ' '
             'World'
             '!'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\n",               0, 0))
-        root.append(NodeParse(      "",         "\t",               0, 1))
-        root.append(NodeParse(      "",         "\t",               0, 2))
-        root.append(NodeParse(      "",         "Hello",            0, 3))
-        root.append(NodeParse(      "",         " ",                0, 8))
-        root.append(NodeParse(      "",         "World",            0, 9))
-        root.append(NodeParse(      "",         "!",                0, 14))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 0))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 1))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 2))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 8))
+        root.append(NodeParse(                                                  "",                 "World",            0, 9))
+        root.append(NodeParse(                                                  "",                 "!",                0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "\n",               0, 0))
-        expected.append(NodeParse(  "",         "Hello",            0, 3))
-        expected.append(NodeParse(  "",         " ",                0, 8))
-        expected.append(NodeParse(  "",         "World",            0, 9))
-        expected.append(NodeParse(  "",         "!",                0, 14))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 0))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 3))
+        expected.append(NodeParse(                                              "",                 " ",                0, 8))
+        expected.append(NodeParse(                                              "",                 "World",            0, 9))
+        expected.append(NodeParse(                                              "",                 "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -9118,35 +9156,35 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '\r\r\rHello World!'
         ->
         Node
-            '\r'                |
-            '\r'                |
-            '\r'                |
+            '\r'                        |
+            '\r'                        |
+            '\r'                        |
             'Hello'
             ' '
             'World'
             '!'
         ->
-        Node                    _V_
-            'Hello'              A
+        Node                            _V_
+            'Hello'                      A
             ' '
             'World'
             '!'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\r",               0, 0))
-        root.append(NodeParse(      "",         "\r",               0, 1))
-        root.append(NodeParse(      "",         "\r",               0, 2))
-        root.append(NodeParse(      "",         "Hello",            0, 3))
-        root.append(NodeParse(      "",         " ",                0, 8))
-        root.append(NodeParse(      "",         "World",            0, 9))
-        root.append(NodeParse(      "",         "!",                0, 14))
+        root.append(NodeParse(                                                  "",                 "\r",               0, 0))
+        root.append(NodeParse(                                                  "",                 "\r",               0, 1))
+        root.append(NodeParse(                                                  "",                 "\r",               0, 2))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 8))
+        root.append(NodeParse(                                                  "",                 "World",            0, 9))
+        root.append(NodeParse(                                                  "",                 "!",                0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",            0, 3))
-        expected.append(NodeParse(  "",         " ",                0, 8))
-        expected.append(NodeParse(  "",         "World",            0, 9))
-        expected.append(NodeParse(  "",         "!",                0, 14))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 3))
+        expected.append(NodeParse(                                              "",                 " ",                0, 8))
+        expected.append(NodeParse(                                              "",                 "World",            0, 9))
+        expected.append(NodeParse(                                              "",                 "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -9159,36 +9197,36 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         Node
             '\n'
-            '\r'                |
-            '\r'                |
+            '\r'                        |
+            '\r'                        |
             'Hello'
             ' '
             'World'
             '!'
         ->
         Node
-            '\n'                _V_
-            'Hello'              A
+            '\n'                        _V_
+            'Hello'                      A
             ' '
             'World'
             '!'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\n",               0, 0))
-        root.append(NodeParse(      "",         "\r",               0, 1))
-        root.append(NodeParse(      "",         "\r",               0, 2))
-        root.append(NodeParse(      "",         "Hello",            0, 3))
-        root.append(NodeParse(      "",         " ",                0, 8))
-        root.append(NodeParse(      "",         "World",            0, 9))
-        root.append(NodeParse(      "",         "!",                0, 14))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 0))
+        root.append(NodeParse(                                                  "",                 "\r",               0, 1))
+        root.append(NodeParse(                                                  "",                 "\r",               0, 2))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 8))
+        root.append(NodeParse(                                                  "",                 "World",            0, 9))
+        root.append(NodeParse(                                                  "",                 "!",                0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "\n",               0, 0))
-        expected.append(NodeParse(  "",         "Hello",            0, 3))
-        expected.append(NodeParse(  "",         " ",                0, 8))
-        expected.append(NodeParse(  "",         "World",            0, 9))
-        expected.append(NodeParse(  "",         "!",                0, 14))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 0))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 3))
+        expected.append(NodeParse(                                              "",                 " ",                0, 8))
+        expected.append(NodeParse(                                              "",                 "World",            0, 9))
+        expected.append(NodeParse(                                              "",                 "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -9200,35 +9238,35 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '\f\f\fHello World!'
         ->
         Node
-            '\f'                |
-            '\f'                |
-            '\f'                |
+            '\f'                        |
+            '\f'                        |
+            '\f'                        |
             'Hello'
             ' '
             'World'
             '!'
         ->
-        Node                    _V_
-            'Hello'              A
+        Node                            _V_
+            'Hello'                      A
             ' '
             'World'
             '!'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\f",               0, 0))
-        root.append(NodeParse(      "",         "\f",               0, 1))
-        root.append(NodeParse(      "",         "\f",               0, 2))
-        root.append(NodeParse(      "",         "Hello",            0, 3))
-        root.append(NodeParse(      "",         " ",                0, 8))
-        root.append(NodeParse(      "",         "World",            0, 9))
-        root.append(NodeParse(      "",         "!",                0, 14))
+        root.append(NodeParse(                                                  "",                 "\f",               0, 0))
+        root.append(NodeParse(                                                  "",                 "\f",               0, 1))
+        root.append(NodeParse(                                                  "",                 "\f",               0, 2))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 8))
+        root.append(NodeParse(                                                  "",                 "World",            0, 9))
+        root.append(NodeParse(                                                  "",                 "!",                0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",            0, 3))
-        expected.append(NodeParse(  "",         " ",                0, 8))
-        expected.append(NodeParse(  "",         "World",            0, 9))
-        expected.append(NodeParse(  "",         "!",                0, 14))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 3))
+        expected.append(NodeParse(                                              "",                 " ",                0, 8))
+        expected.append(NodeParse(                                              "",                 "World",            0, 9))
+        expected.append(NodeParse(                                              "",                 "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -9241,36 +9279,36 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         Node
             '\n'
-            '\f'                |
-            '\f'                |
+            '\f'                        |
+            '\f'                        |
             'Hello'
             ' '
             'World'
             '!'
         ->
         Node
-            '\n'                _V_
-            'Hello'              A
+            '\n'                        _V_
+            'Hello'                      A
             ' '
             'World'
             '!'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\n",               0, 0))
-        root.append(NodeParse(      "",         "\f",               0, 1))
-        root.append(NodeParse(      "",         "\f",               0, 2))
-        root.append(NodeParse(      "",         "Hello",            0, 3))
-        root.append(NodeParse(      "",         " ",                0, 8))
-        root.append(NodeParse(      "",         "World",            0, 9))
-        root.append(NodeParse(      "",         "!",                0, 14))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 0))
+        root.append(NodeParse(                                                  "",                 "\f",               0, 1))
+        root.append(NodeParse(                                                  "",                 "\f",               0, 2))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 8))
+        root.append(NodeParse(                                                  "",                 "World",            0, 9))
+        root.append(NodeParse(                                                  "",                 "!",                0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "\n",               0, 0))
-        expected.append(NodeParse(  "",         "Hello",            0, 3))
-        expected.append(NodeParse(  "",         " ",                0, 8))
-        expected.append(NodeParse(  "",         "World",            0, 9))
-        expected.append(NodeParse(  "",         "!",                0, 14))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 0))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 3))
+        expected.append(NodeParse(                                              "",                 " ",                0, 8))
+        expected.append(NodeParse(                                              "",                 "World",            0, 9))
+        expected.append(NodeParse(                                              "",                 "!",                0, 14))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -9284,9 +9322,9 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test'
             '\n'
-            '\t'                |
-            '\t'                |
-            '\t'                |
+            '\t'                        |
+            '\t'                        |
+            '\t'                        |
             'test'
                 'abc'
                 ' '
@@ -9294,32 +9332,32 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         Node
             'test'
-            '\n'                _V_
-            'test'               A
+            '\n'                        _V_
+            'test'                       A
                 'abc'
                 ' '
                 '123'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",             0, 0))
-        root.append(NodeParse(      "",         "\n",               0, 4))
-        root.append(NodeParse(      "",         "\t",               0, 5))
-        root.append(NodeParse(      "",         "\t",               0, 6))
-        root.append(NodeParse(      "",         "\t",               0, 7))
-        rChild1 : ParseNode = NodeParse("",     "test",             0, 8)
-        rChild1.append(NodeParse(   "",         "abc",              0, 12))
-        rChild1.append(NodeParse(   "",         " ",                0, 15))
-        rChild1.append(NodeParse(   "",         "123",              0, 16))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 4))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 5))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 6))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 7))
+        rChild1 : ParseNode = NodeParse(                                        "",                 "test",             0, 8)
+        rChild1.append(NodeParse(                                               "",                 "abc",              0, 12))
+        rChild1.append(NodeParse(                                               "",                 " ",                0, 15))
+        rChild1.append(NodeParse(                                               "",                 "123",              0, 16))
         root.append(rChild1)
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",             0, 0))
-        expected.append(NodeParse(  "",         "\n",               0, 4))
-        eChild1 : ParseNode = NodeParse("",     "test",             0, 8)
-        eChild1.append(NodeParse(   "",         "abc",              0, 12))
-        eChild1.append(NodeParse(   "",         " ",                0, 15))
-        eChild1.append(NodeParse(   "",         "123",              0, 16))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 4))
+        eChild1 : ParseNode = NodeParse(                                        "",                 "test",             0, 8)
+        eChild1.append(NodeParse(                                               "",                 "abc",              0, 12))
+        eChild1.append(NodeParse(                                               "",                 " ",                0, 15))
+        eChild1.append(NodeParse(                                               "",                 "123",              0, 16))
         expected.append(eChild1)
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
@@ -9334,36 +9372,36 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test'
             '\n'
-            '\t'                |
-            '\t'                |
-            '\t'                |
-                'abc'           |
-                ' '             |
-                '123'           |
+            '\t'                        |
+            '\t'                        |
+            '\t'                        |
+                'abc'                   |
+                ' '                     |
+                '123'                   |
             'test'
         ->
         Node
             'test'
-            '\n'                _V_
-            'test'               A
+            '\n'                        _V_
+            'test'                       A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",             0, 0))
-        root.append(NodeParse(      "",         "\n",               0, 4))
-        root.append(NodeParse(      "",         "\t",               0, 5))
-        root.append(NodeParse(      "",         "\t",               0, 6))
-        rChild : ParseNode = NodeParse("",      "\t",               0, 7)
-        rChild.append(NodeParse(    "",         "abc",              0, 12))
-        rChild.append(NodeParse(    "",         " ",                0, 15))
-        rChild.append(NodeParse(    "",         "123",              0, 16))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 4))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 5))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 6))
+        rChild : ParseNode = NodeParse(                                         "",                 "\t",               0, 7)
+        rChild.append(NodeParse(                                                "",                 "abc",              0, 12))
+        rChild.append(NodeParse(                                                "",                 " ",                0, 15))
+        rChild.append(NodeParse(                                                "",                 "123",              0, 16))
         root.append(rChild)
-        root.append(NodeParse(      "",         "test",             0, 17))
+        root.append(NodeParse(                                                  "",                 "test",             0, 17))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",             0, 0))
-        expected.append(NodeParse(  "",         "\n",               0, 4))
-        expected.append(NodeParse(  "",         "test",             0, 17))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 4))
+        expected.append(NodeParse(                                              "",                 "test",             0, 17))
 
         result : ParseNode = self.parser.ruleRemoveLeadingWhitespace(root)
 
@@ -9372,34 +9410,34 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveLeadingWhitespace_ExceptionTreeNotNodeParse(self):
         """tests ruleRemoveLeadingWhitespace raises an exception when tree is not a NodeParse object"""
 
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, tree)
+                self.assertRaises(AssertionError, self.parser.ruleRemoveLeadingWhitespace, tree)
 
     def test_RuleRemoveLeadingWhiteSpace_ExceptionWhitespaceNotList(self):
         """tests ruleRemoveLeadingWhitespace raises an exception when whitespace is not a list"""
 
-        whitespaces : list[Any] = [None, 0, False, 'a', {0 : 'a'}]
+        whitespaces : list[Any] = [None, 0, False, 'a', {0 : 'a'}, ('a',), {'a',}]
 
         whitespace : Any
         for whitespace in whitespaces:
             with self.subTest(whitespace=whitespace):
                 root : ParseNode = NodeParse()
-                self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, root, whitespace)
+                self.assertRaises(AssertionError, self.parser.ruleRemoveLeadingWhitespace, root, whitespace)
 
     def test_RuleRemoveLeadingWhiteSpace_ExceptionWhitespaceNotString(self):
         """tests ruleRemoveLeadingWhitespace raises an exception when whitespace is not a string"""
 
-        whitespaces : list[Any] = [None, 0, False, [0], {0 : [0]}]
+        whitespaces : list[Any] = [None, 0, False, [0], {0 : [0]}, ('a',), {'a',}]
 
         whitespace : Any
         for whitespace in whitespaces:
             with self.subTest(whitespace=whitespace):
                 root : ParseNode = NodeParse()
-                self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, root, [whitespace])
+                self.assertRaises(AssertionError, self.parser.ruleRemoveLeadingWhitespace, root, [whitespace])
 
     def test_RuleRemoveLeadingWhiteSpace_ExceptionWhitespaceStringWrongLength(self):
         """tests ruleRemoveLeadingWhitespace raises an exception when whitespace is not a string of length 1"""
@@ -9410,7 +9448,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         for whitespace in whitespaces:
             with self.subTest(whitespace=whitespace):
                 root : ParseNode = NodeParse()
-                self.assertRaises(Exception, self.parser.ruleRemoveLeadingWhitespace, root, [whitespace])
+                self.assertRaises(AssertionError, self.parser.ruleRemoveLeadingWhitespace, root, [whitespace])
 
     def test_RuleStringSimple_Integration01(self):
         """tests ruleStringSimple on a simple string 'Hello World!'
@@ -9431,16 +9469,16 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",            0, 0))
-        root.append(NodeParse(      "",         " ",                0, 5))
-        root.append(NodeParse(      "",         "World",            0, 6))
-        root.append(NodeParse(      "",         "!",                0, 11))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "World",            0, 6))
+        root.append(NodeParse(                                                  "",                 "!",                0, 11))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",            0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 5))
-        expected.append(NodeParse(  "",         "World",            0, 6))
-        expected.append(NodeParse(  "",         "!",                0, 11))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 5))
+        expected.append(NodeParse(                                              "",                 "World",            0, 6))
+        expected.append(NodeParse(                                              "",                 "!",                0, 11))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
 
@@ -9452,27 +9490,27 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '\'Hello World!\''
         ->
         Node
-            '\''                V
-            'Hello'             |
-            ' '                 |
-            'World'             |
-            '!'                 |
-            '\''                A
+            '\''                        V
+            'Hello'                     |
+            ' '                         |
+            'World'                     |
+            '!'                         |
+            '\''                        A
         ->
         Node
-            'Hello World!'      |
+            'Hello World!'              |
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\'",               0, 0))
-        root.append(NodeParse(      "",         "Hello",            0, 1))
-        root.append(NodeParse(      "",         " ",                0, 6))
-        root.append(NodeParse(      "",         "World",            0, 7))
-        root.append(NodeParse(      "",         "!",                0, 12))
-        root.append(NodeParse(      "",         "\'",               0, 13))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 0))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 1))
+        root.append(NodeParse(                                                  "",                 " ",                0, 6))
+        root.append(NodeParse(                                                  "",                 "World",            0, 7))
+        root.append(NodeParse(                                                  "",                 "!",                0, 12))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 13))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "string",   "Hello World!",     0, 0))
+        expected.append(NodeParse(                                              "string",           "Hello World!",     0, 0))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
 
@@ -9484,27 +9522,27 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '\"Hello World!\"'
         ->
         Node
-            '\"'                V
-            'Hello'             |
-            ' '                 |
-            'World'             |
-            '!'                 |
-            '\"'                A
+            '\"'                        V
+            'Hello'                     |
+            ' '                         |
+            'World'                     |
+            '!'                         |
+            '\"'                        A
         ->
         Node
-            'Hello World!'      |
+            'Hello World!'              |
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\"",               0, 0))
-        root.append(NodeParse(      "",         "Hello",            0, 1))
-        root.append(NodeParse(      "",         " ",                0, 6))
-        root.append(NodeParse(      "",         "World",            0, 7))
-        root.append(NodeParse(      "",         "!",                0, 12))
-        root.append(NodeParse(      "",         "\"",               0, 13))
+        root.append(NodeParse(                                                  "",                 "\"",               0, 0))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 1))
+        root.append(NodeParse(                                                  "",                 " ",                0, 6))
+        root.append(NodeParse(                                                  "",                 "World",            0, 7))
+        root.append(NodeParse(                                                  "",                 "!",                0, 12))
+        root.append(NodeParse(                                                  "",                 "\"",               0, 13))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "string",   "Hello World!",     0, 0))
+        expected.append(NodeParse(                                              "string",           "Hello World!",     0, 0))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
 
@@ -9518,27 +9556,27 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test'
             ' '
-            '\''                V
-            'test'              |
-            '\''                A
+            '\''                        V
+            'test'                      |
+            '\''                        A
         ->
         Node
             'test'
             ' '
-            'test'              |
+            'test'                      |
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",             0, 0))
-        root.append(NodeParse(      "",         " ",                0, 4))
-        root.append(NodeParse(      "",         "\'",               0, 5))
-        root.append(NodeParse(      "",         "test",             0, 6))
-        root.append(NodeParse(      "",         "\'",               0, 10))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 4))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 5))
+        root.append(NodeParse(                                                  "",                 "test",             0, 6))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 10))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",             0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 4))
-        expected.append(NodeParse(  "string",   "test",             0, 5))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 4))
+        expected.append(NodeParse(                                              "string",           "test",             0, 5))
         
         result : ParseNode = self.parser.ruleStringSimple(root)
 
@@ -9550,41 +9588,41 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '\'test\n\\\'test\\\'\'\ntest'
         ->
         Node
-            '\''                    V
-            'test'                  |
-            '\n'                    |
-            '\\'                    |
-            '\''                    |
-            'test'                  |
-            '\\'                    |
-            '\''                    |
-            '\''                    A
+            '\''                        V
+            'test'                      |
+            '\n'                        |
+            '\\'                        |
+            '\''                        |
+            'test'                      |
+            '\\'                        |
+            '\''                        |
+            '\''                        A
             '\n'
             'test'
         ->
         Node
-            'test\n\\\'test\\\''    |
+            'test\n\\\'test\\\''        |
             '\n'
             'test'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\'",               0, 0))
-        root.append(NodeParse(      "",         "test",             0, 4))
-        root.append(NodeParse(      "",         "\n",               0, 5))
-        root.append(NodeParse(      "",         "\\",               0, 6))
-        root.append(NodeParse(      "",         "\'",               0, 7))
-        root.append(NodeParse(      "",         "test",             0, 8))
-        root.append(NodeParse(      "",         "\\",               0, 12))
-        root.append(NodeParse(      "",         "\'",               0, 13))
-        root.append(NodeParse(      "",         "\'",               0, 14))
-        root.append(NodeParse(      "",         "\n",               0, 15))
-        root.append(NodeParse(      "",         "test",             0, 16))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 0))
+        root.append(NodeParse(                                                  "",                 "test",             0, 4))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 5))
+        root.append(NodeParse(                                                  "",                 "\\",               0, 6))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 7))
+        root.append(NodeParse(                                                  "",                 "test",             0, 8))
+        root.append(NodeParse(                                                  "",                 "\\",               0, 12))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 13))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 14))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 15))
+        root.append(NodeParse(                                                  "",                 "test",             0, 16))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "string",   "test\n\\\'test\\\'", 0, 0))
-        expected.append(NodeParse(  "",         "\n",               0, 15))
-        expected.append(NodeParse(  "",         "test",             0, 16))
+        expected.append(NodeParse(                                              "string",           "test\n\\\'test\\\'", 0, 0))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 15))
+        expected.append(NodeParse(                                              "",                 "test",             0, 16))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
 
@@ -9596,41 +9634,41 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         '\'test\n\'test\'\'\ntest'
         ->
         Node
-            '\''                V
-            'test'              |
-            '\n'                |
-            '\''                A
+            '\''                        V
+            'test'                      |
+            '\n'                        |
+            '\''                        A
             'test'
-            '\''                V
-            '\''                A
+            '\''                        V
+            '\''                        A
             '\n'
             'test'
         ->
         Node
-            'test\n'            |
+            'test\n'                    |
             'test'
-            ''                  |
+            ''                          |
             '\n'
             'test'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\'",               0, 0))
-        root.append(NodeParse(      "",         "test",             0, 1))
-        root.append(NodeParse(      "",         "\n",               0, 5))
-        root.append(NodeParse(      "",         "\'",               0, 6))
-        root.append(NodeParse(      "",         "test",             0, 7))
-        root.append(NodeParse(      "",         "\'",               0, 11))
-        root.append(NodeParse(      "",         "\'",               0, 12))
-        root.append(NodeParse(      "",         "\n",               0, 13))
-        root.append(NodeParse(      "",         "test",             0, 14))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 0))
+        root.append(NodeParse(                                                  "",                 "test",             0, 1))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 5))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 6))
+        root.append(NodeParse(                                                  "",                 "test",             0, 7))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 11))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 12))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 13))
+        root.append(NodeParse(                                                  "",                 "test",             0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "string",   "test\n",           0, 0))
-        expected.append(NodeParse(  "",         "test",             0, 7))
-        expected.append(NodeParse(  "string",   "",                 0, 11))
-        expected.append(NodeParse(  "",         "\n",               0, 13))
-        expected.append(NodeParse(  "",         "test",             0, 14))
+        expected.append(NodeParse(                                              "string",           "test\n",           0, 0))
+        expected.append(NodeParse(                                              "",                 "test",             0, 7))
+        expected.append(NodeParse(                                              "string",           "",                 0, 11))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 13))
+        expected.append(NodeParse(                                              "",                 "test",             0, 14))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
 
@@ -9643,36 +9681,36 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         Node
             'test1'
-            '\"'                V
-            'abc'               |
-            '\''                |
-            '123'               |
-            '\''                |
-            'abc'               |
-            '\"'                A
+            '\"'                        V
+            'abc'                       |
+            '\''                        |
+            '123'                       |
+            '\''                        |
+            'abc'                       |
+            '\"'                        A
             'test2'
         ->
         Node
             'test1'
-            'abc\'123\'abc'     |
+            'abc\'123\'abc'             |
             'test2'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test1",            0, 0))
-        root.append(NodeParse(      "",         "\"",               0, 5))
-        root.append(NodeParse(      "",         "abc",              0, 6))
-        root.append(NodeParse(      "",         "\'",               0, 9))
-        root.append(NodeParse(      "",         "123",              0, 10))
-        root.append(NodeParse(      "",         "\'",               0, 13))
-        root.append(NodeParse(      "",         "abc",              0, 14))
-        root.append(NodeParse(      "",         "\"",               0, 17))
-        root.append(NodeParse(      "",         "test2",            0, 18))
+        root.append(NodeParse(                                                  "",                 "test1",            0, 0))
+        root.append(NodeParse(                                                  "",                 "\"",               0, 5))
+        root.append(NodeParse(                                                  "",                 "abc",              0, 6))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 9))
+        root.append(NodeParse(                                                  "",                 "123",              0, 10))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 13))
+        root.append(NodeParse(                                                  "",                 "abc",              0, 14))
+        root.append(NodeParse(                                                  "",                 "\"",               0, 17))
+        root.append(NodeParse(                                                  "",                 "test2",            0, 18))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test1",           0, 0))
-        expected.append(NodeParse(  "string",   "abc\'123\'abc",   0, 5))
-        expected.append(NodeParse(  "",         "test2",           0, 18))
+        expected.append(NodeParse(                                              "",                 "test1",            0, 0))
+        expected.append(NodeParse(                                              "string",           "abc\'123\'abc",    0, 5))
+        expected.append(NodeParse(                                              "",                 "test2",            0, 18))
 
         result : ParseNode = self.parser.ruleStringSimple(root)
 
@@ -9715,10 +9753,10 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         " ",                0, 0))
-        root.append(NodeParse(      "",         " ",                0, 1))
-        root.append(NodeParse(      "",         " ",                0, 2))
-        root.append(NodeParse(      "",         " ",                0, 3))
+        root.append(NodeParse(                                                  "",                 " ",                0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 1))
+        root.append(NodeParse(                                                  "",                 " ",                0, 2))
+        root.append(NodeParse(                                                  "",                 " ",                0, 3))
 
         expected : ParseNode = root.copyDeep()
 
@@ -9730,20 +9768,20 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """Tests fuleStringSimple raises an exception on mismatched quotes '\'test'"""
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\'",               0, 0))
-        root.append(NodeParse(      "",         "test",             0, 1))
+        root.append(NodeParse(                                                  "",                 "\'",               0, 0))
+        root.append(NodeParse(                                                  "",                 "test",             0, 1))
 
         self.assertRaises(Exception, self.parser.ruleStringSimple, root)
 
     def test_RuleStringSimple_ExceptionTreeNotNodeParse(self):
         """tests ruleStringSimple raises an exception when tree is not a NodeParse object"""
 
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleStringSimple, tree)
+                self.assertRaises(AssertionError, self.parser.ruleStringSimple, tree)
 
     def test_RuleFilterLineComments_Integration01(self):
         """tests ruleFilterLineComments on a string 'Hello World!'
@@ -9765,16 +9803,16 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",            0, 0))
-        root.append(NodeParse(      "",         " ",                0, 5))
-        root.append(NodeParse(      "",         "World",            0, 6))
-        root.append(NodeParse(      "",         "!",                0, 11))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "World",            0, 6))
+        root.append(NodeParse(                                                  "",                 "!",                0, 11))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",            0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 5))
-        expected.append(NodeParse(  "",         "World",            0, 6))
-        expected.append(NodeParse(  "",         "!",                0, 11))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 5))
+        expected.append(NodeParse(                                              "",                 "World",            0, 6))
+        expected.append(NodeParse(                                              "",                 "!",                0, 11))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
 
@@ -9792,33 +9830,33 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             'World'
             '!'
             ' '
-            '#'                 |
-            'comment'           |
+            '#'                         |
+            'comment'                   |
         ->
         Node
             'Hello'
             ' '
             'World'
             '!'
-            ' '                 _V_
-                                 A
+            ' '                         _V_
+                                         A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",            0, 0))
-        root.append(NodeParse(      "",         " ",                0, 5))
-        root.append(NodeParse(      "",         "World",            0, 6))
-        root.append(NodeParse(      "",         "!",                0, 11))
-        root.append(NodeParse(      "",         " ",                0, 12))
-        root.append(NodeParse(      "",         "#",                0, 13))
-        root.append(NodeParse(      "",         "comment",          0, 14))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "World",            0, 6))
+        root.append(NodeParse(                                                  "",                 "!",                0, 11))
+        root.append(NodeParse(                                                  "",                 " ",                0, 12))
+        root.append(NodeParse(                                                  "",                 "#",                0, 13))
+        root.append(NodeParse(                                                  "",                 "comment",          0, 14))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",            0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 5))
-        expected.append(NodeParse(  "",         "World",            0, 6))
-        expected.append(NodeParse(  "",         "!",                0, 11))
-        expected.append(NodeParse(  "",         " ",                0, 12))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 5))
+        expected.append(NodeParse(                                              "",                 "World",            0, 6))
+        expected.append(NodeParse(                                              "",                 "!",                0, 11))
+        expected.append(NodeParse(                                              "",                 " ",                0, 12))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
 
@@ -9833,12 +9871,12 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test'
             ' '
-            '#'                 |
-            'test'              |
+            '#'                         |
+            'test'                      |
             '\n'
             ' '
-            '#'                 |
-            'test'              |
+            '#'                         |
+            'test'                      |
             '\n'
             '\t'
             '\\'
@@ -9847,10 +9885,10 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         Node
             'test'
-            ' '                 _V_
-            '\n'                 A
-            ' '                 _V_
-            '\n'                 A
+            ' '                         _V_
+            '\n'                         A
+            ' '                         _V_
+            '\n'                         A
             '\t'
             '\\'
             '#'
@@ -9858,30 +9896,30 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",             0, 0))
-        root.append(NodeParse(      "",         " ",                0, 4))
-        root.append(NodeParse(      "",         "#",                0, 5))
-        root.append(NodeParse(      "",         "test",             0, 6))
-        root.append(NodeParse(      "",         "\n",               0, 10))
-        root.append(NodeParse(      "",         " ",                1, 0))
-        root.append(NodeParse(      "",         "#",                1, 1))
-        root.append(NodeParse(      "",         "test",             1, 2))
-        root.append(NodeParse(      "",         "\n",               1, 6))
-        root.append(NodeParse(      "",         "\t",               2, 0))
-        root.append(NodeParse(      "",         "\\",               2, 1))
-        root.append(NodeParse(      "",         "#",                2, 2))
-        root.append(NodeParse(      "",         "test",             2, 3))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 4))
+        root.append(NodeParse(                                                  "",                 "#",                0, 5))
+        root.append(NodeParse(                                                  "",                 "test",             0, 6))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 10))
+        root.append(NodeParse(                                                  "",                 " ",                1, 0))
+        root.append(NodeParse(                                                  "",                 "#",                1, 1))
+        root.append(NodeParse(                                                  "",                 "test",             1, 2))
+        root.append(NodeParse(                                                  "",                 "\n",               1, 6))
+        root.append(NodeParse(                                                  "",                 "\t",               2, 0))
+        root.append(NodeParse(                                                  "",                 "\\",               2, 1))
+        root.append(NodeParse(                                                  "",                 "#",                2, 2))
+        root.append(NodeParse(                                                  "",                 "test",             2, 3))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",             0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 4))
-        expected.append(NodeParse(  "",         "\n",               0, 10))
-        expected.append(NodeParse(  "",         " ",                1, 0))
-        expected.append(NodeParse(  "",         "\n",               1, 6))
-        expected.append(NodeParse(  "",         "\t",               2, 0))
-        expected.append(NodeParse(  "",         "\\",               2, 1))
-        expected.append(NodeParse(  "",         "#",                2, 2))
-        expected.append(NodeParse(  "",         "test",             2, 3))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 4))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 10))
+        expected.append(NodeParse(                                              "",                 " ",                1, 0))
+        expected.append(NodeParse(                                              "",                 "\n",               1, 6))
+        expected.append(NodeParse(                                              "",                 "\t",               2, 0))
+        expected.append(NodeParse(                                              "",                 "\\",               2, 1))
+        expected.append(NodeParse(                                              "",                 "#",                2, 2))
+        expected.append(NodeParse(                                              "",                 "test",             2, 3))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
 
@@ -9903,18 +9941,18 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             ' '
             'test'
             ' '
-            '#'                 |
-            'abc'               |
-            ' '                 |
-            'abc'               |
-            ' '                 |
-            'abc'               |
-            ' '                 |
-            '\\'                |
-            'n'                 |
-            ' '                 |
-            'abc'               |
-            ' '                 |
+            '#'                         |
+            'abc'                       |
+            ' '                         |
+            'abc'                       |
+            ' '                         |
+            'abc'                       |
+            ' '                         |
+            '\\'                        |
+            'n'                         |
+            ' '                         |
+            'abc'                       |
+            ' '                         |
             '\n'
             ' '
             'test'
@@ -9930,8 +9968,8 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             '#'
             ' '
             'test'
-            ' '                 _V_
-            '\n'                 A
+            ' '                         _V_
+            '\n'                         A
             ' '
             'test'
             ' '
@@ -9939,48 +9977,48 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",             0, 0))
-        root.append(NodeParse(      "",         " ",                0, 4))
-        root.append(NodeParse(      "",         "test",             0, 5))
-        root.append(NodeParse(      "",         " ",                0, 9))
-        root.append(NodeParse(      "",         "\\",               0, 10))
-        root.append(NodeParse(      "",         "#",                0, 11))
-        root.append(NodeParse(      "",         " ",                0, 12))
-        root.append(NodeParse(      "",         "test",             0, 13))
-        root.append(NodeParse(      "",         " ",                0, 17))
-        root.append(NodeParse(      "",         "#",                0, 18))
-        root.append(NodeParse(      "",         "abc",              0, 19))
-        root.append(NodeParse(      "",         " ",                0, 22))
-        root.append(NodeParse(      "",         "abc",              0, 23))
-        root.append(NodeParse(      "",         " ",                0, 26))
-        root.append(NodeParse(      "",         "abc",              0, 27))
-        root.append(NodeParse(      "",         " ",                0, 30))
-        root.append(NodeParse(      "",         "\\",               0, 31))
-        root.append(NodeParse(      "",         "n",                0, 32))
-        root.append(NodeParse(      "",         " ",                0, 33))
-        root.append(NodeParse(      "",         "abc",              0, 34))
-        root.append(NodeParse(      "",         " ",                0, 37))
-        root.append(NodeParse(      "",         "\n",               0, 38))
-        root.append(NodeParse(      "",         " ",                1, 0))
-        root.append(NodeParse(      "",         "test",             1, 1))
-        root.append(NodeParse(      "",         " ",                1, 5))
-        root.append(NodeParse(      "",         "test",             1, 6))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 4))
+        root.append(NodeParse(                                                  "",                 "test",             0, 5))
+        root.append(NodeParse(                                                  "",                 " ",                0, 9))
+        root.append(NodeParse(                                                  "",                 "\\",               0, 10))
+        root.append(NodeParse(                                                  "",                 "#",                0, 11))
+        root.append(NodeParse(                                                  "",                 " ",                0, 12))
+        root.append(NodeParse(                                                  "",                 "test",             0, 13))
+        root.append(NodeParse(                                                  "",                 " ",                0, 17))
+        root.append(NodeParse(                                                  "",                 "#",                0, 18))
+        root.append(NodeParse(                                                  "",                 "abc",              0, 19))
+        root.append(NodeParse(                                                  "",                 " ",                0, 22))
+        root.append(NodeParse(                                                  "",                 "abc",              0, 23))
+        root.append(NodeParse(                                                  "",                 " ",                0, 26))
+        root.append(NodeParse(                                                  "",                 "abc",              0, 27))
+        root.append(NodeParse(                                                  "",                 " ",                0, 30))
+        root.append(NodeParse(                                                  "",                 "\\",               0, 31))
+        root.append(NodeParse(                                                  "",                 "n",                0, 32))
+        root.append(NodeParse(                                                  "",                 " ",                0, 33))
+        root.append(NodeParse(                                                  "",                 "abc",              0, 34))
+        root.append(NodeParse(                                                  "",                 " ",                0, 37))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 38))
+        root.append(NodeParse(                                                  "",                 " ",                1, 0))
+        root.append(NodeParse(                                                  "",                 "test",             1, 1))
+        root.append(NodeParse(                                                  "",                 " ",                1, 5))
+        root.append(NodeParse(                                                  "",                 "test",             1, 6))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",             0, 0))
-        expected.append(NodeParse(  "",         " ",                0, 4))
-        expected.append(NodeParse(  "",         "test",             0, 5))
-        expected.append(NodeParse(  "",         " ",                0, 9))
-        expected.append(NodeParse(  "",         "\\",               0, 10))
-        expected.append(NodeParse(  "",         "#",                0, 11))
-        expected.append(NodeParse(  "",         " ",                0, 12))
-        expected.append(NodeParse(  "",         "test",             0, 13))
-        expected.append(NodeParse(  "",         " ",                0, 17))
-        expected.append(NodeParse(  "",         "\n",               0, 38))
-        expected.append(NodeParse(  "",         " ",                1, 0))
-        expected.append(NodeParse(  "",         "test",             1, 1))
-        expected.append(NodeParse(  "",         " ",                1, 5))
-        expected.append(NodeParse(  "",         "test",             1, 6))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 4))
+        expected.append(NodeParse(                                              "",                 "test",             0, 5))
+        expected.append(NodeParse(                                              "",                 " ",                0, 9))
+        expected.append(NodeParse(                                              "",                 "\\",               0, 10))
+        expected.append(NodeParse(                                              "",                 "#",                0, 11))
+        expected.append(NodeParse(                                              "",                 " ",                0, 12))
+        expected.append(NodeParse(                                              "",                 "test",             0, 13))
+        expected.append(NodeParse(                                              "",                 " ",                0, 17))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 38))
+        expected.append(NodeParse(                                              "",                 " ",                1, 0))
+        expected.append(NodeParse(                                              "",                 "test",             1, 1))
+        expected.append(NodeParse(                                              "",                 " ",                1, 5))
+        expected.append(NodeParse(                                              "",                 "test",             1, 6))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
 
@@ -10011,16 +10049,16 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         character = '#'
         Node
-            '#'                 |
-            'comment'           |
+            '#'                         |
+            'comment'                   |
         ->
-        Node                    _V_
-                                 A
+        Node                            _V_
+                                         A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "#",         0, 0))
-        root.append(NodeParse(      "",         "comment",   0, 1))
+        root.append(NodeParse(                                                  "",                 "#",                0, 0))
+        root.append(NodeParse(                                                  "",                 "comment",          0, 1))
 
         expected : ParseNode = NodeParse()
 
@@ -10035,11 +10073,11 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         character in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|'
         Node
-            character           |
-            'comment'           |
+            character                   |
+            'comment'                   |
         ->
-        Node                    _V_
-                                 A
+        Node                            _V_
+                                         A
         """
 
         characters : list[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
@@ -10048,8 +10086,8 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         character,   0, 0))
-                root.append(NodeParse(      "",         "comment",   0, 1))
+                root.append(NodeParse(                                          "",                 character,          0, 0))
+                root.append(NodeParse(                                          "",                 "comment",          0, 1))
 
                 expected : ParseNode = NodeParse()
 
@@ -10064,26 +10102,26 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         character = '#'
         Node
-            '#'                 |
-            'comment'           |
+            '#'                         |
+            'comment'                   |
             '\n'
-            '#'                 |
-            'comment'           |
+            '#'                         |
+            'comment'                   |
         ->
-        Node                    _V_
-            '\n'                 A  _V_
-                                     A
+        Node                            _V_
+            '\n'                         A  _V_
+                                             A
         """         
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "#",         0, 0))
-        root.append(NodeParse(      "",         "comment",   0, 1))
-        root.append(NodeParse(      "",         "\n",        0, 9))
-        root.append(NodeParse(      "",         "#",         0, 10))
-        root.append(NodeParse(      "",         "comment",   0, 11))
+        root.append(NodeParse(                                                  "",                 "#",                0, 0))
+        root.append(NodeParse(                                                  "",                 "comment",          0, 1))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 9))
+        root.append(NodeParse(                                                  "",                 "#",                0, 10))
+        root.append(NodeParse(                                                  "",                 "comment",          0, 11))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "\n",        0, 9))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 9))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
 
@@ -10096,15 +10134,15 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         character in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|'
         Node
-            character           |
-            'comment'           |
+            character                   |
+            'comment'                   |
             '\n'
-            character           |
-            'comment'           |
+            character                   |
+            'comment'                   |
         ->
-        Node                    _V_
-            '\n'                 A  _V_
-                                     A
+        Node                            _V_
+            '\n'                         A  _V_
+                                             A
         """
 
         characters : list[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
@@ -10113,14 +10151,14 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         character,   0, 0))
-                root.append(NodeParse(      "",         "comment",   0, 1))
-                root.append(NodeParse(      "",         "\n",        0, 9))
-                root.append(NodeParse(      "",         character,   0, 10))
-                root.append(NodeParse(      "",         "comment",   0, 11))
+                root.append(NodeParse(                                          "",                 character,          0, 0))
+                root.append(NodeParse(                                          "",                 "comment",          0, 1))
+                root.append(NodeParse(                                          "",                 "\n",               0, 9))
+                root.append(NodeParse(                                          "",                 character,          0, 10))
+                root.append(NodeParse(                                          "",                 "comment",          0, 11))
 
                 expected : ParseNode = NodeParse()
-                expected.append(NodeParse(  "",         "\n",        0, 9))
+                expected.append(NodeParse(                                      "",                 "\n",               0, 9))
 
                 result : ParseNode = self.parser.ruleFilterLineComments(root, character)
 
@@ -10135,23 +10173,23 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test'
             ' '
-            '#'                 |
-            'comment'           |
+            '#'                         |
+            'comment'                   |
         Node
             'test'
-            ' '                 _V_
-                                 A
+            ' '                         _V_
+                                         A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",      0, 0))
-        root.append(NodeParse(      "",         " ",         0, 4))
-        root.append(NodeParse(      "",         "#",         0, 5))
-        root.append(NodeParse(      "",         "comment",   0, 6))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 4))
+        root.append(NodeParse(                                                  "",                 "#",                0, 5))
+        root.append(NodeParse(                                                  "",                 "comment",          0, 6))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",      0, 0))
-        expected.append(NodeParse(  "",         " ",         0, 4))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 4))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
 
@@ -10166,13 +10204,13 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test'
             ' '
-            character           |
-            'comment'           |
+            character                   |
+            'comment'                   |
         ->
         Node
             'test'
-            ' '                 _V_
-                                 A
+            ' '                         _V_
+                                         A
         """
 
         characters : list[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
@@ -10181,14 +10219,14 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         "test",      0, 0))
-                root.append(NodeParse(      "",         " ",         0, 4))
-                root.append(NodeParse(      "",         character,   0, 5))
-                root.append(NodeParse(      "",         "comment",   0, 6))
+                root.append(NodeParse(                                          "",                 "test",             0, 0))
+                root.append(NodeParse(                                          "",                 " ",                0, 4))
+                root.append(NodeParse(                                          "",                 character,          0, 5))
+                root.append(NodeParse(                                          "",                 "comment",          0, 6))
 
                 expected : ParseNode = NodeParse()
-                expected.append(NodeParse(  "",         "test",      0, 0))
-                expected.append(NodeParse(  "",         " ",         0, 4))
+                expected.append(NodeParse(                                      "",                 "test",             0, 0))
+                expected.append(NodeParse(                                      "",                 " ",                0, 4))
 
                 result : ParseNode = self.parser.ruleFilterLineComments(root, character)
 
@@ -10203,32 +10241,32 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test'
             ' '
-            '#'                 |
-            'comment'           |
+            '#'                         |
+            'comment'                   |
             '\n'
-            '#'                 |
-            'comment'           |
+            '#'                         |
+            'comment'                   |
         ->
         Node
             'test'
-            ' '                 _V_
-            '\n'                 A  _V_
-                                     A
+            ' '                         _V_
+            '\n'                         A  _V_
+                                             A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",      0, 0))
-        root.append(NodeParse(      "",         " ",         0, 4))
-        root.append(NodeParse(      "",         "#",         0, 5))
-        root.append(NodeParse(      "",         "comment",   0, 6))
-        root.append(NodeParse(      "",         "\n",        0, 13))
-        root.append(NodeParse(      "",         "#",         1, 0))
-        root.append(NodeParse(      "",         "comment",   1, 1))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 4))
+        root.append(NodeParse(                                                  "",                 "#",                0, 5))
+        root.append(NodeParse(                                                  "",                 "comment",          0, 6))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 13))
+        root.append(NodeParse(                                                  "",                 "#",                1, 0))
+        root.append(NodeParse(                                                  "",                 "comment",          1, 1))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",      0, 0))
-        expected.append(NodeParse(  "",         " ",         0, 4))
-        expected.append(NodeParse(  "",         "\n",        0, 13))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 4))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 13))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
 
@@ -10243,35 +10281,35 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test1'
             ' '
-            '#'                 |
-            'comment'           |
+            '#'                         |
+            'comment'                   |
             '\n'
             'test2'
-            '#'                 |
-            'comment'           |
+            '#'                         |
+            'comment'                   |
         Node
             'test1'
-            ' '                 _V_
-            '\n'                 A
-            'test2'             _V_
-                                 A
+            ' '                         _V_
+            '\n'                         A
+            'test2'                     _V_
+                                         A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",      0, 0))
-        root.append(NodeParse(      "",         " ",         0, 4))
-        root.append(NodeParse(      "",         "#",         0, 5))
-        root.append(NodeParse(      "",         "comment",   0, 6))
-        root.append(NodeParse(      "",         "\n",        0, 13))
-        root.append(NodeParse(      "",         "test2",     1, 0))
-        root.append(NodeParse(      "",         "#",         1, 0))
-        root.append(NodeParse(      "",         "comment",   1, 1))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 4))
+        root.append(NodeParse(                                                  "",                 "#",                0, 5))
+        root.append(NodeParse(                                                  "",                 "comment",          0, 6))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 13))
+        root.append(NodeParse(                                                  "",                 "test2",            1, 0))
+        root.append(NodeParse(                                                  "",                 "#",                1, 0))
+        root.append(NodeParse(                                                  "",                 "comment",          1, 1))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test",      0, 0))
-        expected.append(NodeParse(  "",         " ",         0, 4))
-        expected.append(NodeParse(  "",         "\n",        0, 13))
-        expected.append(NodeParse(  "",         "test2",     1, 0))
+        expected.append(NodeParse(                                              "",                 "test",             0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 4))
+        expected.append(NodeParse(                                              "",                 "\n",               0, 13))
+        expected.append(NodeParse(                                              "",                 "test2",            1, 0))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
 
@@ -10286,18 +10324,18 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test1'
             ' '
-            character           |
-            'comment'           |
+            character                   |
+            'comment'                   |
             '\n'
             'test2'
-            character           |
-            'comment'           |
+            character                   |
+            'comment'                   |
         Node
             'test1'
-            ' '                 _V_
-            '\n'                 A
-            'test2'             _V_
-                                 A
+            ' '                         _V_
+            '\n'                         A
+            'test2'                     _V_
+                                         A
         """
 
         characters : list[str] = [i for i in '!@#$%^&*()_+-=[]{};:\'\",.<>/?\\|']
@@ -10306,20 +10344,20 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         "test1",     0, 0))
-                root.append(NodeParse(      "",         " ",         0, 5))
-                root.append(NodeParse(      "",         character,   0, 6))
-                root.append(NodeParse(      "",         "comment",   0, 7))
-                root.append(NodeParse(      "",         "\n",        0, 14))
-                root.append(NodeParse(      "",         "test2",     1, 0))
-                root.append(NodeParse(      "",         character,   1, 5))
-                root.append(NodeParse(      "",         "comment",   2, 6))
+                root.append(NodeParse(                                          "",                 "test1",            0, 0))
+                root.append(NodeParse(                                          "",                 " ",                0, 5))
+                root.append(NodeParse(                                          "",                 character,          0, 6))
+                root.append(NodeParse(                                          "",                 "comment",          0, 7))
+                root.append(NodeParse(                                          "",                 "\n",               0, 14))
+                root.append(NodeParse(                                          "",                 "test2",            1, 0))
+                root.append(NodeParse(                                          "",                 character,          1, 5))
+                root.append(NodeParse(                                          "",                 "comment",          2, 6))
 
                 expected : ParseNode = NodeParse()
-                expected.append(NodeParse(  "",         "test1",     0, 0))
-                expected.append(NodeParse(  "",         " ",         0, 5))
-                expected.append(NodeParse(  "",         "\n",        0, 14))
-                expected.append(NodeParse(  "",         "test2",     1, 0))
+                expected.append(NodeParse(                                      "",                 "test1",            0, 0))
+                expected.append(NodeParse(                                      "",                 " ",                0, 5))
+                expected.append(NodeParse(                                      "",                 "\n",               0, 14))
+                expected.append(NodeParse(                                      "",                 "test2",            1, 0))
 
                 result : ParseNode = self.parser.ruleFilterLineComments(root, character)
 
@@ -10343,14 +10381,14 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "\\",        0, 0))
-        root.append(NodeParse(      "",         "#",         0, 1))
-        root.append(NodeParse(      "",         "comment",   0, 2))
+        root.append(NodeParse(                                                  "",                 "\\",               0, 0))
+        root.append(NodeParse(                                                  "",                 "#",                0, 1))
+        root.append(NodeParse(                                                  "",                 "comment",          0, 2))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "\\",        0, 0))
-        expected.append(NodeParse(  "",         "#",         0, 1))
-        expected.append(NodeParse(  "",         "comment",   0, 2))
+        expected.append(NodeParse(                                              "",                 "\\",               0, 0))
+        expected.append(NodeParse(                                              "",                 "#",                0, 1))
+        expected.append(NodeParse(                                              "",                 "comment",          0, 2))
 
         result : ParseNode = self.parser.ruleFilterLineComments(root)
 
@@ -10379,14 +10417,14 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         for character in characters:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         "\\",        0, 0))
-                root.append(NodeParse(      "",         character,   0, 1))
-                root.append(NodeParse(      "",         "comment",   0, 2))
+                root.append(NodeParse(                                          "",                 "\\",               0, 0))
+                root.append(NodeParse(                                          "",                 character,          0, 1))
+                root.append(NodeParse(                                          "",                 "comment",          0, 2))
 
                 expected : ParseNode = NodeParse()
-                expected.append(NodeParse(  "",         "\\",        0, 0))
-                expected.append(NodeParse(  "",         character,   0, 1))
-                expected.append(NodeParse(  "",         "comment",   0, 2))
+                expected.append(NodeParse(                                      "",                 "\\",               0, 0))
+                expected.append(NodeParse(                                      "",                 character,          0, 1))
+                expected.append(NodeParse(                                      "",                 "comment",          0, 2))
 
                 result : ParseNode = self.parser.ruleFilterLineComments(root, character)
 
@@ -10397,19 +10435,19 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         root : ParseNode = NodeParse()
 
-        self.assertRaises(Exception, self.parser.ruleStringSimple, root, None)
+        self.assertRaises(AssertionError, self.parser.ruleFilterLineComments, root, None)
 
     def test_RuleFilterLineComments_ExceptionCharacterWrongType(self):
         """tests ruleFilterLineComments raises an exception when character is wrong type"""
 
-        character : list[Any] = [None, 0, False, ['a'], {0 : 'a'}, NodeParse()]
+        character : list[Any] = [None, 0, False, ['a'], {0 : 'a'}, NodeParse(), ('a',), {'a',}]
 
         character : Any
         for character in character:
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
 
-                self.assertRaises(Exception, self.parser.ruleFilterLineComments, root, character)
+                self.assertRaises(AssertionError, self.parser.ruleFilterLineComments, root, character)
 
     def test_RuleFilterLineComments_ExceptionCharacterWrongLength(self):
         """tests ruleFilterLineComments raises an exception when character is wrong length"""
@@ -10421,17 +10459,17 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             with self.subTest(character=character):
                 root : ParseNode = NodeParse()
 
-                self.assertRaises(Exception, self.parser.ruleFilterLineComments, root, character)
+                self.assertRaises(AssertionError, self.parser.ruleFilterLineComments, root, character)
 
     def test_RuleFilterLineComments_ExceptionTreeNotNodeParse(self):
         """tests ruleFilterLineComments raises an exception when tree is not a NodeParse object"""
 
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleFilterLineComments, tree)
+                self.assertRaises(AssertionError, self.parser.ruleFilterLineComments, tree)
 
     def test_RuleRemoveToken_Integration01(self):
         """tests ruleRemoveToken on a string 'Hello World!', removing nothing
@@ -10453,10 +10491,10 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",     0, 0))
-        root.append(NodeParse(      "",         " ",         0, 5))
-        root.append(NodeParse(      "",         "World",     0, 6))
-        root.append(NodeParse(      "",         "!",         0, 11))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "World",            0, 6))
+        root.append(NodeParse(                                                  "",                 "!",                0, 11))
 
         expected : ParseNode = root.copyDeep()
 
@@ -10471,26 +10509,26 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         token = ' '
         Node
             'Hello'
-            ' '                 |
+            ' '                         |
             'World'
             '!'
         ->
         Node
-            'Hello'             _V_
-            'World'              A
+            'Hello'                     _V_
+            'World'                      A
             '!'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",     0, 0))
-        root.append(NodeParse(      "",         " ",         0, 5))
-        root.append(NodeParse(      "",         "World",     0, 6))
-        root.append(NodeParse(      "",         "!",         0, 11))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "World",            0, 6))
+        root.append(NodeParse(                                                  "",                 "!",                0, 11))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "Hello",     0, 0))
-        expected.append(NodeParse(  "",         "World",     0, 6))
-        expected.append(NodeParse(  "",         "!",         0, 11))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 0))
+        expected.append(NodeParse(                                              "",                 "World",            0, 6))
+        expected.append(NodeParse(                                              "",                 "!",                0, 11))
 
         result : ParseNode = self.parser.ruleRemoveToken(root, " ")
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
@@ -10503,22 +10541,22 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         token = '\n'
         Node
             'test1'
-            '\n'                |
+            '\n'                        |
             'test2'
         ->
         Node
-            'test1'             _V_
-            'test2'              A
+            'test1'                     _V_
+            'test2'                      A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test1",     0, 0))
-        root.append(NodeParse(      "",         "\n",        0, 5))
-        root.append(NodeParse(      "",         "test2",     0, 6))
+        root.append(NodeParse(                                                  "",                 "test1",            0, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 5))
+        root.append(NodeParse(                                                  "",                 "test2",            0, 6))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test1",     0, 0))
-        expected.append(NodeParse(  "",         "test2",     0, 6))
+        expected.append(NodeParse(                                              "",                 "test1",            0, 0))
+        expected.append(NodeParse(                                              "",                 "test2",            0, 6))
 
         result : ParseNode = self.parser.ruleRemoveToken(root, "\n")
         self.assertEqual(True, expected.dataEqual(result), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
@@ -10533,48 +10571,48 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'add'
                 'arg1'
-                ','             |
+                ','                     |
                 'arg2'
-            ','                 |
+            ','                         |
             'mult'
                 'arg1'
-                ','             |
+                ','                     |
                 'arg2'
         ->
         Node
             'add'
-                'arg1'          _V_
-                'arg2'           A  _V_
-            'mult'                   A
-                'arg1'          _V_
-                'arg2'           A
+                'arg1'                  _V_
+                'arg2'                   A  _V_
+            'mult'                           A
+                'arg1'                  _V_
+                'arg2'                   A
         """
 
         root : ParseNode = NodeParse()
         rChild1 : ParseNode
-        rChild1 = NodeParse(         "",         "add",      0, 0)
-        rChild1.append(NodeParse(    "",         "arg1",     0, 5))
-        rChild1.append(NodeParse(    "",         ",",        0, 9))
-        rChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        rChild1 = NodeParse(                                                    "",                 "add",              0, 0)
+        rChild1.append(NodeParse(                                               "",                 "arg1",             0, 5))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 9))
+        rChild1.append(NodeParse(                                               "",                 "arg2",             0, 10))
         root.append(rChild1)
-        root.append(NodeParse(       "",         ",",        0, 16))
+        root.append(NodeParse(                                                  "",                 ",",                0, 16))
         rChild2 : ParseNode
-        rChild2 = NodeParse(         "",         "mult",     0, 4)
-        rChild2.append(NodeParse(    "",         "arg1",     0, 10))
-        rChild2.append(NodeParse(    "",         ",",        0, 14))
-        rChild2.append(NodeParse(    "",         "arg2",     0, 15))
+        rChild2 = NodeParse(                                                    "",                 "mult",             0, 4)
+        rChild2.append(NodeParse(                                               "",                 "arg1",             0, 10))
+        rChild2.append(NodeParse(                                               "",                 ",",                0, 14))
+        rChild2.append(NodeParse(                                               "",                 "arg2",             0, 15))
         root.append(rChild2)
 
         expected : ParseNode = NodeParse()
         eChild1 : ParseNode
-        eChild1 = NodeParse(         "",         "add",      0, 0)
-        eChild1.append(NodeParse(    "",         "arg1",     0, 5))
-        eChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        eChild1 = NodeParse(                                                    "",                 "add",              0, 0)
+        eChild1.append(NodeParse(                                               "",                 "arg1",             0, 5))
+        eChild1.append(NodeParse(                                               "",                 "arg2",             0, 10))
         expected.append(eChild1)
         eChild2 : ParseNode
-        eChild2 = NodeParse(         "",         "mult",     0, 4)
-        eChild2.append(NodeParse(    "",         "arg1",     0, 10))
-        eChild2.append(NodeParse(    "",         "arg2",     0, 15))
+        eChild2 = NodeParse(                                                    "",                 "mult",             0, 4)
+        eChild2.append(NodeParse(                                               "",                 "arg1",             0, 10))
+        eChild2.append(NodeParse(                                               "",                 "arg2",             0, 15))
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleRemoveToken(root, ",")
@@ -10592,7 +10630,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 'arg1'
                 ','
                 'arg2'
-            ','                 |
+            ','                         |
             'mult'
                 'arg1'
                 ','
@@ -10602,8 +10640,8 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             'add'
                 'arg1'
                 ','
-                'arg2'          _V_
-            'mult'               A
+                'arg2'                  _V_
+            'mult'                       A
                 'arg1'
                 ','
                 'arg2'
@@ -10611,31 +10649,31 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         root : ParseNode = NodeParse()
         rChild1 : ParseNode
-        rChild1 = NodeParse(         "",         "add",      0, 0)
-        rChild1.append(NodeParse(    "",         "arg1",     0, 5))
-        rChild1.append(NodeParse(    "",         ",",        0, 9))
-        rChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        rChild1 = NodeParse(                                                    "",                 "add",              0, 0)
+        rChild1.append(NodeParse(                                               "",                 "arg1",             0, 5))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 9))
+        rChild1.append(NodeParse(                                               "",                 "arg2",             0, 10))
         root.append(rChild1)
-        root.append(NodeParse(       "",         ",",        0, 16))
+        root.append(NodeParse(                                                  "",                 ",",                0, 16))
         rChild2 : ParseNode
-        rChild2 = NodeParse(         "",         "mult",     0, 4)
-        rChild2.append(NodeParse(    "",         "arg1",     0, 10))
-        rChild2.append(NodeParse(    "",         ",",        0, 14))
-        rChild2.append(NodeParse(    "",         "arg2",     0, 15))
+        rChild2 = NodeParse(                                                    "",                 "mult",             0, 4)
+        rChild2.append(NodeParse(                                               "",                 "arg1",             0, 10))
+        rChild2.append(NodeParse(                                               "",                 ",",                0, 14))
+        rChild2.append(NodeParse(                                               "",                 "arg2",             0, 15))
         root.append(rChild2)
 
         expected : ParseNode = NodeParse()
         eChild1 : ParseNode
-        eChild1 = NodeParse(         "",         "add",      0, 0)
-        eChild1.append(NodeParse(    "",         "arg1",     0, 5))
-        eChild1.append(NodeParse(    "",         ",",        0, 9))
-        eChild1.append(NodeParse(    "",         "arg2",     0, 10))
+        eChild1 = NodeParse(                                                    "",                 "add",              0, 0)
+        eChild1.append(NodeParse(                                               "",                 "arg1",             0, 5))
+        eChild1.append(NodeParse(                                               "",                 ",",                0, 9))
+        eChild1.append(NodeParse(                                               "",                 "arg2",             0, 10))
         expected.append(eChild1)
         eChild2 : ParseNode
-        eChild2 = NodeParse(         "",         "mult",     0, 4)
-        eChild2.append(NodeParse(    "",         "arg1",     0, 10))
-        eChild2.append(NodeParse(    "",         ",",        0, 14))
-        eChild2.append(NodeParse(    "",         "arg2",     0, 15))
+        eChild2 = NodeParse(                                                    "",                 "mult",             0, 4)
+        eChild2.append(NodeParse(                                               "",                 "arg1",             0, 10))
+        eChild2.append(NodeParse(                                               "",                 ",",                0, 14))
+        eChild2.append(NodeParse(                                               "",                 "arg2",             0, 15))
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleRemoveToken(root, ",", False)
@@ -10657,14 +10695,14 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 '3'
                 ']'
             ','
-            'b'                 |
-                '['             |
-                '1'             |
-                ','             |
-                '2'             |
-                ','             |
-                '3'             |
-                ']'             |
+            'b'                         |
+                '['                     |
+                '1'                     |
+                ','                     |
+                '2'                     |
+                ','                     |
+                '3'                     |
+                ']'                     |
             ','
             'c'
                 '['
@@ -10684,8 +10722,8 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 ','
                 '3'
                 ']'
-            ','                 _V_
-            ','                  A
+            ','                         _V_
+            ','                          A
             'c'
                 '['
                 '1'
@@ -10698,59 +10736,59 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         root : ParseNode = NodeParse()
         rChild1 : ParseNode
-        rChild1 = NodeParse(         "",         "a",        0, 0)
-        rChild1.append(NodeParse(    "",         "[",        0, 1))
-        rChild1.append(NodeParse(    "",         "1",        0, 2))
-        rChild1.append(NodeParse(    "",         ",",        0, 3))
-        rChild1.append(NodeParse(    "",         "2",        0, 4))
-        rChild1.append(NodeParse(    "",         ",",        0, 5))
-        rChild1.append(NodeParse(    "",         "3",        0, 6))
-        rChild1.append(NodeParse(    "",         "]",        0, 7))
+        rChild1 = NodeParse(                                                    "",                 "a",                0, 0)
+        rChild1.append(NodeParse(                                               "",                 "[",                0, 1))
+        rChild1.append(NodeParse(                                               "",                 "1",                0, 2))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 3))
+        rChild1.append(NodeParse(                                               "",                 "2",                0, 4))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 5))
+        rChild1.append(NodeParse(                                               "",                 "3",                0, 6))
+        rChild1.append(NodeParse(                                               "",                 "]",                0, 7))
         root.append(rChild1)
-        root.append(NodeParse(       "",         ",",        0, 8))
+        root.append(NodeParse(                                                  "",                 ",",                0, 8))
         rChild2 : ParseNode
-        rChild2 = NodeParse(         "",         "b",        0, 9)
-        rChild2.append(NodeParse(    "",         "[",        0, 10))
-        rChild2.append(NodeParse(    "",         "1",        0, 11))
-        rChild2.append(NodeParse(    "",         ",",        0, 12))
-        rChild2.append(NodeParse(    "",         "2",        0, 13))
-        rChild2.append(NodeParse(    "",         ",",        0, 14))
-        rChild2.append(NodeParse(    "",         "3",        0, 15))
-        rChild2.append(NodeParse(    "",         "]",        0, 16))
+        rChild2 = NodeParse(                                                    "",                 "b",                0, 9)
+        rChild2.append(NodeParse(                                               "",                 "[",                0, 10))
+        rChild2.append(NodeParse(                                               "",                 "1",                0, 11))
+        rChild2.append(NodeParse(                                               "",                 ",",                0, 12))
+        rChild2.append(NodeParse(                                               "",                 "2",                0, 13))
+        rChild2.append(NodeParse(                                               "",                 ",",                0, 14))
+        rChild2.append(NodeParse(                                               "",                 "3",                0, 15))
+        rChild2.append(NodeParse(                                               "",                 "]",                0, 16))
         root.append(rChild2)
-        root.append(NodeParse(       "",         ",",        0, 17))
+        root.append(NodeParse(                                                  "",                 ",",                0, 17))
         rChild3 : ParseNode
-        rChild3 = NodeParse(         "",         "c",        0, 18)
-        rChild3.append(NodeParse(    "",         "[",        0, 19))
-        rChild3.append(NodeParse(    "",         "1",        0, 20))
-        rChild3.append(NodeParse(    "",         ",",        0, 21))
-        rChild3.append(NodeParse(    "",         "b",        0, 22))
-        rChild3.append(NodeParse(    "",         ",",        0, 23))
-        rChild3.append(NodeParse(    "",         "3",        0, 24))
-        rChild3.append(NodeParse(    "",         "]",        0, 25))
+        rChild3 = NodeParse(                                                    "",                 "c",                0, 18)
+        rChild3.append(NodeParse(                                               "",                 "[",                0, 19))
+        rChild3.append(NodeParse(                                               "",                 "1",                0, 20))
+        rChild3.append(NodeParse(                                               "",                 ",",                0, 21))
+        rChild3.append(NodeParse(                                               "",                 "b",                0, 22))
+        rChild3.append(NodeParse(                                               "",                 ",",                0, 23))
+        rChild3.append(NodeParse(                                               "",                 "3",                0, 24))
+        rChild3.append(NodeParse(                                               "",                 "]",                0, 25))
         root.append(rChild3)
 
         expected : ParseNode = NodeParse()
         eChild1 : ParseNode
-        eChild1 = NodeParse(         "",         "a",        0, 0)
-        eChild1.append(NodeParse(    "",         "[",        0, 1))
-        eChild1.append(NodeParse(    "",         "1",        0, 2))
-        eChild1.append(NodeParse(    "",         ",",        0, 3))
-        eChild1.append(NodeParse(    "",         "2",        0, 4))
-        eChild1.append(NodeParse(    "",         ",",        0, 5))
-        eChild1.append(NodeParse(    "",         "3",        0, 6))
-        eChild1.append(NodeParse(    "",         "]",        0, 7))
+        eChild1 = NodeParse(                                                    "",                 "a",                0, 0)
+        eChild1.append(NodeParse(                                               "",                 "[",                0, 1))
+        eChild1.append(NodeParse(                                               "",                 "1",                0, 2))
+        eChild1.append(NodeParse(                                               "",                 ",",                0, 3))
+        eChild1.append(NodeParse(                                               "",                 "2",                0, 4))
+        eChild1.append(NodeParse(                                               "",                 ",",                0, 5))
+        eChild1.append(NodeParse(                                               "",                 "3",                0, 6))
+        eChild1.append(NodeParse(                                               "",                 "]",                0, 7))
         expected.append(eChild1)
-        expected.append(NodeParse(   "",         ",",        0, 8))
-        expected.append(NodeParse(   "",         ",",        0, 17))
+        expected.append(NodeParse(                                              "",                 ",",                0, 8))
+        expected.append(NodeParse(                                              "",                 ",",                0, 17))
         eChild2 : ParseNode
-        eChild2 = NodeParse(         "",         "c",        0, 18)
-        eChild2.append(NodeParse(    "",         "[",        0, 19))
-        eChild2.append(NodeParse(    "",         "1",        0, 20))
-        eChild2.append(NodeParse(    "",         ",",        0, 21))
-        eChild2.append(NodeParse(    "",         ",",        0, 23))
-        eChild2.append(NodeParse(    "",         "3",        0, 24))
-        eChild2.append(NodeParse(    "",         "]",        0, 25))
+        eChild2 = NodeParse(                                                    "",                 "c",                0, 18)
+        eChild2.append(NodeParse(                                               "",                 "[",                0, 19))
+        eChild2.append(NodeParse(                                               "",                 "1",                0, 20))
+        eChild2.append(NodeParse(                                               "",                 ",",                0, 21))
+        eChild2.append(NodeParse(                                               "",                 ",",                0, 23))
+        eChild2.append(NodeParse(                                               "",                 "3",                0, 24))
+        eChild2.append(NodeParse(                                               "",                 "]",                0, 25))
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleRemoveToken(root, "b", True)
@@ -10782,14 +10820,14 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         token = 'test'
         Node
-            'test'              |
+            'test'                      |
         ->
-        Node                    _V_
-                                 A
+        Node                            _V_
+                                         A
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",     0, 0))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
 
         expected : ParseNode = NodeParse()
 
@@ -10803,19 +10841,19 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         token = token
         Node
-            token               |
+            token                       |
         ->
-        Node                    _V_
-                                 A
+        Node                            _V_
+                                         A
         """
 
-        tokens : list[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
+        tokens : list[Any] = [None, 0, False, 'a', [0], {0 : 'a'}, ('a',), {'a',}]
 
         token : Any
         for token in tokens:
             with self.subTest(token=token):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         token,      0, 0))
+                root.append(NodeParse(                                          "",                 token,              0, 0))
 
                 expected : ParseNode = NodeParse()
 
@@ -10831,27 +10869,27 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'Hello'
             ' '
-            token               |
+            token                       |
         ->
         Node
             'Hello'
-            ' '                 _V_
-                                 A
+            ' '                         _V_
+                                         A
         """
 
-        tokens : list[Any] = [None, 0, False, 'a', [0], {0 : 'a'}]
+        tokens : list[Any] = [None, 0, False, 'a', [0], {0 : 'a'}, ('a',), {'a',}]
 
         token : Any
         for token in tokens:
             with self.subTest(token=token):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         "Hello",    0, 0))
-                root.append(NodeParse(      "",         " ",        0, 6))
-                root.append(NodeParse(      "",         token,      0, 7))
+                root.append(NodeParse(                                          "",                 "Hello",            0, 0))
+                root.append(NodeParse(                                          "",                 " ",                0, 6))
+                root.append(NodeParse(                                          "",                 token,              0, 7))
 
                 expected : ParseNode = NodeParse()
-                expected.append(NodeParse( "",         "Hello",    0, 0))
-                expected.append(NodeParse( "",         " ",        0, 6))
+                expected.append(NodeParse(                                      "",                 "Hello",            0, 0))
+                expected.append(NodeParse(                                      "",                 " ",                0, 6))
 
                 result : ParseNode = self.parser.ruleRemoveToken(root, token)
 
@@ -10864,30 +10902,30 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         token = 'a'
         Node
-            'a'                 |
-                '['             |
-                    '1'         |
-                    ','         |
-                    '2'         |
-                    ','         |
-                    '3'         |
-                    ']'         |
+            'a'                         |
+                '['                     |
+                    '1'                 |
+                    ','                 |
+                    '2'                 |
+                    ','                 |
+                    '3'                 |
+                    ']'                 |
         ->
-        Node                    _V_
-                                 A
+        Node                            _V_
+                                         A
         """
 
         root : ParseNode = NodeParse()
         rChild1 : ParseNode
-        rChild1 = NodeParse(        "",         "a",        0, 0)
+        rChild1 = NodeParse(                                                    "",                 "a",                0, 0)
         rChild2 : ParseNode
-        rChild2 = NodeParse(        "",         "[",        0, 1)
-        rChild2.append(NodeParse(   "",         "1",        0, 2))
-        rChild2.append(NodeParse(   "",         ",",        0, 3))
-        rChild2.append(NodeParse(   "",         "2",        0, 4))
-        rChild2.append(NodeParse(   "",         ",",        0, 5))
-        rChild2.append(NodeParse(   "",         "3",        0, 6))
-        rChild2.append(NodeParse(   "",         "]",        0, 7))
+        rChild2 = NodeParse(                                                    "",                 "[",                0, 1)
+        rChild2.append(NodeParse(                                               "",                 "1",                0, 2))
+        rChild2.append(NodeParse(                                               "",                 ",",                0, 3))
+        rChild2.append(NodeParse(                                               "",                 "2",                0, 4))
+        rChild2.append(NodeParse(                                               "",                 ",",                0, 5))
+        rChild2.append(NodeParse(                                               "",                 "3",                0, 6))
+        rChild2.append(NodeParse(                                               "",                 "]",                0, 7))
         rChild1.append(rChild2)
         root.append(rChild1)
 
@@ -10900,13 +10938,13 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveToken_TokenDifferentTypes(self):
         """tests ruleRemoveToken on different token types"""
 
-        tokens : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        tokens : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         token : Any
         for token in tokens:
             with self.subTest(token=token):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         token,      0, 0))
+                root.append(NodeParse(                                          "",                 token,              0, 0))
 
                 expected : ParseNode = NodeParse()
 
@@ -10917,22 +10955,72 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleRemoveToken_ExceptionTreeNotNodeParse(self):
         """tests ruleRemoveToken raises an exception when tree is not a NodeParse object"""
 
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleRemoveToken, tree)
+                self.assertRaises(AssertionError, self.parser.ruleRemoveToken, tree, None)
 
     def test_RuleRemoveToken_ExceptionRecurseNotBool(self):
         """tests ruleRemoveToken raises an exception when recurse is not a boolean"""
 
-        variables : list[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
+        variables : list[Any] = [None, 0, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         variable : Any
         for variable in variables:
             with self.subTest(variable=variable):
-                self.assertRaises(Exception, self.parser.ruleRemoveToken, NodeParse(), None, variable)
+                self.assertRaises(AssertionError, self.parser.ruleRemoveToken, NodeParse(), None, variable)
+
+    def test_RuleSplitLines_ExceptionSplitTokenNotString(self):
+        """tests ruleSplitLines raises an exception when splitToken is not a string"""
+
+        splitTokens : list[Any] = [None, 0, False, ['a'], {0 : 'a'}, ('a',), {'a',}]
+
+        splitToken : Any
+        for splitToken in splitTokens:
+            with self.subTest(splitToken=splitToken):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(                                          "",                 "Hello",            0, 0))
+                root.append(NodeParse(                                          "",                 " ",                0, 6))
+                root.append(NodeParse(                                          "",                 "World",            0, 7))
+
+                self.assertRaises(AssertionError, self.parser.ruleSplitLines, root, splitToken=splitToken)
+
+    def test_RuleSplitLines_ExceptionSplitTokenEmpty(self):
+        """tests ruleSplitLines raises an exception when splitToken is an empty string"""
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 6))
+        root.append(NodeParse(                                                  "",                 "World",            0, 7))
+
+        self.assertRaises(AssertionError, self.parser.ruleSplitLines, root, splitToken="")
+
+    def test_RuleSplitLines_ExceptionTokenTypeNotString(self):
+        """tests ruleSplitLines raises an exception when tokenType is not a string"""
+
+        tokenTypes : list[Any] = [None, 0, False, ['a'], {0 : 'a'}, ('a',), {'a',}]
+
+        tokenType : Any
+        for tokenType in tokenTypes:
+            with self.subTest(tokenType=tokenType):
+                root : ParseNode = NodeParse()
+                root.append(NodeParse(                                          "",                 "Hello",            0, 0))
+                root.append(NodeParse(                                          "",                 " ",                0, 6))
+                root.append(NodeParse(                                          "",                 "World",            0, 7))
+
+                self.assertRaises(AssertionError, self.parser.ruleSplitLines, root, tokenType=tokenType)
+
+    def test_RuleSplitLines_ExceptionTreeNotNodeParse(self):
+        """tests ruleSplitLines raises an exception when tree is not a NodeParse object"""
+
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
+
+        tree : Any
+        for tree in trees:
+            with self.subTest(tree=tree):
+                self.assertRaises(AssertionError, self.parser.ruleSplitLines, tree)
 
     def test_RuleSplitLines_Integration01(self):
         """tests ruleSplitLines on a string 'Hello World'
@@ -10953,22 +11041,22 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",    0, 0))
-        root.append(NodeParse(      "",         " ",        0, 6))
-        root.append(NodeParse(      "",         "World",    0, 7))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 6))
+        root.append(NodeParse(                                                  "",                 "World",            0, 7))
 
         expected : list[ParseNode] = []
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild1.append(NodeParse(   "",         "Hello",    0, 0))
-        eChild1.append(NodeParse(   "",         " ",        0, 6))
-        eChild1.append(NodeParse(   "",         "World",    0, 7))
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild1.append(NodeParse(                                               "",                 "Hello",            0, 0))
+        eChild1.append(NodeParse(                                               "",                 " ",                0, 6))
+        eChild1.append(NodeParse(                                               "",                 "World",            0, 7))
         expected.append(eChild1)
 
         result : ParseNode = self.parser.ruleSplitLines(root)
     
         self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
-    def test_RuleSplitLines_Intergration02(self):
+    def test_RuleSplitLines_Integration02(self):
         """tests ruleSplitLines on a string 'test1\ntest2'
         
         'test1\ntest2'
@@ -10976,35 +11064,35 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         splitToken = '\n'
         Node
             'test1'
-            '\n'                |
+            '\n'                        |
             'test2'
         ->
         [
             Node            
-                'test1'         _A_
-            Node                 V
+                'test1'                 _A_
+            Node                         V
                 'test2'
         ]
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test1",    0, 0))
-        root.append(NodeParse(      "",         "\n",       0, 5))
-        root.append(NodeParse(      "",         "test2",    0, 6))
+        root.append(NodeParse(                                                  "",                 "test1",            0, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 5))
+        root.append(NodeParse(                                                  "",                 "test2",            0, 6))
 
         expected : list[ParseNode] = []
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild1.append(NodeParse(   "",         "test1",    0, 0))
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild1.append(NodeParse(                                               "",                 "test1",            0, 0))
         expected.append(eChild1)
-        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
-        eChild2.append(NodeParse(   "",         "test2",    0, 6))
+        eChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=6)
+        eChild2.append(NodeParse(                                               "",                 "test2",            0, 6))
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleSplitLines(root)
 
         self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
-    def test_RuleSplitLines_Intergration03(self):
+    def test_RuleSplitLines_Integration03(self):
         """tests ruleSplitLines on a string 'test1\ntest2\n'
         
         'test1\ntest2\n'
@@ -11012,30 +11100,30 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         splitLines = '\n'
         Node
             'test1'
-            '\n'                |
+            '\n'                        |
             'test2'
-            '\n'                |
+            '\n'                        |
         ->
         [
             Node
-                'test1'         _A_
-            Node                 V
-                'test2'         _A_
+                'test1'                 _A_
+            Node                         V
+                'test2'                 _A_
         ]
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test1",    0, 0))
-        root.append(NodeParse(      "",         "\n",       0, 5))
-        root.append(NodeParse(      "",         "test2",    0, 6))
-        root.append(NodeParse(      "",         "\n",       0, 11))
+        root.append(NodeParse(                                                  "",                 "test1",            0, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 5))
+        root.append(NodeParse(                                                  "",                 "test2",            0, 6))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 11))
 
         expected : list[ParseNode] = []
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild1.append(NodeParse(   "",         "test1",    0, 0))
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild1.append(NodeParse(                                               "",                 "test1",            0, 0))
         expected.append(eChild1)
-        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
-        eChild2.append(NodeParse(   "",         "test2",    0, 6))
+        eChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=6)
+        eChild2.append(NodeParse(                                               "",                 "test2",            0, 6))
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleSplitLines(root)
@@ -11050,28 +11138,28 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         splitToken = '\t'
         Node
             'test1'
-            '\t'                |
+            '\t'                        |
             'test2'
         ->
         [
             Node
-                'test1'         _A_
-            Node                 V
+                'test1'                 _A_
+            Node                         V
                 'test2'
         ]
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test1",    0, 0))
-        root.append(NodeParse(      "",         "\t",        0, 5))
-        root.append(NodeParse(      "",         "test2",    0, 6))
+        root.append(NodeParse(                                                  "",                 "test1",            0, 0))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 5))
+        root.append(NodeParse(                                                  "",                 "test2",            0, 6))
 
         expected : list[ParseNode] = []
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild1.append(NodeParse(   "",         "test1",    0, 0))
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild1.append(NodeParse(                                               "",                 "test1",            0, 0))
         expected.append(eChild1)
-        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
-        eChild2.append(NodeParse(   "",         "test2",    0, 6))
+        eChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=6)
+        eChild2.append(NodeParse(                                               "",                 "test2",            0, 6))
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleSplitLines(root, splitToken="\t")
@@ -11087,7 +11175,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             Node
                 'test1'
-            '\t'                    |
+            '\t'                        |
             Node
                 'test2'
                 '\t'
@@ -11095,8 +11183,8 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         ->
         [
             Node
-                'test1'             _A_
-            Node                     V
+                'test1'                 _A_
+            Node                         V
                 Node
                     'test2'
                     '\t'
@@ -11105,27 +11193,27 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        rChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        rChild1.append(NodeParse(   "",         "test1",         0, 0))
+        rChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        rChild1.append(NodeParse(                                               "",                 "test1",            0, 0))
         root.append(rChild1)
-        root.append(NodeParse(      "",         "\t",            0, 5))
-        rChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
-        rChild2.append(NodeParse(   "",         "test2",         0, 6))
-        rChild2.append(NodeParse(   "",         "\t",            0, 11))
-        rChild2.append(NodeParse(   "",         "test3",         0, 12))
+        root.append(NodeParse(                                                  "",                 "\t",               0, 5))
+        rChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=6)
+        rChild2.append(NodeParse(                                               "",                 "test2",            0, 6))
+        rChild2.append(NodeParse(                                               "",                 "\t",               0, 11))
+        rChild2.append(NodeParse(                                               "",                 "test3",            0, 12))
         root.append(rChild2)
 
         expected : list[ParseNode] = []
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild2.append(NodeParse(   "",         "test1",         0, 0))
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild2.append(NodeParse(                                               "",                 "test1",            0, 0))
         eChild1.append(eChild2)
         expected.append(eChild1)
-        eChild3 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
-        eChild4 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
-        eChild4.append(NodeParse(   "",         "test2",         0, 6))
-        eChild4.append(NodeParse(   "",         "\t",            0, 11))
-        eChild4.append(NodeParse(   "",         "test3",         0, 12))
+        eChild3 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=6)
+        eChild4 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=6)
+        eChild4.append(NodeParse(                                               "",                 "test2",            0, 6))
+        eChild4.append(NodeParse(                                               "",                 "\t",               0, 11))
+        eChild4.append(NodeParse(                                               "",                 "test3",            0, 12))
         eChild3.append(eChild4)
         expected.append(eChild3)
 
@@ -11141,13 +11229,13 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         splitToken in "`~!@#$%^&*()_+-={}[]|\\;:\'\",./<>? \n\t\b\r"
         Node
             'test1'
-            splitToken              |
+            splitToken                  |
             'test2'
         ->
         [
             Node
-                'test1'             _A_
-            Node                     V
+                'test1'                 _A_
+            Node                         V
                 'test2'        
         ]
         """
@@ -11158,16 +11246,16 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         for splitToken in splitTokens:
             with self.subTest(splitToken=splitToken):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         "test1",    0, 0))
-                root.append(NodeParse(      "",         splitToken, 0, 5))
-                root.append(NodeParse(      "",         "test2",    0, 6))
+                root.append(NodeParse(                                          "",                 "test1",            0, 0))
+                root.append(NodeParse(                                          "",                 splitToken,         0, 5))
+                root.append(NodeParse(                                          "",                 "test2",            0, 6))
 
                 expected : list[ParseNode] = []
-                eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-                eChild1.append(NodeParse(   "",         "test1",    0, 0))
+                eChild1 : ParseNode = NodeParse(                                typeStr="line",                         lineNum=0, charNum=0)
+                eChild1.append(NodeParse(                                       "",                 "test1",            0, 0))
                 expected.append(eChild1)
-                eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
-                eChild2.append(NodeParse(   "",         "test2",    0, 6))
+                eChild2 : ParseNode = NodeParse(                                typeStr="line",                         lineNum=0, charNum=6)
+                eChild2.append(NodeParse(                                       "",                 "test2",            0, 6))
                 expected.append(eChild2)
 
                 result : ParseNode = self.parser.ruleSplitLines(root, splitToken=splitToken)
@@ -11199,15 +11287,15 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         for splitToken in splitTokens:
             with self.subTest(splitToken=splitToken):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         "test1",    0, 0))
-                root.append(NodeParse(      "",         "\u2665",   0, 5))
-                root.append(NodeParse(      "",         "test2",    0, 6))
+                root.append(NodeParse(                                          "",                 "test1",            0, 0))
+                root.append(NodeParse(                                          "",                 "\u2665",           0, 5))
+                root.append(NodeParse(                                          "",                 "test2",            0, 6))
 
                 expected : list[ParseNode] = []
-                eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-                eChild1.append(NodeParse(   "",         "test1",    0, 0))
-                eChild1.append(NodeParse(   "",         "\u2665",   0, 5))
-                eChild1.append(NodeParse(   "",         "test2",    0, 6))
+                eChild1 : ParseNode = NodeParse(                                typeStr="line",                 lineNum=0, charNum=0)
+                eChild1.append(NodeParse(                                       "",                 "test1",            0, 0))
+                eChild1.append(NodeParse(                                       "",                 "\u2665",           0, 5))
+                eChild1.append(NodeParse(                                       "",                 "test2",            0, 6))
                 expected.append(eChild1)
 
                 result : ParseNode = self.parser.ruleSplitLines(root, splitToken=splitToken)
@@ -11233,83 +11321,58 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
 
         self.assertEqual(True, all([i.dataEqual(j) for i, j in zip(expected, result)]), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
-    def test_RuleSplitLines_ExceptionSplitTokenNotString(self):
-        """tests ruleSplitLines raises an exception when splitToken is not a string"""
-
-        splitTokens : list[Any] = [None, 0, False, ['a'], {0 : 'a'}]
-
-        splitToken : Any
-        for splitToken in splitTokens:
-            with self.subTest(splitToken=splitToken):
-                root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         "Hello",    0, 0))
-                root.append(NodeParse(      "",         " ",        0, 6))
-                root.append(NodeParse(      "",         "World",    0, 7))
-
-                self.assertRaises(Exception, self.parser.ruleSplitLines, root, splitToken=splitToken)
-
-    def test_RuleSplitLines_ExceptionTreeNotNodeParse(self):
-        """tests ruleSplitLines raises an exception when tree is not a NodeParse object"""
-
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
-
-        tree : Any
-        for tree in trees:
-            with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleSplitLines, tree)
-
     def test_RuleSplitTokens_ExceptionTreeNotNodeParse(self):
         """tests ruleSplitTokens raises an exception when tree is not a NodeParse object"""
 
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleSplitTokens, tree)
+                self.assertRaises(AssertionError, self.parser.ruleSplitTokens, tree)
 
     def test_RuleSplitTokens_ExceptionTokenTypeNotString(self):
         """tests ruleSplitTokens raises an exception when tokenType is not a string"""
 
-        tokenTypes : list[Any] = [None, 0, False, ['a'], {0 : 'a'}]
+        tokenTypes : list[Any] = [None, 0, False, ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tokenType : Any
         for tokenType in tokenTypes:
             with self.subTest(tokenType=tokenType):
                 root : ParseNode = NodeParse()
 
-                self.assertRaises(Exception, self.parser.ruleSplitTokens, root, tokenType=tokenType)
+                self.assertRaises(AssertionError, self.parser.ruleSplitTokens, root, tokenType=tokenType)
 
 
     def test_RuleSplitTokens_ExceptionSplitTokenNotString(self):
         """tests ruleSplitTokens raises an exception when splitToken is not a string"""
 
-        splitTokens : list[Any] = [None, 0, False, ['a'], {0 : 'a'}]
+        splitTokens : list[Any] = [None, 0, False, ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         splitToken : Any
         for splitToken in splitTokens:
             with self.subTest(splitToken=splitToken):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         "Hello",    0, 0))
-                root.append(NodeParse(      "",         " ",        0, 6))
-                root.append(NodeParse(      "",         "World",    0, 7))
+                root.append(NodeParse(                                          "",                 "Hello",            0, 0))
+                root.append(NodeParse(                                          "",                 " ",                0, 6))
+                root.append(NodeParse(                                          "",                 "World",            0, 7))
 
-                self.assertRaises(Exception, self.parser.ruleSplitTokens, root, splitToken=splitToken)
+                self.assertRaises(AssertionError, self.parser.ruleSplitTokens, root, splitToken=splitToken)
 
     def test_RuleSplitTokens_ExceptionRecurseNotBool(self):
         """tests ruleSplitTokens raises an exception when recurse is not a bool"""
 
-        recurses : list[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
+        recurses : list[Any] = [None, 0, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         recurse : Any
         for recurse in recurses:
             with self.subTest(recurse=recurse):
                 root : ParseNode = NodeParse()
-                root.append(NodeParse(      "",         "Hello",    0, 0))
-                root.append(NodeParse(      "",         " ",        0, 6))
-                root.append(NodeParse(      "",         "World",    0, 7))
+                root.append(NodeParse(                                          "",                 "Hello",            0, 0))
+                root.append(NodeParse(                                          "",                 " ",                0, 6))
+                root.append(NodeParse(                                          "",                 "World",            0, 7))
 
-                self.assertRaises(Exception, self.parser.ruleSplitTokens, root, recurse=recurse)
+                self.assertRaises(AssertionError, self.parser.ruleSplitTokens, root, recurse=recurse)
 
     def test_RuleSplitTokens_Integration01(self):
         """tests ruleSplitTokens on a string 'Hello World'
@@ -11329,14 +11392,14 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",    0, 0))
-        root.append(NodeParse(      "",         " ",        0, 6))
-        root.append(NodeParse(      "",         "World",    0, 7))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 6))
+        root.append(NodeParse(                                                  "",                 "World",            0, 7))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(   "",         "Hello",    0, 0))
-        expected.append(NodeParse(   "",         " ",        0, 6))
-        expected.append(NodeParse(   "",         "World",    0, 7))
+        expected.append(NodeParse(                                              "",                 "Hello",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 6))
+        expected.append(NodeParse(                                              "",                 "World",            0, 7))
 
         result : ParseNode = self.parser.ruleSplitTokens(root)
 
@@ -11350,26 +11413,26 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         splitToken = ' '
         Node
             'Hello'
-            ' '                 |
+            ' '                         |
             'World'
         ->
         Node
             Node
-                'Hello'         _V_
-            Node                 A
+                'Hello'                 _V_
+            Node                         A
                 'World'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "Hello",    0, 0))
-        root.append(NodeParse(      "",         " ",        0, 6))
-        root.append(NodeParse(      "",         "World",    0, 7))
+        root.append(NodeParse(                                                  "",                 "Hello",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 6))
+        root.append(NodeParse(                                                  "",                 "World",            0, 7))
 
         expected : ParseNode = NodeParse()
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild1.append(NodeParse(   "",         "Hello",    0, 0))
-        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=7)
-        eChild2.append(NodeParse(   "",         "World",    0, 7))
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild1.append(NodeParse(                                               "",                 "Hello",            0, 0))
+        eChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=7)
+        eChild2.append(NodeParse(                                               "",                 "World",            0, 7))
         expected.append(eChild1)
         expected.append(eChild2)
 
@@ -11385,26 +11448,26 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         splitToken = '\n'
         Node
             'test'
-            '\n'                |
+            '\n'                        |
             'abc'
         ->
         Node
             Node
-                'test'          _V_
-            Node                 A
+                'test'                  _V_
+            Node                         A
                 'abc'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test",     0, 0))
-        root.append(NodeParse(      "",         "\n",       0, 4))
-        root.append(NodeParse(      "",         "abc",      0, 5))
+        root.append(NodeParse(                                                  "",                 "test",             0, 0))
+        root.append(NodeParse(                                                  "",                 "\n",               0, 4))
+        root.append(NodeParse(                                                  "",                 "abc",              0, 5))
 
         expected : ParseNode = NodeParse()
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild1.append(NodeParse(   "",         "test",     0, 0))
-        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=5)
-        eChild2.append(NodeParse(   "",         "abc",      0, 5))
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild1.append(NodeParse(                                               "",                 "test",             0, 0))
+        eChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=5)
+        eChild2.append(NodeParse(                                               "",                 "abc",              0, 5))
         expected.append(eChild1)
         expected.append(eChild2)
 
@@ -11424,9 +11487,9 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             ' '
             'test2'
                 'abc1'
-                ','                 |
+                ','                     |
                 'abc2'
-                ','                 |
+                ','                     |
                 'abc3'
                 ' '
                 'abc4'
@@ -11436,40 +11499,40 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
             ' '
             'test2'
                 Node
-                    'abc1'          _V_
-                Node                 A
-                    'abc2'          _V_
-                Node                 A
+                    'abc1'              _V_
+                Node                     A
+                    'abc2'              _V_
+                Node                     A
                     'abc3'
                     ' '
                     'abc4'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test1",    0, 0))
-        root.append(NodeParse(      "",         " ",        0, 5))
-        rChild1 : ParseNode = NodeParse("",     "test2",    0, 6)
-        rChild1.append(NodeParse(   "",         "abc1",     0, 12))
-        rChild1.append(NodeParse(   "",         ",",        0, 16))
-        rChild1.append(NodeParse(   "",         "abc2",     0, 17))
-        rChild1.append(NodeParse(   "",         ",",        0, 21))
-        rChild1.append(NodeParse(   "",         "abc3",     0, 22))
-        rChild1.append(NodeParse(   "",         " ",        0, 26))
-        rChild1.append(NodeParse(   "",         "abc4",     0, 27))
+        root.append(NodeParse(                                                  "",                 "test1",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        rChild1 : ParseNode = NodeParse(                                        "",                 "test2",            0, 6)
+        rChild1.append(NodeParse(                                               "",                 "abc1",             0, 12))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 16))
+        rChild1.append(NodeParse(                                               "",                 "abc2",             0, 17))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 21))
+        rChild1.append(NodeParse(                                               "",                 "abc3",             0, 22))
+        rChild1.append(NodeParse(                                               "",                 " ",                0, 26))
+        rChild1.append(NodeParse(                                               "",                 "abc4",             0, 27))
         root.append(rChild1)
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(   "",         "test1",   0, 0))
-        expected.append(NodeParse(   "",         " ",       0, 5))
-        eChild1 : ParseNode = NodeParse("",      "test2",   0, 6)
-        eChild1A : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=12)
-        eChild1A.append(NodeParse(   "",         "abc1",    0, 12))
-        eChild1B : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=17)
-        eChild1B.append(NodeParse(   "",         "abc2",    0, 17))
-        eChild1C : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=22)
-        eChild1C.append(NodeParse(   "",         "abc3",    0, 22))
-        eChild1C.append(NodeParse(   "",         " ",       0, 26))
-        eChild1C.append(NodeParse(   "",         "abc4",    0, 27))
+        expected.append(NodeParse(                                              "",                 "test1",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 5))
+        eChild1 : ParseNode = NodeParse(                                        "",                 "test2",            0, 6)
+        eChild1A : ParseNode = NodeParse(                                       typeStr="line",                         lineNum=0, charNum=12)
+        eChild1A.append(NodeParse(                                              "",                 "abc1",             0, 12))
+        eChild1B : ParseNode = NodeParse(                                       typeStr="line",                         lineNum=0, charNum=17)
+        eChild1B.append(NodeParse(                                              "",                 "abc2",             0, 17))
+        eChild1C : ParseNode = NodeParse(                                       typeStr="line",                         lineNum=0, charNum=22)
+        eChild1C.append(NodeParse(                                              "",                 "abc3",             0, 22))
+        eChild1C.append(NodeParse(                                              "",                 " ",                0, 26))
+        eChild1C.append(NodeParse(                                              "",                 "abc4",             0, 27))
         eChild1.append(eChild1A)
         eChild1.append(eChild1B)
         eChild1.append(eChild1C)
@@ -11512,29 +11575,29 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(      "",         "test1",    0, 0))
-        root.append(NodeParse(      "",         " ",        0, 5))
-        rChild1 : ParseNode = NodeParse("",     "test2",    0, 6)
-        rChild1.append(NodeParse(   "",         "abc1",     0, 11))
-        rChild1.append(NodeParse(   "",         ",",        0, 13))
-        rChild1.append(NodeParse(   "",         "abc2",     0, 15))
-        rChild1.append(NodeParse(   "",         ",",        0, 17))
-        rChild1.append(NodeParse(   "",         "abc3",     0, 19))
-        rChild1.append(NodeParse(   "",         " ",        0, 23))
-        rChild1.append(NodeParse(   "",         "abc4",     0, 24))
+        root.append(NodeParse(                                                  "",                 "test1",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        rChild1 : ParseNode = NodeParse(                                        "",                 "test2",            0, 6)
+        rChild1.append(NodeParse(                                               "",                 "abc1",             0, 11))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 13))
+        rChild1.append(NodeParse(                                               "",                 "abc2",             0, 15))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 17))
+        rChild1.append(NodeParse(                                               "",                 "abc3",             0, 19))
+        rChild1.append(NodeParse(                                               "",                 " ",                0, 23))
+        rChild1.append(NodeParse(                                               "",                 "abc4",             0, 24))
         root.append(rChild1)
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test1",    0, 0))
-        expected.append(NodeParse(  "",         " ",        0, 5))
-        eChild1 : ParseNode = NodeParse("",     "test2",    0, 6)
-        eChild1.append(NodeParse(   "",         "abc1",     0, 11))
-        eChild1.append(NodeParse(   "",         ",",        0, 13))
-        eChild1.append(NodeParse(   "",         "abc2",     0, 15))
-        eChild1.append(NodeParse(   "",         ",",        0, 17))
-        eChild1.append(NodeParse(   "",         "abc3",     0, 19))
-        eChild1.append(NodeParse(   "",         " ",        0, 23))
-        eChild1.append(NodeParse(   "",         "abc4",     0, 24))
+        expected.append(NodeParse(                                              "",                 "test1",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 5))
+        eChild1 : ParseNode = NodeParse(                                        "",                 "test2",            0, 6)
+        eChild1.append(NodeParse(                                               "",                 "abc1",             0, 11))
+        eChild1.append(NodeParse(                                               "",                 ",",                0, 13))
+        eChild1.append(NodeParse(                                               "",                 "abc2",             0, 15))
+        eChild1.append(NodeParse(                                               "",                 ",",                0, 17))
+        eChild1.append(NodeParse(                                               "",                 "abc3",             0, 19))
+        eChild1.append(NodeParse(                                               "",                 " ",                0, 23))
+        eChild1.append(NodeParse(                                               "",                 "abc4",             0, 24))
         expected.append(eChild1)
 
         result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=False)
@@ -11551,44 +11614,44 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         Node
             'test1'
                 'abc1'
-                ','                 |
+                ','                     |
                 'abc2'
-            ','                     |
+            ','                         |
             'test2'
         ->
         Node
             Node
                 'test1'
                     Node
-                        'abc1'      _V_
-                    Node             A
-                        'abc2'      _V_
-            Node                     A
+                        'abc1'          _V_
+                    Node                 A
+                        'abc2'          _V_
+            Node                         A
                 'test2'
         """
 
         root : ParseNode = NodeParse()
-        rChild1 : ParseNode = NodeParse("",     "test1",    0, 0)
-        rChild1.append(NodeParse(   "",         "abc1",     0, 6))
-        rChild1.append(NodeParse(   "",         ",",        0, 10))
-        rChild1.append(NodeParse(   "",         "abc2",     0, 11))
+        rChild1 : ParseNode = NodeParse(                                        "",                 "test1",            0, 0)
+        rChild1.append(NodeParse(                                               "",                 "abc1",             0, 6))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 10))
+        rChild1.append(NodeParse(                                               "",                 "abc2",             0, 11))
         root.append(rChild1)
-        root.append(NodeParse(      "",         ",",        0, 16))
-        root.append(NodeParse(      "",         "test2",    0, 17))
+        root.append(NodeParse(                                                  "",                 ",",                0, 16))
+        root.append(NodeParse(                                                  "",                 "test2",            0, 17))
 
         expected : ParseNode = NodeParse()
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild1A : ParseNode = NodeParse("",    "test1",    0, 0)
-        eChild1A1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
-        eChild1A1.append(NodeParse( "",         "abc1",     0, 6))
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild1A : ParseNode = NodeParse(                                       "",                 "test1",            0, 0)
+        eChild1A1 : ParseNode = NodeParse(                                      typeStr="line",                         lineNum=0, charNum=6)
+        eChild1A1.append(NodeParse(                                             "",                 "abc1",             0, 6))
         eChild1A.append(eChild1A1)
-        eChild1A2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=11)
-        eChild1A2.append(NodeParse( "",         "abc2",     0, 11))
+        eChild1A2 : ParseNode = NodeParse(                                      typeStr="line",                         lineNum=0, charNum=11)
+        eChild1A2.append(NodeParse(                                             "",                 "abc2",             0, 11))
         eChild1A.append(eChild1A2)
         eChild1.append(eChild1A)
         expected.append(eChild1)
-        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=17)
-        eChild2.append(NodeParse(   "",         "test2",    0, 17))
+        eChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=17)
+        eChild2.append(NodeParse(                                               "",                 "test2",            0, 17))
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=True)
@@ -11607,7 +11670,7 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 'abc1'
                 ','
                 'abc2'
-            ','                     |
+            ','                         |
             'test2'
         ->
         Node
@@ -11615,30 +11678,30 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
                 'test1'
                     'abc1'
                     ','
-                    'abc2'          _V_
-            Node                     A
+                    'abc2'              _V_
+            Node                         A
                 'test2'
         """
 
         root : ParseNode = NodeParse()
-        rChild1 : ParseNode = NodeParse("",     "test1",    0, 0)
-        rChild1.append(NodeParse(   "",         "abc1",     0, 6))
-        rChild1.append(NodeParse(   "",         ",",        0, 10))
-        rChild1.append(NodeParse(   "",         "abc2",     0, 11))
+        rChild1 : ParseNode = NodeParse(                                        "",                 "test1",            0, 0)
+        rChild1.append(NodeParse(                                               "",                 "abc1",             0, 6))
+        rChild1.append(NodeParse(                                               "",                 ",",                0, 10))
+        rChild1.append(NodeParse(                                               "",                 "abc2",             0, 11))
         root.append(rChild1)
-        root.append(NodeParse(      "",         ",",        0, 16))
-        root.append(NodeParse(      "",         "test2",    0, 17))
+        root.append(NodeParse(                                                  "",                 ",",                0, 16))
+        root.append(NodeParse(                                                  "",                 "test2",            0, 17))
 
         expected : ParseNode = NodeParse()
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild1A : ParseNode = NodeParse("",    "test1",    0, 0)
-        eChild1A.append(NodeParse(  "",         "abc1",     0, 6))
-        eChild1A.append(NodeParse(  "",         ",",        0, 10))
-        eChild1A.append(NodeParse(  "",         "abc2",     0, 11))
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild1A : ParseNode = NodeParse(                                       "",                 "test1",            0, 0)
+        eChild1A.append(NodeParse(                                              "",                 "abc1",             0, 6))
+        eChild1A.append(NodeParse(                                              "",                 ",",                0, 10))
+        eChild1A.append(NodeParse(                                              "",                 "abc2",             0, 11))
         eChild1.append(eChild1A)
         expected.append(eChild1)
-        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=17)
-        eChild2.append(NodeParse(   "",         "test2",    0, 17))
+        eChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=17)
+        eChild2.append(NodeParse(                                               "",                 "test2",            0, 17))
         expected.append(eChild2)
 
         result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=False)
@@ -11667,18 +11730,18 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(  "",         "test1",    0, 0))
-        root.append(NodeParse(  "",         " ",        0, 5))
-        root.append(NodeParse(  "",         "test2",    0, 6))
-        root.append(NodeParse(  "",         " ",        0, 11))
-        root.append(NodeParse(  "",         "test3",    0, 12))
+        root.append(NodeParse(                                                  "",                 "test1",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "test2",            0, 6))
+        root.append(NodeParse(                                                  "",                 " ",                0, 11))
+        root.append(NodeParse(                                                  "",                 "test3",            0, 12))
 
         expected : ParseNode = NodeParse()
-        expected.append(NodeParse(  "",         "test1",    0, 0))
-        expected.append(NodeParse(  "",         " ",        0, 5))
-        expected.append(NodeParse(  "",         "test2",    0, 6))
-        expected.append(NodeParse(  "",         " ",        0, 11))
-        expected.append(NodeParse(  "",         "test3",    0, 12))
+        expected.append(NodeParse(                                              "",                 "test1",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 5))
+        expected.append(NodeParse(                                              "",                 "test2",            0, 6))
+        expected.append(NodeParse(                                              "",                 " ",                0, 11))
+        expected.append(NodeParse(                                              "",                 "test3",            0, 12))
 
         result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=False)
 
@@ -11710,37 +11773,37 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
         splittoken = ','
         Node
             'test1'
-            ','                     |
+            ','                         |
             'test2'
-            ','                     |
+            ','                         |
             'test3'
         ->
         Node
             Node
-                'test1'             _V_
-            Node                     A
-                'test2'             _V_
-            Node                     A
+                'test1'                 _V_
+            Node                         A
+                'test2'                 _V_
+            Node                         A
                 'test3'
         """
 
         root : ParseNode = NodeParse()
-        root.append(NodeParse(  "",         "test1",    0, 0))
-        root.append(NodeParse(  "",         ",",        0, 5))
-        root.append(NodeParse(  "",         "test2",    0, 6))
-        root.append(NodeParse(  "",         ",",        0, 11))
-        root.append(NodeParse(  "",         "test3",    0, 12))
+        root.append(NodeParse(                                                  "",                 "test1",            0, 0))
+        root.append(NodeParse(                                                  "",                 ",",                0, 5))
+        root.append(NodeParse(                                                  "",                 "test2",            0, 6))
+        root.append(NodeParse(                                                  "",                 ",",                0, 11))
+        root.append(NodeParse(                                                  "",                 "test3",            0, 12))
 
         expected : ParseNode = NodeParse()
-        eChild1 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=0)
-        eChild1A : ParseNode = NodeParse("",    "test1",    0, 0)
+        eChild1 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=0)
+        eChild1A : ParseNode = NodeParse(                                       "",                 "test1",            0, 0)
         eChild1.append(eChild1A)
         expected.append(eChild1)
-        eChild2 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=6)
-        eChild2.append(NodeParse(   "",         "test2",    0, 6))
+        eChild2 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=6)
+        eChild2.append(NodeParse(                                               "",                 "test2",            0, 6))
         expected.append(eChild2)
-        eChild3 : ParseNode = NodeParse(typeStr="line", lineNum=0, charNum=12)
-        eChild3.append(NodeParse(   "",         "test3",    0, 12))
+        eChild3 : ParseNode = NodeParse(                                        typeStr="line",                         lineNum=0, charNum=12)
+        eChild3.append(NodeParse(                                               "",                 "test3",            0, 12))
         expected.append(eChild3)
 
         result : ParseNode = self.parser.ruleSplitTokens(root, splitToken=",", recurse=False)
@@ -11750,43 +11813,82 @@ class TestParseDefaultBuildingBlocks(unittest.TestCase):
     def test_RuleLowerCase_ExceptionTreeNotNodeParse(self):
         """tests ruleLowerCase raises an exception when tree is not a NodeParse object"""
 
-        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}]
+        trees : list[Any] = [None, 0, False, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         tree : Any
         for tree in trees:
             with self.subTest(tree=tree):
-                self.assertRaises(Exception, self.parser.ruleLowerCase, tree)
+                self.assertRaises(AssertionError, self.parser.ruleLowerCase, tree)
 
     def test_RuleLowerCase_ExceptionRecurseNotBool(self):
         """tests ruleLowerCase raises an exception when recurse is not a bool"""
 
-        recurses : list[Any] = [None, 0, 'a', ['a'], {0 : 'a'}]
+        recurses : list[Any] = [None, 0, 'a', ['a'], {0 : 'a'}, ('a',), {'a',}]
 
         recurse : Any
         for recurse in recurses:
             with self.subTest(recurse=recurse):
                 root : ParseNode = NodeParse()
 
-                self.assertRaises(Exception, self.parser.ruleLowerCase, root, recurse)
+                self.assertRaises(AssertionError, self.parser.ruleLowerCase, root, recurse)
+
+    def test_RuleLowerCase_Integration01(self):
+        """tests ruleLowerCase on a string 'TEST1 TEST2 TEST3'
+        
+        'TEST1 TEST2 TEST3'
+        ->
+        recurse = False
+        Node
+            'TEST1'                     |
+            ' '
+            'TEST2'                     |
+            ' '
+            'TEST3'                     |
+        ->
+        Node
+            'test1'                     |
+            ' '
+            'test2'                     |
+            ' '
+            'test3'                     |
+        """
+
+        root : ParseNode = NodeParse()
+        root.append(NodeParse(                                                  "",                 "TEST1",            0, 0))
+        root.append(NodeParse(                                                  "",                 " ",                0, 5))
+        root.append(NodeParse(                                                  "",                 "TEST2",            0, 6))
+        root.append(NodeParse(                                                  "",                 " ",                0, 11))
+        root.append(NodeParse(                                                  "",                 "TEST3",            0, 12))
+
+        expected : ParseNode = NodeParse()
+        expected.append(NodeParse(                                              "",                 "test1",            0, 0))
+        expected.append(NodeParse(                                              "",                 " ",                0, 5))
+        expected.append(NodeParse(                                              "",                 "test2",            0, 6))
+        expected.append(NodeParse(                                              "",                 " ",                0, 11))
+        expected.append(NodeParse(                                              "",                 "test3",            0, 12))
+
+        result : ParseNode = self.parser.ruleLowerCase(root, recurse=False)
+
+        self.assertEqual(True, result.dataEqual(expected), f"\nroot:\n{root}\nexpected:\n{expected}\nresult:\n{result}")
 
 
 
 #====================================================================================================================== Main
 
 if __name__ == "__main__":
-    # #Testing
-    # # runs all tests
-    # logging.basicConfig(level = logging.ERROR)
-    # unittest.main(verbosity = 2, buffer = True, exit = False)
+    #Testing
+    # runs all tests
+    logging.basicConfig(level = logging.ERROR)
+    unittest.main(verbosity = 2, buffer = True, exit = False)
 
-    # run specific test from a specific testCase
-    suite = unittest.TestSuite()
-    suite.addTest(TestParseDefaultBuildingBlocks("test_RuleLowerCase_ExceptionRecurseNotBool"))
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    # # run specific test from a specific testCase
+    # suite = unittest.TestSuite()
+    # suite.addTest(TestParseDefaultBuildingBlocks("test_RuleFilterLineComments_ExceptionCharacterNone"))
+    # runner = unittest.TextTestRunner()
+    # runner.run(suite)
     
     # reset logging level
-    logging.basicConfig(level = logging.INFO) #CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
+    logging.basicConfig(level = logging.INFO) # CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
     debugHighlight = lambda x : 6880 < x < 6906
     print("\n" + "".ljust(80, "=") + "\n")
 
@@ -11802,4 +11904,23 @@ if __name__ == "__main__":
     result : int = CPU.memoryExtract('r', 0)
     '''
 
+    # nameSpace : dict[str, NameSpaceObject] = {}
+    # nameSpace["r"] = NameSpaceObject("registerBank", "r", None, None)
+    # nameSpace["add"] = NameSpaceObject("instruction", "add", None, None)
+
+    # program : str = "add((r[0]), (r[1], r[2])) \n halt"
+
+    # compiler = CPUsim_v4.CompilerDefault()
+    # compiler.updateNameSpace(nameSpace)
+    # parser = CPUsim_v4.ParserDefault()
+    # parser.updateNameSpace(nameSpace)
+    
+    # root, labels = parser.parseCode(program)
+    # print(f"parsed code\n{root}")
+    # print(f"parsed labels\n{labels}")
+
+    # data, jump, nodes = compiler.link(root, labels, {})
+    # print(f"linked code\n{data}")
+    # print(f"linked jump\n{jump}")
+    # print(f"linked nodes\n{nodes}")
     
