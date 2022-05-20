@@ -938,8 +938,6 @@ class CPUsim:
 
         return (oldState, newState)
 
-    #==================================================================================================================
-
     def linkAndLoad(self, code: str):
         """Takes in a string of assembly instructions, and "compiles"/loads it into memory, 'm' registers
         
@@ -1259,8 +1257,6 @@ class CPUsim:
 
             return instructionArray, memoryArray, labels
 
-    #==================================================================================================================
-
     class DisplaySimpleAndClean:
         """A simple display example of the interface expected for displaying information on the screen during and post runtime
         
@@ -1491,8 +1487,6 @@ class CPUsim:
 
         def postrun(self, oldState : dict, newState : dict, config : dict, stats : dict = None, engine : dict = None):
             pass
-
-    #==================================================================================================================
 
     class ParseDefault:
         """Parses strings into an (almost) execution tree.
@@ -2752,8 +2746,6 @@ class CPUsim:
 
             return root, self.labels
             
-    #==================================================================================================================
-
     class InstructionSetDefault:
         """A simplified instruction set implimentation, along with a number of base instructions to help build an instruction set.
         
@@ -3647,107 +3639,6 @@ class RiscV:
                 root.append(instruction)
 
             return root
-
-class TIS100:
-    def __init__(self):
-        CPU = CPUsim(16, defaultSetup=False)
-        CPU.configConfigRegister('pc',          0, 4)
-        CPU.configAddRegister('_m',             8, 16,                      show=False)
-
-        CPU.configConfigRegister('r',           0, 16,     alias=['nil'],   show=False)
-        CPU.configConfigRegister('r',           1, 16,     alias=['acc'])
-        CPU.configConfigRegister('r',           2, 16,     alias=['bak'])
-
-        CPU.configConfigRegister('_port',       0, 16,     alias=['left'],  show=False, note="Dummy Register")
-        CPU.configConfigRegister('_port',       1, 16,     alias=['right'], show=False, note="Dummy Register")
-        CPU.configConfigRegister('_port',       2, 16,     alias=['up'],    show=False, note="Dummy Register")
-        CPU.configConfigRegister('_port',       3, 16,     alias=['down'],  show=False, note="Dummy Register")
-        CPU.configConfigRegister('_port',       4, 16,     alias=['any'],   show=False, note="Dummy Register")
-        CPU.configConfigRegister('_port',       5, 16,     alias=['last'],  show=False, note="Dummy Register")
-
-        CPU.configConfigRegister('_portout',    'left',     16)
-        CPU.configConfigRegister('_portout',    'right',    16)
-        CPU.configConfigRegister('_portout',    'up',       16)
-        CPU.configConfigRegister('_portout',    'down',     16)
-        CPU.configConfigRegister('_portout',    'any',      16)
-        CPU.configConfigRegister('_portout',    'last',     16)
-
-        CPU.configConfigRegister('_portin',     'left',     16)
-        CPU.configConfigRegister('_portin',     'right',    16)
-        CPU.configConfigRegister('_portin',     'up',       16)
-        CPU.configConfigRegister('_portin',     'down',     16)
-        CPU.configConfigRegister('_portin',     'any',      16)
-        CPU.configConfigRegister('_portin',     'last',     16)
-
-        self.CPU = CPU
-
-    def postCycle(self, currentState : dict) -> tuple[dict, dict]:
-        """
-        """
-        assert type(currentState) is dict
-
-        oldState = copy.deepcopy(currentState) #required deepCopy because state['flags'] contains a dictionary which needs to be copied
-        newState = copy.deepcopy(currentState)
-        
-        if 'flag' in newState.keys():
-            for i in newState['flag'].keys(): #resets all flags
-                newState['flag'][i] = 0
-        newState['imm'] = {}
-
-        oldState['r'][0] = 0
-        newState['r'][0] = 0
-
-        #enforces values are -999 <= x <= 999
-        registers =  [(i,j) for i, j in enumerate(oldState['r'])]
-        registers += [(i,j) for i, j in enumerate(oldState['_port'])]
-        registers += [(i,j) for i, j in enumerate(oldState['_portout'])]
-        registers += [(i,j) for i, j in enumerate(oldState['_portin'])]
-        for i, j in registers:
-            if oldState[i][j] < -999:
-                oldState[i][j] = -999
-                newState[i][j] = -999
-            elif oldState[i][j] > 999:
-                oldState[i][j] = 999
-                newState[i][j] = 999
-
-        return (oldState, newState)
-
-    class TIS100ISA(CPUsim.InstructionSetDefault):
-        def __init__(self):
-            self.instructionSet : dict = {
-                'nop'   : self.opNop,
-                #'mov'
-                #'swp'
-                #'sav'
-                #'add'
-                #'sub'
-                #'neg'
-                #'jmp'
-                #'jez'
-                #'jnz'
-                #'jgz'
-                #'jlz'
-                #'jro'
-            }
-
-            self.stats : dict = {}
-
-            self.directives : dict = {}
-
-    class TIS100Parser(CPUsim.ParseDefault):
-        def parseCode(self, sourceCode : str) -> tuple["Node", dict[str, "Node"]]:
-            pass
-
-#======================================================================================================================
-
-class BrainFuck(CPUsim):
-    def __init__(self):
-        super().__init__(16, defaultSetup=False)
-        self.configConfigRegister('dp', 0, show=True, note="Data Pointer")
-        self.configAddRegister('m', 8, 2**16, show=False)
-        self.configAddRegister('data', 8, 30000, show=False)
-
-#====================================================================================================================== Testing and Verification
 
 class TestDefault(unittest.TestCase):
     def testDefaultInitialization(self):
