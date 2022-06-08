@@ -6012,7 +6012,7 @@ class CPUsim_v4:
 
         ParseDefault.parseCode("source code") is called which returns a Node Tree representing the "source code"
 
-            ParseDefault.parseCode() calls ParseDefault._tokenize() to do the initial tokenization of the "source code"
+            ParseDefault.parseCode() calls ParseDefault.tokenize() to do the initial tokenization of the "source code"
             root -> Node
                     |- Token "test"
                     |- Token " "
@@ -6062,12 +6062,12 @@ class CPUsim_v4:
             #TODO should return all elements that are in nameSpace, but not in externalNameSpace
             return {}
 
-        def _tokenize(self, code : str) -> list[tuple[str, int, int]] :
+        def tokenize(self, code : str) -> list[tuple[str, int, int]]:
             """Takes in a string of code, returns a list of tuples representing the code in the form of (string/tuple, line location, character location in line)(zero indexed). 
             
             No characters are filtered out
             
-            Example 01: # TestParseDefaultBuildingBlocks.test__tokenizer_HelloWorld
+            Case: # TestParseDefaultBuildingBlocks.test_tokenizer_HelloWorld
                 "Hello World!" 
                 ->
                 [
@@ -6077,7 +6077,7 @@ class CPUsim_v4:
                     ('!',       0, 11)
                 ]
 
-            Example 02: # TestParseDefaultBuildingBlocks.test__tokenizer_IntegrationMultiline
+            Case: # TestParseDefaultBuildingBlocks.test_tokenizer_IntegrationMultiline
                 "test\n\nHello World!" 
                 ->
                 [
@@ -6132,7 +6132,7 @@ class CPUsim_v4:
             
             #TODO should recerse
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleCastInts_Integration01
+            Case: # TestParseDefaultBuildingBlocks.test_ruleCastInts_Integration01
                 "123 456 789" 
                 ->
                 Node
@@ -6173,7 +6173,7 @@ class CPUsim_v4:
 
             #TODO should recurse
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleCastHex_Integration02
+            Case: # TestParseDefaultBuildingBlocks.test_ruleCastHex_Integration02
                 "0x0 0x000A 0xff" 
                 ->
                 Node
@@ -6214,7 +6214,7 @@ class CPUsim_v4:
 
             Does not recurse
 
-            Case 1:  # TestParseDefaultBuildingBlocks.test_RuleRemoveEmptyLines_Integration02
+            Case 1:  # TestParseDefaultBuildingBlocks.test_ruleRemoveEmptyLines_Integration02
                 "test\ntest\n\n\ntest\n" 
                 ->
                 Node
@@ -6253,7 +6253,7 @@ class CPUsim_v4:
         def ruleRemoveLeadingWhitespace(self, tree : ParseNode, whiteSpace : list[str] = [" ", "\t", "\r", "\f"]) -> ParseNode:
             """Takes in a Node Tree of depth 2, removes all white space tokens between a new line token and the next token. Returns a Node Tree of depth 2. Does not recurse
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleRemoveLeadingWhitespace_Integration02
+            Case: # TestParseDefaultBuildingBlocks.test_ruleRemoveLeadingWhitespace_Integration02
                 "test test \ntest\n  \ttest\t\n     \n" 
                 -> 
                 Node
@@ -6290,7 +6290,7 @@ class CPUsim_v4:
                     '\n'                _V_
                     '\n'                 A
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleRemoveLeadingWhitespace_Children01
+            Case: # TestParseDefaultBuildingBlocks.test_ruleRemoveLeadingWhitespace_Children01
                 'test\n\t\t\ttest[abc 123]' 
                 ->
                 Node
@@ -6312,7 +6312,7 @@ class CPUsim_v4:
                         ' '
                         '123'
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleRemoveLeadingWhitespace_Children02
+            Case: # TestParseDefaultBuildingBlocks.test_ruleRemoveLeadingWhitespace_Children02
                 'test\n\t\t\t[abc 123]test'
                 ->
                 Node
@@ -6376,10 +6376,27 @@ class CPUsim_v4:
         def ruleStringSimple(self, tree : ParseNode) -> ParseNode:
             """Takes in a Node Tree of depth 2, combines all the tokens that are contained by quote tokens into a string node. Returns a Node Tree of depth 2.
             #TODO allow for arbitrary definition of list of 'quote like characters'
+            #TODO question: should make 'string' tokens also include the quote characters?
+                rational: may cause confusion with instruction namespaces unless token labels are strictly followed
+                    "add(\"add\")"
+                    ->
+                    Node
+                        'add'
+                        '('
+                        '\"'            |
+                        'add'           |
+                        '\"'            |
+                        ')'
+                    ->
+                    Node
+                        'add'
+                        '('
+                        'add'           |   # labeled string
+                        ')'
 
             Does not recurse
             
-            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Integration04
+            Case: # TestParseDefaultBuildingBlocks.test_ruleStringSimple_Integration04
                 "test 'test'" 
                 ->
                 Node
@@ -6394,7 +6411,7 @@ class CPUsim_v4:
                     ' '
                     "test"              | string
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Integration05
+            Case: # TestParseDefaultBuildingBlocks.test_ruleStringSimple_Integration05
                 "\'test\n\\\'test\\\'\'\ntest" 
                 ->
                 Node
@@ -6415,7 +6432,7 @@ class CPUsim_v4:
                     '\n'
                     'test'
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Integration06
+            Case: # TestParseDefaultBuildingBlocks.test_ruleStringSimple_Integration06
                 "\'test\n\'test\'\'\ntest" 
                 ->
                 Node
@@ -6436,7 +6453,7 @@ class CPUsim_v4:
                     "\n"
                     "test"
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Integration07
+            Case: # TestParseDefaultBuildingBlocks.test_ruleStringSimple_Integration07
                 "test1\"abc\'123\'abc\"test2" 
                 ->
                 Node
@@ -6455,7 +6472,7 @@ class CPUsim_v4:
                     "abc\'123\'abc"     | string
                     "test2"
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleStringSimple_Null
+            Case: # TestParseDefaultBuildingBlocks.test_ruleStringSimple_Null
                 "" 
                 ->
                 Node
@@ -6520,7 +6537,7 @@ class CPUsim_v4:
 
             #TODO allow for alternate escape characters
 
-            Case: # TestParseDefaultBuildingBlocks.test_RuleFilterLineComments_Integration03
+            Case: # TestParseDefaultBuildingBlocks.test_ruleFilterLineComments_Integration03
                 "test #test\n #test\n\t\\#test" 
                 ->
                 Node
@@ -6551,7 +6568,7 @@ class CPUsim_v4:
                     '#'
                     'test'
             
-            Case: # TestParseDefaultBuildingBlocks.test_RuleFilterLineComments_Integration04
+            Case: # TestParseDefaultBuildingBlocks.test_ruleFilterLineComments_Integration04
                 "test test \\# test #abc abc abc \\n abc \n test test" 
                 ->
                 Node
@@ -6636,48 +6653,201 @@ class CPUsim_v4:
 
             return root
 
-        def ruleContainer(self, tree : ParseNode, containers : dict[str, str] = {"(":")", "[":"]", "{":"}"}, nodeType : str = "container") -> ParseNode:
+        def ruleContainer(self, tree : ParseNode, containers : dict[str, str] = {"(":")", "[":"]", "{":"}"}, nodeType : str | None = "container") -> ParseNode:
             """Takes in a Node Tree of depth 2, finds containers "([{}])" and rearranges nodes to form a tree respecting the containers. Returns a Node Tree of arbitrary depth.
 
-            Containers are of the form {"opening bracket": "closing bracket", ...}
+            Containers are of the form {"opening bracket" : "closing bracket", ...}
             Does not copy closing brackets
             Does not recurse
-            
-            Case: "test[test(test)]" ->
-            Node
-                'test'
-                '['
-                    'test'
-                    '('
-                        'test'
 
-            Case: "test[abc abc{123 123}{123 123}](abc)" ->
-            Node
-                'test'
-                '['
-                    'abc'
-                    ' '
-                    'abc'
-                    '{'
-                        '123'
-                        ' '
-                        '123'
-                    '{'
-                        '123'
-                        ' '
-                        '123'
-                '('
-                    'abc'
+            Case: # TestParseDefaultBuildingBlocks.test_ruleContainer_NestedContainers01
+                '[Hello {World}]'
+                ->
+                containers = {"(":")", "[":"]", "{":"}"} = Default
+                nodeType = 'container' = Default
+                Node
+                    '['                 A
+                    'Hello'             |
+                    ' '                 |
+                    '{'                 |   A
+                    'World'             |   |
+                    '}'                 |   V
+                    ']'                 V
+                ->
+                Node
+                    '['                 A
+                        'Hello'         |
+                        ' '             |
+                        '{'             |   A
+                            'World'     V   V
+
+            Case: # TestParseDefaultBuildingBlocks.test_ruleContainer_integration02
+                'test[abc abc{123 123}{456 456}](abc)'
+                ->
+                containers = {"(":")", "[":"]", "{":"}"} = Default
+                nodeType = 'container' = Default
+                Node
+                    'test'
+                    '['                 A
+                    'abc'               |
+                    ' '                 |
+                    'abc'               |
+                    '{'                 |   A
+                    '123'               |   |
+                    ' '                 |   |
+                    '123'               |   |
+                    '}'                 |   V
+                    '{'                 |   A
+                    '456'               |   |
+                    ' '                 |   |
+                    '456'               |   |
+                    '}'                 |   V
+                    ']'                 V
+                    '('                 A
+                    'def'               |
+                    ')'                 V
+                ->
+                Node
+                    'test'
+                    '['                 A
+                        'abc'           |
+                        ' '             |
+                        'abc'           |
+                        '{'             |   A
+                            '123'       |   |
+                            ' '         |   |
+                            '123'       |   V
+                        '{'             |   A
+                            '456'       |   |
+                            ' '         |   |
+                            '456'       V   V
+                    '('                 A
+                        'def'           V
+
+            Case: # TestParseDefaultBuildingBlocks.test_ruleContainer_SimpleContainerCustomContainer02
+                'a b c d 1 2 3 4'
+                ->
+                containers = {"a" : "4", "c" : "2"}
+                nodeType = 'container' = Default
+                Node
+                    'a'                 A
+                    ' '                 |
+                    'b'                 |
+                    ' '                 |
+                    'c'                 |   A
+                    ' '                 |   |
+                    'd'                 |   |
+                    ' '                 |   |
+                    '1'                 |   |
+                    ' '                 |   |
+                    '2'                 |   V
+                    ' '                 |
+                    '3'                 |
+                    ' '                 |
+                    '4'                 V
+                ->
+                Node
+                    'a'                 A
+                        ' '             |
+                        'b'             |
+                        ' '             |
+                        'c'             |   A
+                            ' '         |   |
+                            'd'         |   |
+                            ' '         |   |
+                            '1'         |   |
+                            ' '         |   V
+                        ' '             |
+                        '3'             |
+                        ' '             V
+
+            Case: # TestParseDefaultBuildingBlocks.test_ruleContainer_integration04
+                '1 a b c 2'
+                ->
+                containers = {'1' : '2'} = Default
+                nodeType = 'container' = Default
+                Node
+                    '1'                 A   # labeled 'number'
+                    ' '                 |
+                    'a'                 |
+                    ' '                 |
+                    'b'                 |
+                    ' '                 |
+                    'c'                 |
+                    ' '                 |
+                    '2'                 V
+                ->
+                Node
+                    '1'                 A   # labeled 'container'
+                        ' '             |
+                        'a'             |
+                        ' '             |
+                        'b'             |
+                        ' '             |
+                        'c'             |
+                        ' '             V
+
+            Case: # TestParseDefaultBuildingBlocks.test_ruleContainer_integration05
+                '1 a b c 2'
+                ->
+                containers = {'1' : '2'} = Default
+                nodeType = None
+                Node
+                    '1'                 A   # labeled 'number'
+                    ' '                 |
+                    'a'                 |
+                    ' '                 |
+                    'b'                 |
+                    ' '                 |
+                    'c'                 |
+                    ' '                 |
+                    '2'                 V
+                ->
+                Node
+                    '1'                 A   # labeled 'number'
+                        ' '             |
+                        'a'             |
+                        ' '             |
+                        'b'             |
+                        ' '             |
+                        'c'             |
+                        ' '             V
+
+            Case: # TestParseDefaultBuildingBlocks.test_ruleContainer_ExceptionContainerMismatch01
+                # Will raise Exception 'ParserError' when an opening bracket is not closed
+                '[Hello'
+                ->
+                containers = {"(":")", "[":"]", "{":"}"} = Default
+                nodeType = 'container' = Default
+                Node
+                    '['                 |
+                    'Hello'
+                ->
+                Raises Exception 'ParserError'
+
+            Case: # TestParseDefaultBuildingBlocks.test_ruleContainer_ExceptionContainerMismatch02
+                # Will raise Exception 'ParserError' when a closing bracket is not opened
+                ']Hello'
+                ->
+                containers = {"(":")", "[":"]", "{":"}"} = Default
+                nodeType = 'container' = Default
+                Node
+                    ']'                 |
+                    'Hello'
+                ->
+                Raises Exception 'ParserError'
             """
             assert type(tree) is self.Node
             assert type(containers) is dict
             assert len(containers) >= 1
             assert all([True if type(i) is str else False for i in containers.keys()])
             assert all([True if type(containers[i]) is str else False for i in containers.keys()])
-            assert all([True if len(i) == 1 else False for i in containers.keys()])
-            assert all([True if len(containers[i]) == 1 else False for i in containers.keys()])
-            assert all([True if containers[i] != i else False for i in containers.keys()]) #asserts that the 'matching bracket' isn't the same characters
-            assert type(nodeType) is str
+            # cantainer tokens can be of len >= 1, as this function is compairing tokens, and not characters in a string
+            # assert all([True if len(i) == 1 else False for i in containers.keys()])
+            # assert all([True if len(containers[i]) == 1 else False for i in containers.keys()])
+            assert all([True if containers[i] != i else False for i in containers.keys()]) # asserts that the 'matching bracket' isn't the same characters
+            assert all([all([True if containers[i] != j else False for j in containers.keys()]) for i in containers.keys()]) # asserts that the 'closing bracket' isn't an 'opening bracket'
+            assert type(nodeType) is str or type(nodeType) is type(None)
 
             root : ParseNode = tree.copyInfo()
             stack : list[tuple[str, ParseNode]] = []
@@ -6687,7 +6857,7 @@ class CPUsim_v4:
                 '''
                 if openbracket
                     append to stack
-                if closing bracket
+                if closing bracket on stack
                     pop from stack
                     append to root
                 else
@@ -6699,7 +6869,10 @@ class CPUsim_v4:
                 if i.token in list(containers.keys()): # if open bracket
                     # append to stack
                     temp : ParseNode = i.copyDeep()
-                    temp.type = nodeType
+                    if nodeType != None:
+                        temp.type = nodeType
+                    else:
+                        temp.type = i.type
                     stack.append((i.token, temp))
                 elif len(stack) != 0:
                     if containers[stack[-1][0]] == i.token: # if closing bracket
@@ -6718,7 +6891,7 @@ class CPUsim_v4:
                         stack[-1][1].append(i.copyDeep())
 
             if len(stack) != 0:
-                raise Exception("Parse Error: mismatching brackets")
+                raise ParserError("Parse Error: mismatching brackets")
 
             return root
 
@@ -6783,7 +6956,7 @@ class CPUsim_v4:
         def ruleRemoveToken(self, tree : ParseNode, token : Any, recurse : bool = True) -> ParseNode:
             """Takes in a Node Tree of arbitrary depth, and a token. Removes all instances of token in tree.child. Will remove children of token. Returns a Node Tree of arbitrary depth.
             
-            Case 1: # TestParseDefaultBuildingBlocks.test_RuleRemoveToken_Integration03
+            Case 1: # TestParseDefaultBuildingBlocks.test_ruleRemoveToken_Integration03
                 "test1\ntest2"
                 ->
                 token = '\n'
@@ -6796,7 +6969,7 @@ class CPUsim_v4:
                     'test1'             _V_
                     'test2'              A
 
-            Case 2: # TestParseDefaultBuildingBlocks.test_RuleRemoveToken_Integration04
+            Case 2: # TestParseDefaultBuildingBlocks.test_ruleRemoveToken_Integration04
                 'add(arg1,arg2),mult(arg1,arg2)'
                 -> some parsing later (containerization, arg folding, etc)
                 token = ','
@@ -6819,7 +6992,7 @@ class CPUsim_v4:
                         'arg1'          _V_
                         'arg2'           A
 
-            Case 3: # TestParseDefaultBuildingBlocks.test_RuleRemoveToken_Integration06
+            Case 3: # TestParseDefaultBuildingBlocks.test_ruleRemoveToken_Integration06
                 'a[1,2,3],b[1,2,3],c[1,b,3]' (brackets are not removed, but are folded in as children)
                 ->
                 token = 'b'
@@ -6894,7 +7067,7 @@ class CPUsim_v4:
             
             #TODO should be able to recurse
 
-            Case 1: # TestParseDefaultBuildingBlocks.test_RuleSplitLines_Integration01
+            Case 1: # TestParseDefaultBuildingBlocks.test_ruleSplitLines_Integration01
                 "Hello World"
                 ->
                 splitToken = '\n'
@@ -6910,7 +7083,7 @@ class CPUsim_v4:
                         'World'
                 ]
 
-            Case 2: # TestParseDefaultBuildingBlocks.test_RuleSplitLines_Integration02
+            Case 2: # TestParseDefaultBuildingBlocks.test_ruleSplitLines_Integration02
                 "test1\ntest2"
                 ->
                 splitToken = '\n'
@@ -6927,7 +7100,7 @@ class CPUsim_v4:
                         'test2'
                 ]
 
-            Case 3: # TestParseDefaultBuildingBlocks.test_RuleSplitLines_Integration05
+            Case 3: # TestParseDefaultBuildingBlocks.test_ruleSplitLines_Integration05
                 "[test1]\t[test2\ttest3]"
                 ->
                 splitToken = '\t'
@@ -6983,7 +7156,7 @@ class CPUsim_v4:
         def ruleSplitTokens(self, tree : ParseNode, tokenType : str = "line", splitToken : str = "\n", recurse : bool = True) -> ParseNode:
             """Takes in a Node Tree of arbitrary depth. Returns a Node Trees of arbitrary depth, split by the splitToken ("\n") with the splitToken ommited, and in containers. Will recurse (default).
 
-            Case 1: # TestParseDefaultBuildingBlocks.test_RuleSplitTokens_Integration03
+            Case 1: # TestParseDefaultBuildingBlocks.test_ruleSplitTokens_Integration03
                 "test\nabc"
                 ->
                 splitToken = "\n"
@@ -6998,7 +7171,7 @@ class CPUsim_v4:
                     None                 A
                         'abc' 
 
-            Case 2: # TestParseDefaultBuildingBlocks.test_RuleSplitTokens_Integration04
+            Case 2: # TestParseDefaultBuildingBlocks.test_ruleSplitTokens_Integration04
                 "test1 test2[abc1,abc2,abc3 abc4]"
                 ->
                 splitToken = ','
@@ -7028,7 +7201,7 @@ class CPUsim_v4:
                             ' '
                             'abc4'
             
-            Case 3: # TestParseDefaultBuildingBlocks.test_RuleSplitTokens_Integration06
+            Case 3: # TestParseDefaultBuildingBlocks.test_ruleSplitTokens_Integration06
                 "test1[abc1,abc2],test2"
                 ->
                 splitToken = ','
@@ -7051,7 +7224,7 @@ class CPUsim_v4:
                     None                 A
                         'test2'
 
-            Case 4: # TestParseDefaultBuildingBlocks.test_RuleSplitTokens_Integration08
+            Case 4: # TestParseDefaultBuildingBlocks.test_ruleSplitTokens_Integration08
                 "test1 test2 test3"
                 ->    
                 splitToken = '\n'
@@ -7164,7 +7337,7 @@ class CPUsim_v4:
         def ruleLowerCase(self, tree : ParseNode, recurse : bool = True) -> ParseNode:
             """Takes in a Node Tree of arbitrary depth. Sets all tokens in the Node Tree's children as lower case. Recurses by default. Returns a Node Tree of arbitrary depth.
             
-            Case 1: # TestParseDefaultBuildingBlocks.test_RuleLowerCase_Integration02
+            Case 1: # TestParseDefaultBuildingBlocks.test_ruleLowerCase_Integration02
                 "Hello World"
                 ->
                 Recurse = False
@@ -7178,7 +7351,7 @@ class CPUsim_v4:
                     ' '
                     'world'             |
 
-            Case 2: # TestParseDefaultBuildingBlocks.test_RuleLowerCase_Integration03
+            Case 2: # TestParseDefaultBuildingBlocks.test_ruleLowerCase_Integration03
                 "Hello World[ABC 123]"
                 ->
                 Recurse = False
@@ -7198,7 +7371,7 @@ class CPUsim_v4:
                         ' '
                         '123'
 
-            Case 3: # TestParseDefaultBuildingBlocks.test_RuleLowerCase_Integration04
+            Case 3: # TestParseDefaultBuildingBlocks.test_ruleLowerCase_Integration04
                 "Hello World[ABC 123]"
                 ->
                 Recurse = True
@@ -7292,7 +7465,7 @@ class CPUsim_v4:
                 temp : list[ParseNode] = []
                 if type(i.token) is str and i.token in alias: #if alias token found, tokenize it's replacement string, and add that series of tokens to root
                     j : tuple[str, int, int]
-                    for j in self._tokenize(alias[i.token]):
+                    for j in self.tokenize(alias[i.token]):
                         temp.append(self.Node("token", j[0], i.lineNum, i.charNum))
                 else:
                     temp.append(i.copyInfo())
@@ -7308,7 +7481,7 @@ class CPUsim_v4:
 
             return root
 
-        def ruleFilterContainerKeepChildren(self, tree : ParseNode, containerTokens : list[Any]) -> ParseNode:
+        def ruleFilterContainerKeepChildren(self, tree : ParseNode, filterTokens : list[Any]) -> ParseNode:
             """Takes in a Node Tree of arbitrary depth, recursivly removes any tokens in token (containers) while keeping children. Returns a Node Tree.
 
             Example 01: 
@@ -7365,8 +7538,8 @@ class CPUsim_v4:
             
             """
             assert type(tree) is self.Node
-            assert type(containerTokens) is list
-            assert len(containerTokens) > 0
+            assert type(filterTokens) is list
+            assert len(filterTokens) > 0
 
             root : ParseNode = tree.copyInfo()
 
@@ -7385,7 +7558,7 @@ class CPUsim_v4:
             if tree.child == None:
                 pass
             if len(tree.child) == 1:
-                if tree.child[0].token in containerTokens:
+                if tree.child[0].token in filterTokens:
                     i : ParseNode
                     for i in tree.child[0].child:
                         children.append(i.copyDeep())
@@ -7394,7 +7567,7 @@ class CPUsim_v4:
             if len(tree.child) > 1:
                 i : ParseNode
                 for i in tree.child:
-                    if i.token in containerTokens:
+                    if i.token in filterTokens:
                         temp = i.copyDeep()
                         temp.token = None
                         children.append(temp)
@@ -7403,7 +7576,7 @@ class CPUsim_v4:
 
             i : ParseNode
             for i in children:
-                root.append(self.ruleFilterContainerKeepChildren(i, containerTokens))
+                root.append(self.ruleFilterContainerKeepChildren(i, filterTokens))
             
             return root
 
@@ -7465,7 +7638,7 @@ class CPUsim_v4:
             token : str
             lineNum : int
             charNum : int
-            for token, lineNum, charNum in self._tokenize(sourceCode):
+            for token, lineNum, charNum in self.tokenize(sourceCode):
                 root.append(self.Node("token", token, lineNum, charNum))
 
             logging.debug(debugHelper(inspect.currentframe()) + "this is the original code: " + "\n" + repr(sourceCode))
