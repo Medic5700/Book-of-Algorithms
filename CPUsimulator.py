@@ -14034,6 +14034,257 @@ class Test_ParserDefault_BuildingBlocks(unittest.TestCase):
     #TODO tests for ruleApplyAlias()
 
 
+class Test_NodeParse(unittest.TestCase):
+    """tests NodeParse"""
+
+    def setUp(self):
+        self.NodeParse = NodeParse
+
+    def test_NodeParse_init_ExceptionTypeStrNotStringOrNone(self):
+        """tests __init__ raises an exception when typeStr is not a string or None"""
+        raise NotImplementedError
+
+    def test_NodeParse_init_ExceptionLineNumNotNumber(self):
+        """tests __init__ raises an exception when lineNum is not a number"""
+        raise NotImplementedError
+
+    def test_NodeParse_init_ExceptionColumnNumNotNumber(self):
+        """tests __init__ raises an exception when columnNum is not a number"""
+        raise NotImplementedError
+
+    def test_NodeParse_init_ExceptionCharNumNotNumber(self):
+        """tests __init__ raises an exception when charNum is not a number"""
+        raise NotImplementedError
+
+    def test_NodeParse_init_ExceptionLineNumNegative(self):
+        """tests __init__ raises an exception when lineNum is negative a number"""
+        raise NotImplementedError
+
+    def test_NodeParse_init_ExceptionColumnNumNegative(self):
+        """tests __init__ raises an exception when columnNum is negative a number"""
+        raise NotImplementedError
+
+    def test_NodeParse_init_ExceptionCharNumNegative(self):
+        """tests __init__ raises an exception when charNum is negative a number"""
+        raise NotImplementedError
+
+    def test_NodeParse_init_TokenCanBeAnyType(self):
+        """tests __init__ does not raise an exception when token is any type"""
+        raise NotImplementedError
+
+    def test_NodeParse_init_integration01(Self):
+        """tests __init__ on 'Hello'"""
+        raise NotImplementedError
+
+    #TODO integration tests on init
+
+    def test_NodeParse_append_ExceptionNodeNotParseNode(self):
+        """tests append raises an exception when node is not a ParseNode"""
+        raise NotImplementedError
+
+    #TODO integration tests on append()
+
+    def test_nodeParse_copyInfo_nodeEmpty(self):
+        """tests copyInfo on ''"""
+        raise NotImplementedError
+
+    def test_nodeParse_copyInfo_nodeToken(self):
+        """tests copyInfo on multiple token types"""
+        raise NotImplementedError
+
+    def test_nodeParse_copyInfo_nodeTypeStr(self):
+        """tests copyInfo on typeStr"""
+        raise NotImplementedError
+
+    def test_nodeParse_copyInfo_nodeLineNum(self):
+        """tests copyInfo on lineNum"""
+        raise NotImplementedError
+
+    def test_nodeParse_copyInfo_nodeColumnNum(self):
+        """tests copyInfo on columnNum"""
+        raise NotImplementedError
+
+    def test_nodeParse_copyInfo_nodeCharNum(self):
+        """tests copyInfo on charNum"""
+        raise NotImplementedError
+
+    def test_nodeParse_copyInfo_nodeChildren(self):
+        """tests copyInfo on 'Hello' + child"""
+        raise NotImplementedError
+
+    def test_nodeParse_copyInfo_nodeParent(self):
+        """tests copyInfo on root.'Hello', copy root"""
+        raise NotImplementedError
+
+    def test_nodeParse_copyInfo_integration01(self):
+        """tests copyInfo on 'Hello'"""
+        raise NotImplementedError
+
+    #TODO integration testing on copyinfo()
+
+    #TODO testing on copydeep()
+
+    def test_NodeParse_replace_ExceptionOldNodeNotParseNode(self):
+        """tests replace raises an exception when oldNode is not a ParseNode"""
+        raise NotImplementedError
+
+    def test_NodeParse_replace_ExceptionNewNodeNotParseNode(self):
+        """tests replace raises an exception when newNode is not a ParseNode"""
+        raise NotImplementedError
+
+    #TODO integration tests on replace()
+
+    def test_NodeParse_remove_ExceptionNodeNotParseNode(self):
+        """tests remove raises an exception when node is not a ParseNode"""
+        raise NotImplementedError
+
+    #TODO integration tests on remove()
+
+    def test_NodeParse_dataEqual_ExceptionNodeNotParseNode(self):
+        """tests dataEqual raises an exception when node is not a ParseNode"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_EmptyEqualWithSelf(self):
+        """tests dataEqual with '' == self"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_typeStrEqualWithSelf(self):
+        """tests dataEqual with typeStr == self"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_tokenEqualWithSelf(self):
+        """tests dataEqual with token == self"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_lineNumEqualWithSelf(self):
+        """tests dataEqual with lineNum == self"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_columnNumEqualWithSelf(self):
+        """tests dataEqual with columnNum == self"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_charNumEqualWithSelf(self):
+        """tests dataEqual with charNum == self"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_typeStrEqual(self):
+        """tests dataEqual with typeStr == other.typeStr"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_tokenEqual(self):
+        """tests dataEqual with token == other.token"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_lineNumEqual(self):
+        """tests dataEqual with lineNum == other.lineNum"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_columnNumEqual(self):
+        """tests dataEqual with columnNum == other.columnNum"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_charNumEqual(self):
+        """tests dataEqual with charNum == other.charNum"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_typeStrNotEqual(self):
+        """tests dataEqual with typeStr != other.typeStr"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_tokenNotEqual(self):
+        """tests dataEqual with token != other.token"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_lineNumNotEqual(self):
+        """tests dataEqual with lineNum != other.lineNum"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_columnNumNotEqual(self):
+        """tests dataEqual with columnNum != other.columnNum"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_charNumNotEqual(self):
+        """tests dataEqual with charNum != other.charNum"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withChild(self):
+        """tests dataEqual with child"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withChildren(self):
+        """tests dataEqual with children"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withParent(self):
+        """tests dataEqual with parent"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withNodePrevious(self):
+        """tests dataEqual with nodePrevious"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withNodeNext(self):
+        """tests dataEqual with nodeNext"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withChildOnOneNode(self):
+        """tests dataEqual with child on one node but not the other"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withChildrenOnOneNode(self):
+        """tests dataEqual with children on one node but not the other"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withParentOnOneNode(self):
+        """tests dataEqual with parent on one node but not the other"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withNodePreviousOnOneNode(self):
+        """tests dataEqual with nodePrevious on one node but not the other"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_withNodeNextOnOneNode(self):
+        """tests dataEqual with nodeNext on one node but not the other"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_integration01(self):
+        """tests dataEqual with all attributes equal"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_integration02(self):
+        """tests dataEqual with all attributes not equal"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_integration03(self):
+        """test dataEqual on 'node('string', 'hello', 1, 2, 3)' == 'node('string', 'hello', 1, 2, 3)'"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_integration04(self):
+        """test dataEqual on 'node('string', 'hello', 1, 2, 3)' != 'node('string', 'hello', 1, 2, 4)'"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_integration05(self):
+        """test dataEqual on 'node('string', 'hello', 1, 2, 3)' == 'node('string', 'hello', 1, 2, 3)' + child"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_integration06(self):
+        """test dataEqual on 'node('string', 'hello', 1, 2, 3)' + child == 'node('string', 'hello', 1, 2, 3)'"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_integration07(self):
+        """test dataEqual on 'Hello World', the 'world' token copy"""
+        raise NotImplementedError
+
+    def test_NodeParse_dataEqual_integration08(self):
+        """test dataEqual on 'Hello World', the 'root' token copy"""
+        raise NotImplementedError
+
+    #TODO testing on __eq__()
+
+    #TODO testing on __ne__()
+
+
 
 #====================================================================================================================== Main
 
