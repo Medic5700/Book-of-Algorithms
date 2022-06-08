@@ -1,9 +1,12 @@
 """
 By: Medic5700
+
 An implementation of a Meta CPU simulator Engine to allow a better and standardized way to create a customized CPU and ISA to illistrate bitwise instructions in lowlevel algorithms.
 This project is geared towards demonstrating algorithms, and therefor generalizes a lot of details. EX: bitLength is settable, instruction words are one memroy element big, etc
 
 IE: I want to try and directly compair different assembly algorithms with a custom instruction set, and a specific memory layout.
+
+Note: Everything above line ~4350 is considered legacy code (working prototype v3), and below is the current implementation (non-working prototype v4)
 
 Development Stack:
     Python 3.10 or greater (required for variable annotations support)
@@ -22,7 +25,7 @@ Goals:
     Allow for meaningfull compairisons between various architectures running the same algorithms using various metrics (energy usage, execution cycles, etc)
     A modular simulator where various things can be swapped in and out. IE: swapping in a different instruction set, different 'displays', different memory configurations, etc.
 
-Quick Start: <=========================================================================================================
+Quick Start: <==========================================================================================================
     This project is in the 'early prototype' stage.
     Version 3 is usable, but is considered legacy since the changes needed to be in line with the Goals above warrented a rewrite.
         Search for the below for class definitions and examples of how to use the CPU simulator:
@@ -35,7 +38,7 @@ Quick Start: <==================================================================
             class CPUsim_v4
             class ParseNode(ABC)
 
-Getting Started: <=====================================================================================================
+Getting Started: <======================================================================================================
     Note: this is a prototype, so the entire API is in flux
     refer to "def _testProgram1_defaultMultiply" for a simple example of a possible use case. (for a simuler example in RISCV, refer to "def _testProgram1_RISCVMultiply")
     refer to "class RiscV" for a mockup of how it could be used to 'create' a processor instruction set at a highlevel.
@@ -43,7 +46,7 @@ Getting Started: <==============================================================
 API
 #TODO
 
-API Detailed
+API Detailed (Depreciated)
     class CPUsim
         *var state                                          Contains the current registers, stored as 2-dimension dictionary IE: state["registers"][0] = register 0
         *var lastState                                      Contains the state of the registers from the last cycle. Structure is same as 'state'
@@ -243,8 +246,8 @@ Test Cases to impliment:
         https://esolangs.org/wiki/Brainfuck
         has input and output, a good test for making devices/input/output/etc
         Program is stored in seperate memory, a good test for loading programs into not main memory
-        The defaultDisplay will need to somehow highlight the individual characters in the instruction line
-        #TODO
+        The defaultDisplay will need to highlight the individual characters in the instruction line
+        CPUSim Feature Requirements
             impliment IO instruction subsystems (IE: devices, instruction operations, etc)
     TIS-100
         It's a made up processor from a puzzle game (or similar name)
@@ -268,6 +271,7 @@ Test Cases to impliment:
             Energy tracking (for memory access, instruction fetching, computation, etc)
             An implimented Modular Meta Memory Managment Unit (MMMMU) (for energy tracking of memory access, instruction fetching, cache hits, etc)
             Speculative execution/branch prediction (having speculative execution with multiple execution units running could drastically change the energy profile of an algorithm)
+            Multiple execution units/ports (for out of order execution)
     AMD Bulldozer
         https://en.wikipedia.org/wiki/Bulldozer_(microarchitecture)
         This CPU is special as each pair of CPU cores shared a single FPU, thus two individual threads running Floating Point calculations would be bottlenecked by the single FPU
@@ -276,9 +280,44 @@ Test Cases to impliment:
     #TODO a stack based CPU
     IBM Z16 CPU
         https://www.youtube.com/watch?v=z6u_oNIXFuU     # TechTechPotato - This is How IBM Will Revolutionize PC Gaming
-        All the CPU cores has a massive private L2 cache (32 MB)[normal L2 cashe is usually 512 KB]
+        All the CPU cores has a massive private L2 cache (32 MB)[normal L2 cashe is usually 512 KB], but with a higher latency then standard L2 cache
+        No L3 cache, in the standard sense
         When data is evicted from L2 from a particular core, the data is stored on another core's L2 cache (if there is space) and labled as virtual L3
         When data is evicted from virtual L3, the data is stored on another CPU die/socket's L2 cache (if there is space) and labled as virtual L4
+    Photonic Tensor AI Accelerator
+        https://www.youtube.com/watch?v=mt8I71VUazw     # Anastasi In Tech - This New Chip Could Change Everything
+        Uses photonic computing to accelerate part of the AI computation
+        The key part is that since multiple frequencies of light can go through the photonic logic gates at the same time, you can run multiple computations at the same time
+        IE: the 'photonic tensorcore' is able to run a massivly parrallel vector computation, for large performance
+        There is a traditional integrated circut under the photoic integrated circut that handles 'setting up' the computation for the photoic circut
+        using a photonic tensorcore enables masive energy savings, on the computation going through the photonic logic gates (a couple orders of magnitude?)
+    AMD Secure Encrypted Virtualization
+        https://en.wikipedia.org/wiki/Zen_(first_generation)#Enhanced_security_and_virtualization_support
+        https://developer.amd.com/sev/
+        AMD Secure Memory Encryption (SME)
+            Encrypts memory pages stored in memory when they are transfered between L3 and Memory
+            IE: when a memory page is moved outside the CPU, it's encrypted
+        AMD Secure Encrypted Virtualization (SEV)
+            Encrypts memory pages stored in memory (when they are transfered between L3 and Memory?) such that each Virtual Machine has a different encyption key
+            IE: every VM has a different encryption key for it's memory pages
+        AMD Secure Encrypted Virtualization-Encrypted State (SEV-ES)
+            Encrypts the registers of the CPU when a virtual machine stops running (context switch) such that the hypervisor can't read unenctyped data from the CPU registers
+            IE: during a VM context switch, the CPU state is encrypted BEFORE the hypervisor takes control of the CPU
+    Different clock rates between Memory and CPU
+        CPU and Memory (and other modules) need to be able to run at different clock rates
+        Since this simulator doesn't simulate clock signals, an alternative is needed.
+        Implement the 'tick' function of modules such that they can be set to sudo run at different clock rates
+            IE: CPU runs at 2Hz, Memory runs at 1Hz; therefor CPU.tick() and Memory.tick() are called twice, but one of the Memory.tick() calls does nothing, to match and sync with the CPU
+            IE: L3 cache runs at 1Hz, DRAM runs at 2Hz; therefor L3.tick() and DRAM.tick() are called twice, but one of the L3.tick() calls does nothing. Both L3 and DRAM are running within the MMMU module
+        All modules will need to designed to be able to cope with different clock rates, such that the interactions between modules can be buffered. 
+            Possibly with a specific 'buffer' building block sitting between the interfaces of two different modules (IE: L3 and DRAM)
+        Will need to find a SUDO Random algorithm to generate the 'tick patterns' in a way that best works with the different clock rates
+            IE: '--|--|--|' + '|-|-|-|-|' but not '--|--|--|' + '||||----|' (needs to prevent 'bunching up' of ticks)
+            Also needs to be sudo random, such that a generator seed can be swapped out to isolate any potential undesired pattern in a battery of tests
+                IE: this program happens to work better with 'seed x' than 'seed y' because with 'seed x' the CPU and Memory Controller happen to sync up in just the right way to get better performance
+
+Terminology: #TODO
+    #TODO
 
 #TODO Stack:
     create instruction helper that allows adding an immediate register (IE: you put in a number, and it passes out an immediate register address, AND adds an immediate register)
@@ -286,12 +325,10 @@ Test Cases to impliment:
     change 'charNum' to 'colNum' in parser, add/change 'charNum' as source code number (IE: the char number of input string, not column number of that line in input string)
     impliment character tokenizer in default parser
     impliment ISA helping function that allows selecting a 'bitrange' of a register. IE: take a 16-bit register, return the upper 8-bits (as a created immiedate register)
-    rewrite tests to use unittest module
     change engine datastructure to store instructions for EVERY register, not just as a 'special' register array. Possibly make it it's own variable, like self.config
     change variable name 'state' and 'oldState' to 'stateCurrent' and 'stateNew'
     Change terminology of 'registers' to 'registers' and 'register banks' or 'register array'
     Change terminology of 'cycle' to 'tick' with expected value of 1*10^10
-    Move Node class definition from Parser to main class
 """
 
 #asserts python version 3.8 or greater, needed due to new feature used [variable typing]
@@ -303,6 +340,7 @@ import copy # copy.deepcopy() required because states are a nested dictionary, a
 import functools # used for partial functions when executioning 'instruction operations'
 import unittest
 import random
+from decimal import Decimal # used for handling floating point numbers in limited areas. IE: keeping track of energy usage of a single hyper efficiant instruction (10^-4)
 
 #Some stuff for more complex annotation typing
 from typing import Any, Callable, Generic, Literal, Optional, Type, TypeVar
@@ -4035,17 +4073,6 @@ class TestDefaultInstructionSet(unittest.TestCase):
                                     "shiftR".ljust(16) + ("bitLength = " + str(bitLength)).ljust(16) + ("shiftAmount = " + str(shiftAmount)).ljust(16) + ("a = " + str(a)).ljust(16) +  ("b = " + str(b)).ljust(16) +  ("z = " + str(z)).ljust(16) + repr(program)
                                 )
 
-class TestDefaultInstructionSetBuildingBlocks(unittest.TestCase):
-    def setUp(self):
-        #TODO create dummy class for funcRead
-        #TODO create dummy class for funcWrite
-        #TODO create dummy class for funcGetConfig
-
-        self.engineFunc : dict = {}
-        self.engineStatus : dict = {}
-
-    #TODO test instruction building blocks
-
 class TestDefaultSimplePrograms(unittest.TestCase):
     def testDefaultProgram_multiply1(self):
         """Runs a 'multiply' program once"""
@@ -4377,7 +4404,7 @@ class ParserAbstract(ABC):
 
     ParseDefault.parseCode("source code") is called which returns a Node Tree representing the "source code"
 
-        ParseDefault.parseCode() calls ParseDefault._tokenize() to do the initial tokenization of the "source code"
+        ParseDefault.parseCode() calls ParseDefault.tokenize() to do the initial tokenization of the "source code"
         root -> Node
                 |- Token "test"
                 |- Token " "
@@ -4448,6 +4475,14 @@ class InstructionSetAbstract(ABC):
         """Checks if the memory layout is compatible by attempting to read necissary elements from memory, returns true is compatible"""
         pass
 
+class ParserError(Exception):
+    """Raised when an error occurs during parsing"""
+    pass
+
+class MMMUAccessError(Exception):
+    """Raised when an error occurs during MMMU access"""
+    pass
+
 class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conflicts with the type ParseNode, and NodeParse seems more logical (Parse subset of root Node)
     """A data class for storing information in a tree like structure. 
 
@@ -4467,12 +4502,12 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
         self.type : str = typeStr
         self.token : Any = token
-        self.child : list = []
+        self.child : list[ParseNode] = []
 
         # relational references to other nodes
-        self.parent : self.__class__ = None
-        self.nodePrevious : self.__class__ = None
-        self.nodeNext : self.__class__ = None
+        self.parent : ParseNode = None
+        self.nodePrevious : ParseNode = None
+        self.nodeNext : ParseNode = None
 
         # the line number of the string or character position in a line, will be needed for indentation awareness if it's ever needed
         self.lineNum : int = lineNum 
@@ -4621,6 +4656,31 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
         for i in range(len(removeNode.child) - 1, -1, -1):
             removeNode.remove(removeNode.child[i])
 
+    def dataEqual(self, a : ParseNode) -> bool:
+        """Compairs the data of a different node recursively, returns True if equal, False otherwise"""
+        assert type(a) is self.__class__
+
+        result : bool = True
+
+        if a.token != self.token:
+            result = False
+        if a.type != self.type:
+            result = False
+        if a.lineNum != self.lineNum:
+            result = False
+        if a.charNum != self.charNum:
+            result = False
+
+        if len(a.child) != len(self.child):
+            result = False
+        else:
+            i : int
+            for i in range(len(self.child)):
+                if not self.child[i].dataEqual(a.child[i]):
+                    result = False
+
+        return result
+
     def __repr__(self, depth : int = 1) -> str:
         """Recursivly composes a string representing the node hierarchy, returns a string.
         
@@ -4690,31 +4750,6 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
         while len(self.child) != 0:
             self.remove(self.child[0])
 
-    def dataEqual(self, a : ParseNode) -> bool:
-        """Compairs the data of a different node recursively, returns True if equal, False otherwise"""
-        assert type(a) is self.__class__
-
-        result : bool = True
-
-        if a.token != self.token:
-            result = False
-        if a.type != self.type:
-            result = False
-        if a.lineNum != self.lineNum:
-            result = False
-        if a.charNum != self.charNum:
-            result = False
-
-        if len(a.child) != len(self.child):
-            result = False
-        else:
-            i : int
-            for i in range(len(self.child)):
-                if not self.child[i].dataEqual(a.child[i]):
-                    result = False
-
-        return result
-
 class CPUsim_v4:
     """
     API #TODO overview:
@@ -4781,10 +4816,12 @@ class CPUsim_v4:
 
     """
 
-    def __init__(self):
+    def __init__(self, setup : Literal["default", "defaultAdvanced", None] = "default"):
         """#TODO
         
         """
+        assert type(setup) is str or type(setup) is None
+        assert setup in ["default", "defaultAdvanced", None]
 
         self._InstructionSet_Instance : Type[self.InstructionSetDefault] = None
         self._Display_Instance : Type[self.DisplaySilent] = None
@@ -4950,7 +4987,7 @@ class CPUsim_v4:
                 def opShiftR
                 def opRotate
 
-        
+        Note: when adding instructions, use opAddCarryOverflow() as a reference for adding a function
         """
 
         def __init__(self):
@@ -5017,9 +5054,9 @@ class CPUsim_v4:
                                                         tuple[int | str, int | str],                    # Optional Additional register arguments passed to instruction
                                                         Any
                                                     ],
-                                                    dict[                                       # Returns energy/latency info to engine for tabulation
+                                                    dict[                                               # Returns energy/latency info to engine for tabulation
                                                         Literal["energy", "latency"],
-                                                        int
+                                                        int | Decimal
                                                     ]
                                                 ]
                                             ]
@@ -5027,24 +5064,25 @@ class CPUsim_v4:
             self.instructionEnergy = {
                 ("nop",)        : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0}),
 
-                ("add",)        : self.engAdd_RippleCarry,
-                ("mult",)       : self.engMultiply_ShiftAdd2,
-                ("twos",)       : (lambda fRead, fWrite, fConfig,       des, a                  : { "energy"    : self.engAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["energy"] + self.engNOT(fRead, fWrite, fConfig, des, a)["energy"], 
-                                                                                                "latency"   : self.engAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["latency"] + self.engNOT(fRead, fWrite, fConfig, des, a)["latency"]
-                                                                                                }),
-                ("copy",)       : self.engAND,
+                ("add",)        : self.englatAdd_RippleCarry,
+                ("mult",)       : self.englatMultiply_ShiftAdd2,
+                ("twos",)       : (lambda fRead, fWrite, fConfig,       des, a                  : { 
+                    "energy"    : self.englatAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["energy"] + self.englatNOT(fRead, fWrite, fConfig, des, a)["energy"], 
+                    "latency"   : self.englatAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["latency"] + self.englatNOT(fRead, fWrite, fConfig, des, a)["latency"]
+                    }),
+                ("copy",)       : self.englatAND,
 
-                ("and",)        : self.engAND,
-                ("or",)         : self.engAND,
-                ("xor",)        : self.engAND,
-                ("not",)        : self.engNOT,
+                ("and",)        : self.englatAND,
+                ("or",)         : self.englatAND,
+                ("xor",)        : self.englatAND,
+                ("not",)        : self.englatNOT,
 
-                ("jumpeq",)     : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.engAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
-                ("jumpne",)     : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.engAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
-                ("jump",)       : (lambda fRead, fWrite, fConfig,       pointer                 : self.engNOT(fRead, fWrite, fConfig,            pointer, pointer)),
+                ("jumpeq",)     : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.englatAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
+                ("jumpne",)     : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.englatAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
+                ("jump",)       : (lambda fRead, fWrite, fConfig,       pointer                 : self.englatNOT(fRead, fWrite, fConfig,            pointer, pointer)),
 
-                ("shiftl",)     : self.engNOT,
-                ("shiftr",)     : self.engNOT,
+                ("shiftl",)     : self.englatNOT,
+                ("shiftr",)     : self.englatNOT,
 
                 ("halt",)       : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0})
             }
@@ -5088,7 +5126,7 @@ class CPUsim_v4:
                                             tuple[str, ...],
                                             dict[
                                                 Literal["cycles", "executionUnit"],
-                                                None | int | str | Literal["none", "alu", "int", "float", "branch", "load", "vector"]
+                                                None | str | Literal["none", "alu", "int", "float", "branch", "load", "vector"]
                                             ]
                                         ]
             self.instructionStats = {
@@ -5146,12 +5184,13 @@ class CPUsim_v4:
 
             return sum([bit << i for i, bit in enumerate(bitArray)])
 
-        def microEnforceAccess(self, register : tuple[int | str, int | str], key : str) -> tuple[int | str, int | str]:
+        def microEnforceAccess(self, register : tuple[int | str, int | str], key : str | int) -> tuple[int | str, int | str]:
             """returns register tuple iff register[0] matches key, raises exception otherwise"""
             assert type(register) is tuple or type(register) is list
             assert len(register) == 2
             assert type(register[0]) is int or type(register[0]) is str 
             assert type(register[1]) is int or type(register[1]) is str
+            assert type(key) is int or type(key) is str
 
             if key != register[0]:
                 raise Exception("Instruction not allowed access to specified register: " + str(key))
