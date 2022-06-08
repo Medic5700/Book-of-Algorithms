@@ -8618,11 +8618,13 @@ class CPUsim_v4:
     class DecoderDefault:
         pass
 
-class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
+#=============================================================================================================================================================== Unit Tests
+
+class Test_CompilerDefault_BuildingBlocks(unittest.TestCase):
     def setUp(self):
         self.compiler = CPUsim_v4.CompilerDefault
 
-    def testDirInt_Int8(self):
+    def test_dirInt_Int8(self):
         """Tests 8-bit ints, nothing fancy"""
 
         compiler = self.compiler(endianess = "little", memoryElementSize = 8)
@@ -8634,7 +8636,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
 
             self.assertEqual(result, ([i], None))
 
-    def testDirInt_Int16(self):
+    def test_dirInt_Int16(self):
         """Tests 16-bit ints, over 2 memory elements, with both endianess"""
 
         endianessTest : str
@@ -8656,7 +8658,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
                         else:
                             self.assertEqual(result, [x_1, x_0])
 
-    def testDirInt_8BitSweep(self):
+    def test_dirInt_8BitSweep(self):
         """Sweeps a single toggeled bit across multiple bitLengths, for both endianess"""
 
         endianessTest : str
@@ -8685,7 +8687,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
 
                                 self.assertEqual(resultProcessed, (1 << i))
 
-    def testDirInt_MaxInt(self):
+    def test_dirInt_MaxInt(self):
         """Attempts to store the maxium value in an int of multiple bitLengths and both endianess"""
 
         endianessTest : str
@@ -8708,7 +8710,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
 
                         self.assertEqual(resultProcessed, 2**(8 * byteLength) - 1)
 
-    def testDirInt_MemoryElementSizeMismatch(self):
+    def test_dirInt_MemoryElementSizeMismatch(self):
         """Tests that a number can still be stored when the memoryElementSize and the bitLength of the number being stored are not multiples of each other
         
         Example:
@@ -8754,7 +8756,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
                         else:
                             self.assertEqual(result, [x_1, x_0])
 
-    def testDirAscii_HelloWorld(self):
+    def test_dirAscii_HelloWorld(self):
         """Tests converting 'Hello World!'"""
 
         compiler = self.compiler(endianess = "little", memoryElementSize = 8)
@@ -8764,7 +8766,7 @@ class TestCompilerDefaultBuildingBlocks(unittest.TestCase):
 
         self.assertEqual(result, [ord(i) for i in "Hello World!"])
 
-    def testDirAscii_7bitSquash(self):
+    def test_dirAscii_7bitSquash(self):
         """Tests that input text is properly 'squashed' to 7-bit ASCII"""
 
         compiler = self.compiler(endianess = "little", memoryElementSize = 8)
@@ -19774,18 +19776,19 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 if __name__ == "__main__":
     #Testing
     # runs all tests
+    # to run a specific test module, use $> python .\CPUSimulator.py [test module ...]
     logging.basicConfig(level = logging.ERROR)
-    unittest.main(verbosity = 2, buffer = True, exit = False)
+    unittest.main(verbosity = 1, buffer = True, exit = False)
 
     # # run specific test from a specific testCase
     # suite = unittest.TestSuite()
-    # suite.addTest(TestParseDefaultBuildingBlocks("test_RuleFilterLineComments_ExceptionCharacterNone"))
+    # suite.addTest(TestParseDefaultBuildingBlocks("test_ruleContainer_ExceptionContainerDictionaryContainsDuplicateKeyValuePair04"))
     # runner = unittest.TextTestRunner()
     # runner.run(suite)
     
     # reset logging level
     logging.basicConfig(level = logging.INFO) # CRITICAL=50, ERROR=40, WARN=30, WARNING=30, INFO=20, DEBUG=10, NOTSET=0
-    debugHighlight = lambda x : 6880 < x < 6906
+    debugHighlight = lambda x : 13000 < x < 30000
     print("\n" + "".ljust(80, "=") + "\n")
 
     '''
