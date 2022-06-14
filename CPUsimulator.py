@@ -5312,10 +5312,17 @@ class CPUsim_v4:
             funcWrite(registerDestination, c)
 
         def opAddCarryOverflow(self,
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict],
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str],
-            registerCarry : Optional[tuple[int | str, int | str] | None] = None, registerOverflow : Optional[tuple[int | str, int | str] | None] = None
-            ):
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict[str, Any]],
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str], 
+            registerB : tuple[int | str, int | str],
+
+            registerCarry : Optional[tuple[int | str, int | str] | None] = None, 
+            registerOverflow : Optional[tuple[int | str, int | str] | None] = None
+            ) -> None:
             """Adds registerA and registerB, stores result in registerDestination, stores carry in registerCarry iff specified, stores overflow in registerOverflow iff specified
             
             Algorithm Overview - Add with Carry and Overflow:
@@ -5397,7 +5404,7 @@ class CPUsim_v4:
                 -> # written
                 r2 = [0, 0];                    value = 2;          bitLength = 8
 
-            Case: # Test_InstructionSetDefault_BuildingBlocks.test_opAddCarryOverflow_integration06
+            Case: # Test_InstructionSetDefault_BuildingBlocks.test_opAddCarryOverflow_integration05
                 'r0 + r1 = r2, c = c0, o = o0' with bitLength '2, 2, 2, 1, 1' -> '3 + 2 = 1, c = 1, o = 1'
                 -> # create registers
                 r0 = [0, 0];                    value = 3;             bitLength = 2
@@ -5430,7 +5437,7 @@ class CPUsim_v4:
                 c0 = ['c', 0];                  value = 1;             bitLength = 1
                 o0 = ['o', 0];                  value = 1;             bitLength = 1
                 
-            Case: # Test_InstructionSetDefault_BuildingBlocks.test_opAddCarryOverflow_integration04
+            Case: # Test_InstructionSetDefault_BuildingBlocks.test_opAddCarryOverflow_8bitFullCombination
                 'r0 + r1 = r2' with bitLength '8, 8, 8' -> ['x + y = ?' for x in range(255) for y in range(255)]
                 -> # create registers
                 r0 = [0, 0];                    value = x;             bitLength = 8
@@ -5531,7 +5538,7 @@ class CPUsim_v4:
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
             c : int = a + b
-            result = c & (2**bitLength - 1)
+            result = c & (2**bitLength - 1) # trunk result
             funcWrite(registerDestination, result)
 
             # carry
@@ -5585,10 +5592,25 @@ class CPUsim_v4:
 
             funcWrite(registerDestination, c)
 
+        def opMultiply_signedMultiElement(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict[str, Any]],
+
+            registerDestination : tuple[tuple[int | str, int | str], ...], 
+            registerA : tuple[int | str, int | str], 
+            registerB : tuple[int | str, int | str],
+            endiness : Literal['big', 'little'] = 'little'
+            ) -> None:
+            raise NotImplementedError
+
         def opTwosCompliment(self, 
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
             registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str]):
-            """Takes value from registerA, performs twos compliment, stores result in registerDestination"""
+            """Takes value from registerA, performs twos compliment, stores result in registerDestination
+            
+            #TODO if destination register is larger, should extend most significant bit to larger register size
+            """
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -5619,107 +5641,131 @@ class CPUsim_v4:
 
             funcWrite(registerDestination, result)
 
-        def opAND(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]):
+        def opAND(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict[str, Any]],
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str], 
+            registerB : tuple[int | str, int | str]
+            ) -> None:
             """Performs AND operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
-            assert type(engineFunc) is dict
-            assert all([callable(j) for _, j in engineFunc.items()])
-            assert type(engineStatus) is dict
-            
+
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is int or type(registerB[0]) is str 
-            assert type(registerB[1]) is int or type(registerB[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
 
             a : int = funcRead(registerA)
             b : int = funcRead(registerB)
-
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
             c : int = a & b
-            c = c & (2**bitLength - 1)
+            result : int = c & (2**bitLength - 1) # trunk result
+            funcWrite(registerDestination, result)
 
-            funcWrite(registerDestination, c)
-
-        def opOR(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]):
+        def opOR(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict[str, Any]],
+            
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str], 
+            registerB : tuple[int | str, int | str]
+            ) -> None:
             """Performs OR operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
-            assert type(engineFunc) is dict
-            assert all([callable(j) for _, j in engineFunc.items()])
-            assert type(engineStatus) is dict
-            
+
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is int or type(registerB[0]) is str 
-            assert type(registerB[1]) is int or type(registerB[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
 
             a : int = funcRead(registerA)
             b : int = funcRead(registerB)
-
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
             c : int = a | b
-            c = c & (2**bitLength - 1)
+            result : int = c & (2**bitLength - 1) # trunk result
+            funcWrite(registerDestination, result)
 
-            funcWrite(registerDestination, c)
-
-        def opXOR(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]):
+        def opXOR(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict[str, Any]],
+            
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str], 
+            registerB : tuple[int | str, int | str]
+            ) -> None:
             """Performs XOR operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
-            assert type(engineFunc) is dict
-            assert all([callable(j) for _, j in engineFunc.items()])
-            assert type(engineStatus) is dict
-            
+
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is int or type(registerB[0]) is str 
-            assert type(registerB[1]) is int or type(registerB[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
 
             a : int = funcRead(registerA)
             b : int = funcRead(registerB)
-
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
             c : int = a ^ b
-            c = c & (2**bitLength - 1)
-
-            funcWrite(registerDestination, c)
+            result : int = c & (2**bitLength - 1) # trunk result
+            funcWrite(registerDestination, result)
 
         def opNOT(self, 
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
@@ -5827,7 +5873,11 @@ class CPUsim_v4:
             """Takes registerA, shifts left by amount registerShiftOffset, stores result in registerDestination
             
             will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
-                a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly"""
+                a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly
+                
+            #TODO shift hard limit should be below 2**20. IE: should generate a number less then 128 KB long
+            #TODO alternativly, could take the shift value, and return zero it out of bounds
+            """
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6026,11 +6076,18 @@ class CPUsim_v4:
 
             funcWrite(registerDestination, result)
 
-        '''
-        def opCopy(self, 
-            funcRead : Callable[[int or str, int or str], int], funcWrite : Callable[[int or str, int or str], None], funcGetConfig : Callable[[int or str, int or str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : tuple[int or str, int or str], registerA : tuple[int or str, int or str],
-            trunkOrExtend : Literal["trunk", "extend"], multiElement : bool, bitsToCopy : int):
+        def opCopyMultiElement(self, 
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict[str, Any]],
+
+            registerDestination : tuple[tuple[int | str, int | str], ...], 
+            registerA : tuple[tuple[int | str, int | str], ...], 
+
+            bitsToCopy : int,
+            arithimetic : bool = False,
+            endiness : Literal['big', 'little'] = 'little',
+            ) -> None:
             """Copies a value from registerA to registerDestination
             
             Use Cases:
@@ -6041,39 +6098,7 @@ class CPUsim_v4:
             
             #TODO
             """
-            assert callable(funcRead)
-            assert callable(funcWrite)
-            assert callable(funcGetConfig)
-            assert type(engineFunc) is dict
-            assert all([callable(j) for _, j in engineFunc.items()])
-            assert type(engineStatus) is dict
-
-            assert type(registerDestination) is tuple or type(registerDestination) is list
-            assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
-            assert type(registerA) is tuple or type(registerA) is list
-            assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
-
-            assert type(trunkOrExtend) is str
-            assert len(trunkOrExtend) > 0
-            assert trunkOrExtend == "trunk" or trunkOrExtend == "extend"
-            assert type(multiElement) is bool
-            assert type(bitsToCopy) is int
-            assert bitsToCopy > 0
-
-            sourceBank : str = registerA[0]
-            sourceIndex : int or str = registerA[1]
-            sourceBitLength : int = funcGetConfig(registerA)
-
-            destinationBank : str = registerDestination[0]
-            destinationIndex : int or str = registerDestination[1]
-            destinationBitLength : int = funcGetConfig(registerDestination)
-
-            #TODO
-        '''
+            raise NotImplementedError
 
         def englatAdd_RippleCarry(self, 
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
@@ -14298,6 +14323,14 @@ class Test_ParserDefault_BuildingBlocks(unittest.TestCase):
 
     #TODO tests for ruleApplyAlias()
 
+class Test_ParserDefault_parseCode(unittest.TestCase):
+    """Tests the ParserDefault.parseCode method, under default conditions, for general integration testing of all the components working together
+    """
+    
+    def setUp(self):
+        self.parser = CPUsim_v4.ParserDefault()
+
+    #TODO ALL THE TESTS
 
 class Test_NodeParse(unittest.TestCase):
     """tests NodeParse"""
@@ -14562,6 +14595,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         supports reading and writing to registers (reading and writing are done to parallel sets of registers)
         supports logging of all accesses
         supports raising MMMUAccessError when an access is made to an invalid register
+
+        Edge case:
+            #TODO supports writing to and creating '_imm' registers dynamically
         """
 
         def __init__(self):
@@ -14597,7 +14633,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             self.registersWrite[(key, index)] = value
             self.registersGetConfig[(key, index)] = {'bitLength': bitLength}
 
-        def dummyRead(self, register : tuple[str | int, str | int]) -> int:
+        def dummyReadWrapper(self, register : tuple[str | int, str | int]) -> int:
             """Reads the specified register and returns the value (in the context of an instruction)
             
             Meant to be passed to the instruction as the interface to the MMMU
@@ -14606,16 +14642,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             assert len(register) == 2
             assert all([type(i) is str or type(i) is int for i in register])
 
-            key = register[0]
-            index = register[1]
+            return self._read(register)
 
-            if (key, index) not in self.registersRead.keys():
-                raise MMMUAccessError(f'ERROR -> register: {register}')
-
-            self.activityLog.append(('read', key, index, self.registersRead[(key, index)]))
-            return self.registersRead[(key, index)]
-
-        def dummyWrite(self, register : tuple[str | int, str | int], value : int):
+        def dummyWriteWrapper(self, register : tuple[str | int, str | int], value : int):
             """Writes the specified register with the specified value (in the context of an instruction)
 
             Meant to be passed to the instruction as the interface to the MMMU
@@ -14625,16 +14654,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             assert all([type(i) is str or type(i) is int for i in register])
             assert value >= 0
 
-            key = register[0]
-            index = register[1]
-            
-            if (key, index) not in self.registersWrite.keys():
-                raise MMMUAccessError(f'ERROR -> register: {register}')
+            return self._write(register, value)
 
-            self.activityLog.append(('write', key, index, value))
-            self.registersWrite[(key, index)] = value
-
-        def dummyGetConfig(self, register : tuple[str | int, str | int]) -> dict:
+        def dummyGetConfigWrapper(self, register : tuple[str | int, str | int]) -> dict:
             """Returns the configuration of the specified register (in the context of an instruction)
 
             Meant to be passed to the instruction as the interface to the MMMU
@@ -14643,14 +14665,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             assert len(register) == 2
             assert all([type(i) is str or type(i) is int for i in register])
 
-            key = register[0]
-            index = register[1]
-
-            if (key, index) not in self.registersGetConfig.keys():
-                raise MMMUAccessError(f'ERROR -> register: {register}')
-
-            self.activityLog.append(('getConfig', key, index, self.registersGetConfig[(key, index)]['bitLength']))
-            return self.registersGetConfig[(key, index)]
+            return self._getConfig(register)
 
         def getActivity(self) -> list[tuple[Literal['read', 'write', 'getConfig'], str | int, str | int]]:
             """returns an ordered list of tuples representing the access history of registers
@@ -14671,7 +14686,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             """returns the written value of the register with the specified key and index
             
             IE: if an instruction writes a value to a register, it will show up with this function
-            vs the dummyRead() function, which will only show the initial value of a register
+            vs the dummyReadWrapper() function, which will only show the initial value of a register
             """
             assert type(key) is str or type(key) is int
             assert type(index) is str or type(index) is int
@@ -14680,6 +14695,62 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 raise MMMUAccessError(f'ERROR -> register: {(key, index)}')
 
             return self.registersWrite[(key, index)]
+
+        def _read(self, register : tuple[str | int, str | int]) -> int:
+            """Reads the specified register and returns the value (in the context of an instruction)"""
+            
+            assert type(register) is tuple or type(register) is list
+            assert len(register) == 2
+            assert all([type(i) is str or type(i) is int for i in register])
+
+            key = register[0]
+            index = register[1]
+
+            if (key, index) not in self.registersRead.keys():
+                raise MMMUAccessError(f'ERROR -> register: {register}')
+
+            self.activityLog.append(('read', key, index, self.registersRead[(key, index)]))
+            return self.registersRead[(key, index)]
+
+        def _write(self, register : tuple[str | int, str | int], value : int) -> None:
+            """Writes the specified register with the specified value (in the context of an instruction)"""
+
+            assert type(register) is tuple or type(register) is list
+            assert len(register) == 2
+            assert all([type(i) is str or type(i) is int for i in register])
+            assert value >= 0
+
+            key = register[0]
+            index = register[1]
+            
+            if (key, index) not in self.registersWrite.keys():
+                raise MMMUAccessError(f'ERROR -> register: {register}')
+
+            self.activityLog.append(('write', key, index, value))
+            self.registersWrite[(key, index)] = value
+        
+        def _getConfig(self, register : tuple[str | int, str | int]) -> dict:
+            """Returns the configuration of the specified register (in the context of an instruction)"""
+
+            assert type(register) is tuple or type(register) is list
+            assert len(register) == 2
+            assert all([type(i) is str or type(i) is int for i in register])
+
+            key = register[0]
+            index = register[1]
+
+            if (key, index) not in self.registersGetConfig.keys():
+                raise MMMUAccessError(f'ERROR -> register: {register}')
+
+            self.activityLog.append(('getConfig', key, index, self.registersGetConfig[(key, index)]['bitLength']))
+            return self.registersGetConfig[(key, index)]
+
+        def _createImmRegister(self, value : int) -> tuple[str | int, str | int]:
+            """creates an '_imm' register with the specified value"""
+            assert type(value) is int
+            assert value >= 0
+
+            raise NotImplementedError
 
     def setUp(self):
         self.ISA = CPUsim_v4.InstructionSetDefault()
@@ -15137,9 +15208,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         register : list[str | int, str | int] = [1, 1] # register not in MMMU
 
         self.assertRaises(MMMUAccessError, self.ISA.opAddCarryOverflow,
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = register, # test with invalid register
             registerA                                                           = self.registerNull,
             registerB                                                           = self.registerNull,
@@ -15156,9 +15227,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         register : list[str | int, str | int] = [1, 1] # register not in MMMU
 
         self.assertRaises(MMMUAccessError, self.ISA.opAddCarryOverflow,
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = self.registerNull,
             registerA                                                           = register, # test with invalid register
             registerB                                                           = self.registerNull,
@@ -15175,9 +15246,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         register : list[str | int, str | int] = [1, 1] # register not in MMMU
 
         self.assertRaises(MMMUAccessError, self.ISA.opAddCarryOverflow,
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = self.registerNull,
             registerA                                                           = self.registerNull,
             registerB                                                           = register, # test with invalid register
@@ -15194,9 +15265,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         register : list[str | int, str | int] = [1, 1] # register not in MMMU
 
         self.assertRaises(MMMUAccessError, self.ISA.opAddCarryOverflow,
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = self.registerNull,
             registerA                                                           = self.registerNull,
             registerB                                                           = self.registerNull,
@@ -15213,9 +15284,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         register : list[str | int, str | int] = [1, 1] # register not in MMMU
 
         self.assertRaises(MMMUAccessError, self.ISA.opAddCarryOverflow,
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = self.registerNull,
             registerA                                                           = self.registerNull,
             registerB                                                           = self.registerNull,
@@ -15223,7 +15294,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             registerOverflow                                                    = register # test with invalid register
         )
 
-    def test_opAddCarryOverflow_addSingleElement01(self):
+    def test_opAddCarryOverflow_singleRegister01(self):
         """tests opAddCarryOverflow on 'r0 + r0 = r0' with bitLength '1, 1, 1' -> '0 + 0 = 0'
         
         'r0 + r0 = r0' with bitLength '1, 1, 1' -> '0 + 0 = 0'
@@ -15257,9 +15328,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 0],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 0],
@@ -15291,7 +15362,11 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_addMultiElement01(self):
+    def test_opAddCarryOverflow_singleRegister01(self):
+        """tests opAddCarryOverflow on 'r0 + r0 = r0' with bitLength '1, 1, 1' -> '1 + 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opAddCarryOverflow_multiRegister01(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2' with bitLength '1, 1, 1' -> '0 + 0 = 0'
         
         'r0 + r1 = r2' with bitLength '1, 1, 1' -> '0 + 0 = 0'
@@ -15329,9 +15404,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -15365,7 +15440,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_addMultiElement02(self):
+    def test_opAddCarryOverflow_multiRegister02(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2' with bitLength '1, 1, 1' -> '0 + 1 = 1'
         
         'r0 + r1 = r2' with bitLength '1, 1, 1' -> '0 + 1 = 1'
@@ -15403,9 +15478,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -15440,7 +15515,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
 
-    def test_opAddCarryOverflow_addMultiElement03(self):
+    def test_opAddCarryOverflow_multiRegister03(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2' with bitLength '1, 1, 1' -> '1 + 0 = 1'
         
         'r0 + r1 = r2' with bitLength '1, 1, 1' -> '1 + 0 = 1'
@@ -15478,9 +15553,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -15514,7 +15589,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_addMultiElement04(self):
+    def test_opAddCarryOverflow_multiRegister04(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2' with bitLength '1, 1, 1' -> '1 + 1 = 0'
         
         'r0 + r1 = r2' with bitLength '1, 1, 1' -> '1 + 1 = 0'
@@ -15552,9 +15627,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -15629,9 +15704,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'c', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -15708,9 +15783,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'c', 0,                                 value = 0, bitLength = 1)
         
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -15787,9 +15862,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'c', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -15866,9 +15941,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'c', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -15945,9 +16020,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16024,9 +16099,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16103,9 +16178,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16182,9 +16257,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16264,9 +16339,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16348,9 +16423,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16432,9 +16507,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16516,9 +16591,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16556,7 +16631,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength01A(self):
+    def test_opAddCarryOverflow_variableBitLength01A(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 1, 1, 1, 1' -> '0 + 0 = 0, c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 1, 1, 1, 1' -> '0 + 0 = 0, c = 0, o = 0'
@@ -16600,9 +16675,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16640,7 +16715,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength01B(self):
+    def test_opAddCarryOverflow_variableBitLength01B(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 8, 1, 1, 1' -> '0 + 0 = 0, c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 8, 1, 1, 1' -> '0 + 0 = 0, c = 0, o = 0'
@@ -16684,9 +16759,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16724,7 +16799,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength01C(self):
+    def test_opAddCarryOverflow_variableBitLength01C(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 8, 1, 1' -> '0 + 0 = 0, c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 8, 1, 1' -> '0 + 0 = 0, c = 0, o = 0'
@@ -16768,9 +16843,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16808,7 +16883,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength01D(self):
+    def test_opAddCarryOverflow_variableBitLength01D(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 1, 8, 1' -> '0 + 0 = 0, c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 1, 8, 1' -> '0 + 0 = 0, c = 0, o = 0'
@@ -16852,9 +16927,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16892,7 +16967,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength01E(self):
+    def test_opAddCarryOverflow_variableBitLength01E(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 1, 1, 8' -> '0 + 0 = 0, c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 1, 1, 8' -> '0 + 0 = 0, c = 0, o = 0'
@@ -16936,9 +17011,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 8)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -16976,7 +17051,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength02A(self):
+    def test_opAddCarryOverflow_variableBitLength02A(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 1, 1, 1, 1' -> '255 + 1 = 0, c = 1, o = 1'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 1, 1, 1, 1' -> '255 + 1 = 0, c = 1, o = 1'
@@ -17020,9 +17095,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -17060,7 +17135,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength02B(self):
+    def test_opAddCarryOverflow_variableBitLength02B(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 8, 1, 1, 1' -> '1 + 255 = 0, c = 1, o = 1'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 8, 1, 1, 1' -> '1 + 255 = 0, c = 1, o = 1'
@@ -17104,9 +17179,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -17144,7 +17219,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength02C(self):
+    def test_opAddCarryOverflow_variableBitLength02C(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 8, 1, 1' -> '1 + 1 = 2, c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 8, 1, 1' -> '1 + 1 = 2, c = 0, o = 0'
@@ -17188,9 +17263,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -17228,7 +17303,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength02D(self):
+    def test_opAddCarryOverflow_variableBitLength02D(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 1, 8, 1' -> '1 + 1 = 0, c = 1, o = 1'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 1, 8, 1' -> '1 + 1 = 0, c = 1, o = 1'
@@ -17272,9 +17347,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -17312,7 +17387,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_simpleAdd_VariableBitLength02E(self):
+    def test_opAddCarryOverflow_variableBitLength02E(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 1, 1, 8' -> '1 + 1 = 0, c = 1, o = 1'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '1, 1, 1, 1, 8' -> '1 + 1 = 0, c = 1, o = 1'
@@ -17356,9 +17431,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 8)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -17440,9 +17515,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 1024],
             registerB                                                           = [0, 1],
@@ -17479,9 +17554,6 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
-
-
-
 
     def test_opAddCarryOverflow_largeRegisterIndex02(self):
         """tests opAddCarryOverflow on 'r0 + r1024 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 1, 1' -> '12 + 4 = 16, c = 0, o = 0'
@@ -17527,9 +17599,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1024],
@@ -17611,9 +17683,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 1024],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -17695,9 +17767,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -17779,9 +17851,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 1024,                              value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -17863,9 +17935,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -17947,9 +18019,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -18031,9 +18103,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -18115,9 +18187,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -18199,9 +18271,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1024)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -18283,9 +18355,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1024)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -18371,9 +18443,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1024)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -18447,9 +18519,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 0,                                   value = 0xff, bitLength = 8)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 0],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 0],
@@ -18523,9 +18595,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 2,                                   value = 0x00, bitLength = 8)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -18601,9 +18673,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 8)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 0],
@@ -18640,7 +18712,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_input1bitSweep01(self):
+    def test_opAddCarryOverflow_inputBitPattern1BitSweep01(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 1, 1' -> ['(1 << x) + (1 << y) = ?, c = ?, o = ?' for x in range(8) for y in range(8)]
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 1, 1' -> ['(1 << x) + (1 << y) = ?, c = ?, o = ?' for x in range(8) for y in range(8)]
@@ -18690,9 +18762,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 MMMU.createRegister(    'o', 0,                                 value = 0, bitLength = 8)
 
                 returnValue : None = self.ISA.opAddCarryOverflow(
-                    funcRead                                                    = MMMU.dummyRead,
-                    funcWrite                                                   = MMMU.dummyWrite,
-                    funcGetConfig                                               = MMMU.dummyGetConfig,
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
                     registerDestination                                         = [0, 2],
                     registerA                                                   = [0, 0],
                     registerB                                                   = [0, 1],
@@ -18730,7 +18802,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
                     f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_input1bitSweep02(self):
+    def test_opAddCarryOverflow_inputBitPattern1BitSweep02(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '512, 512, 512, 1, 1' -> ['(1 << x) + (1 << y) = ?, c = ?, o = ?' for x in range(512) for y in range(512)]
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '512, 512, 512, 1, 1' -> ['(1 << x) + (1 << y) = ?, c = ?, o = ?' for x in range(512) for y in range(512)]
@@ -18780,9 +18852,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 MMMU.createRegister(    'o', 0,                                 value = 0, bitLength = 8)
 
                 returnValue : None = self.ISA.opAddCarryOverflow(
-                    funcRead                                                    = MMMU.dummyRead,
-                    funcWrite                                                   = MMMU.dummyWrite,
-                    funcGetConfig                                               = MMMU.dummyGetConfig,
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
                     registerDestination                                         = [0, 2],
                     registerA                                                   = [0, 0],
                     registerB                                                   = [0, 1],
@@ -18820,7 +18892,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
                     f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_input1bitSweep03(self):
+    def test_opAddCarryOverflow_inputBitPattern1BitSweep03(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '512, 512, 2048, 1, 1' -> ['(1 << x) + (1 << y) = ?, c = 0, o = 0' for x in range(512) for y in range(512)]
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '512, 512, 2048, 1, 1' -> ['(1 << x) + (1 << y) = ?, c = 0, o = 0' for x in range(512) for y in range(512)]
@@ -18870,9 +18942,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 MMMU.createRegister(    'o', 0,                                 value = 0, bitLength = 8)
 
                 returnValue : None = self.ISA.opAddCarryOverflow(
-                    funcRead                                                    = MMMU.dummyRead,
-                    funcWrite                                                   = MMMU.dummyWrite,
-                    funcGetConfig                                               = MMMU.dummyGetConfig,
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
                     registerDestination                                         = [0, 2],
                     registerA                                                   = [0, 0],
                     registerB                                                   = [0, 1],
@@ -18910,7 +18982,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
                     f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_inputCheckerboardConstructive01(self):
+    def test_opAddCarryOverflow_inputBitPatternCheckerboardConstructive01(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '2048, 2048, 2048, 1, 1' -> '0b1010... + 0b1010... = 0b0101..., c = 1, o = 1'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '2048, 2048, 2048, 1, 1' -> '0b1010.... + 0b1010... = 0b0101..., c = 1, o = 1'
@@ -18958,9 +19030,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -18999,7 +19071,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
 
-    def test_opAddCarryOverflow_inputCheckerboardConstructive02(self):
+    def test_opAddCarryOverflow_inputBitPatternCheckerboardConstructive02(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '2048, 2048, 2048, 1, 1' -> '0b0101.... + 0b0101... = 0b1010..., c = 0, o = 1'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '2048, 2048, 2048, 1, 1' -> '0b0101.... + 0b0101... = 0b1010..., c = 0, o = 1'
@@ -19047,9 +19119,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -19087,7 +19159,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_inputCheckerboardDestructive01(self):
+    def test_opAddCarryOverflow_inputBitPatternCheckerboardDestructive01(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '2048, 2048, 2048, 1, 1' -> '0b1010.... + 0b0101... = 0b1111..., c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '2048, 2048, 2048, 1, 1' -> '0b1010.... + 0b0101... = 0b1111..., c = 0, o = 0'
@@ -19135,9 +19207,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -19175,7 +19247,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAddCarryOverflow_inputCheckerboardDestructive02(self):
+    def test_opAddCarryOverflow_inputBitPatternCheckerboardDestructive02(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '2048, 2048, 2048, 1, 1' -> '0b0101.... + 0b1010... = 0b1111..., c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '2048, 2048, 2048, 1, 1' -> '0b0101.... + 0b1010... = 0b1111..., c = 0, o = 0'
@@ -19223,9 +19295,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -19262,6 +19334,101 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+
+    def test_opAddCarryOverflow_inputBitPattern8bit4Overlap(self):
+        """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 1, 1' -> '0xfc + 0x3f = 0x13b = 0x3b, c = 1, o = 0'"""
+        raise NotImplementedError
+
+    def test_opAddCarryOverflow_8bitFullCombination(self):
+        """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 1, 1' -> ['x + y = ?, c = ?, o = ?' for x in range(255) for y in range(255)]
+        
+        'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 1, 1' -> ['x + y = ?, c = ?, o = ?' for x in range(255) for y in range(255)]
+        -> # create registers
+        r0 = [0, 0];                    value = x;             bitLength = 8
+        r1 = [0, 1];                    value = y;             bitLength = 8
+        r2 = [0, 2];                    value = 0;             bitLength = 8
+        c0 = ['c', 0];                  value = 0;             bitLength = 1
+        o0 = ['o', 0];                  value = 0;             bitLength = 1
+        ->
+        opAddCarryOverflow(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+            registerCarry               = ['c', 0]
+            registerOverflow            = ['o', 0]
+        )
+        -> # input
+        registerA                       = x
+        registerB                       = y
+        ->
+        'x + y = ?, c = ?, o = ?'
+        -> # output
+        registerDestination             = ?
+        registerCarry                   = ?
+        registerOverflow                = ?
+        -> # written
+        r2 = [0, 0];                    value = ?;             bitLength = 8
+        c0 = ['c', 0];                  value = ?;             bitLength = 1
+        o0 = ['o', 0];                  value = ?;             bitLength = 1
+        """
+        
+        for x, y in [(x, y) for x in range(255) for y in range(255)]:
+            with self.subTest(x=x, y=y):
+                z : int = (x + y) & (2**8 - 1)
+                c : int = 1 if (x + y) > (2**8 - 1) else 0
+                o : int = 1 if ((x & 2**(8 - 1) == y & 2**(8 - 1)) and (x & 2**(8 - 1) != z & 2**(8 - 1))) else 0
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = x, bitLength = 8)
+                MMMU.createRegister(    0, 1,                                   value = y, bitLength = 8)
+                MMMU.createRegister(    0, 2,                                   value = 0, bitLength = 8)
+                MMMU.createRegister(    'c', 0,                                 value = 0, bitLength = 1)
+                MMMU.createRegister(    'o', 0,                                 value = 0, bitLength = 1)
+
+                returnValue : None = self.ISA.opAddCarryOverflow(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 2],
+                    registerA                                                   = [0, 0],
+                    registerB                                                   = [0, 1],
+                    registerCarry                                               = ['c', 0],
+                    registerOverflow                                            = ['o', 0]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   x),
+                    ('read',            0, 1,                                   y),
+                    ('getConfig',       0, 2,                                   8),
+                    ('write',           0, 2,                                   z),
+                    ('write',           'c', 0,                                 c),
+                    ('write',           'o', 0,                                 o),
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              x),                                     # input, no change
+                    (0, 1,              y),                                     # input, no change
+                    (0, 2,              z),                                     # output
+                    ('c', 0,            c),                                     # output
+                    ('o', 0,            o)                                      # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert opAddCarryOverflow return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+
 
     def test_opAddCarryOverflow_integration01(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2' with bitLength '8, 8, 8' -> '0 + 0 = 0'
@@ -19301,9 +19468,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -19375,9 +19542,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -19449,9 +19616,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 2,                                   value = 0x00, bitLength = 8)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -19527,9 +19694,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 MMMU.createRegister(    0, 2,                                   value = 0, bitLength = 8)
 
                 returnValue : None = self.ISA.opAddCarryOverflow(
-                    funcRead                                                    = MMMU.dummyRead,
-                    funcWrite                                                   = MMMU.dummyWrite,
-                    funcGetConfig                                               = MMMU.dummyGetConfig,
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
                     registerDestination                                         = [0, 2],
                     registerA                                                   = [0, 0],
                     registerB                                                   = [0, 1],
@@ -19564,96 +19731,6 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAddCarryOverflow_integration05(self):
-        """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 1, 1' -> ['x + y = ?, c = ?, o = ?' for x in range(255) for y in range(255)]
-        
-        'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 1, 1' -> ['x + y = ?, c = ?, o = ?' for x in range(255) for y in range(255)]
-        -> # create registers
-        r0 = [0, 0];                    value = x;             bitLength = 8
-        r1 = [0, 1];                    value = y;             bitLength = 8
-        r2 = [0, 2];                    value = 0;             bitLength = 8
-        c0 = ['c', 0];                  value = 0;             bitLength = 1
-        o0 = ['o', 0];                  value = 0;             bitLength = 1
-        ->
-        opAddCarryOverflow(
-            funcRead                    = funcDummyRead
-            funcWrite                   = funcDummyWrite
-            funcGetConfig               = funcDummyConfig
-            registerDestination         = [0, 2]
-            registerA                   = [0, 0]
-            registerB                   = [0, 1]
-            registerCarry               = ['c', 0]
-            registerOverflow            = ['o', 0]
-        )
-        -> # input
-        registerA                       = x
-        registerB                       = y
-        ->
-        'x + y = ?, c = ?, o = ?'
-        -> # output
-        registerDestination             = ?
-        registerCarry                   = ?
-        registerOverflow                = ?
-        -> # written
-        r2 = [0, 0];                    value = ?;             bitLength = 8
-        c0 = ['c', 0];                  value = ?;             bitLength = 1
-        o0 = ['o', 0];                  value = ?;             bitLength = 1
-        """
-        
-        for x, y in [(x, y) for x in range(255) for y in range(255)]:
-            with self.subTest(x=x, y=y):
-                z : int = (x + y) & (2**8 - 1)
-                c : int = 1 if (x + y) > (2**8 - 1) else 0
-                o : int = 1 if ((x & 2**(8 - 1) == y & 2**(8 - 1)) and (x & 2**(8 - 1) != z & 2**(8 - 1))) else 0
-
-                MMMU : self.dummyMMMU = self.dummyMMMU()
-                MMMU.createRegister(    0, 0,                                   value = x, bitLength = 8)
-                MMMU.createRegister(    0, 1,                                   value = y, bitLength = 8)
-                MMMU.createRegister(    0, 2,                                   value = 0, bitLength = 8)
-                MMMU.createRegister(    'c', 0,                                 value = 0, bitLength = 1)
-                MMMU.createRegister(    'o', 0,                                 value = 0, bitLength = 1)
-
-                returnValue : None = self.ISA.opAddCarryOverflow(
-                    funcRead                                                    = MMMU.dummyRead,
-                    funcWrite                                                   = MMMU.dummyWrite,
-                    funcGetConfig                                               = MMMU.dummyGetConfig,
-                    registerDestination                                         = [0, 2],
-                    registerA                                                   = [0, 0],
-                    registerB                                                   = [0, 1],
-                    registerCarry                                               = ['c', 0],
-                    registerOverflow                                            = ['o', 0]
-                )
-
-                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
-                    ('read',            0, 0,                                   x),
-                    ('read',            0, 1,                                   y),
-                    ('getConfig',       0, 2,                                   8),
-                    ('write',           0, 2,                                   z),
-                    ('write',           'c', 0,                                 c),
-                    ('write',           'o', 0,                                 o),
-                ]
-
-                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
-
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
-                    (0, 0,              x),                                     # input, no change
-                    (0, 1,              y),                                     # input, no change
-                    (0, 2,              z),                                     # output
-                    ('c', 0,            c),                                     # output
-                    ('o', 0,            o)                                      # output
-                ]
-
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
-
-                self.assertEqual(returnValue, None,
-                    f'\nAssert opAddCarryOverflow return value is None:\nExpected None\nResult {returnValue}')
-                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
-                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
-                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
-
-    def test_opAddCarryOverflow_integration06(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '2, 2, 2, 1, 1' -> '3 + 2 = 1, c = 1, o = 1'
 
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '2, 2, 2, 1, 1' -> '3 + 2 = 1, c = 1, o = 1'
@@ -19697,9 +19774,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            'o', 0,                                 value = 0, bitLength = 1)
 
         returnValue : None = self.ISA.opAddCarryOverflow(
-            funcRead                                                            = MMMU.dummyRead,
-            funcWrite                                                           = MMMU.dummyWrite,
-            funcGetConfig                                                       = MMMU.dummyGetConfig,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
             registerDestination                                                 = [0, 2],
             registerA                                                           = [0, 0],
             registerB                                                           = [0, 1],
@@ -19737,27 +19814,2470 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    #TODO testing on opMultiply
+    def test_opMultiply_Exception_funcReadNotFunction(self):
+        """tests opMultiply raises an exception when funcRead is not a function"""
+        raise NotImplementedError
 
-    #TODO testing on opTwosCompliment
+    def test_opMultiply_Exception_funcWriteNotFunction(self):
+        """tests opMultiply raises an exception when funcWrite is not a function"""
+        raise NotImplementedError
 
-    #TODO testing on opAND
+    def test_opMultiply_Exception_funcGetConfigNotFunction(self):
+        """tests opMultiply raises an exception when funcGetConfig is not a function"""
+        raise NotImplementedError
 
-    #TODO testing on opOR
+    def test_opMultiply_Exception_registerDestinationNotRegister(self):
+        """tests opMultiply raises an exception when registerDestination is not a register"""
+        raise NotImplementedError
 
-    #TODO testing on opXOR
+    def test_opMultiply_Exception_registerANotRegister(self):
+        """tests opMultiply raises an exception when registerA is not a register"""
+        raise NotImplementedError
 
-    #TODO testing on opNOT
+    def test_opMultiply_Exception_registerBNotRegister(self):
+        """tests opMultiply raises an exception when registerB is not a register"""
+        raise NotImplementedError
+
+    def test_opMultiply_Exception_registerDestinationNotInMMMU(self):
+        """tests opMultiply raises an exception when registerDestination is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opMultiply_Exception_registerANotInMMMU(self):
+        """tests opMultiply raises an exception when registerA is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opMultiply_Exception_registerBNotInMMMU(self):
+        """tests opMultiply raises an exception when registerB is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opMultiply_singleRegister01(self):
+        """tests opMultiply on 'r0 * r0 = r0' with bitLength '1, 1, 1' -> '0 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_singleRegister02(self):
+        """tests opMultiply on 'r0 * r0 = r0' with bitLength '1, 1, 1' -> '1 * 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opMultiply_multiRegister01(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '0 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_multiRegister02(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '0 * 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_multiRegister03(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '1 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_multiRegister04(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '1 * 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength01A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '0 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength01B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '0 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength01C(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '0 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength02A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '0 * 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength02B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '0 * 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength02C(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '0 * 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength03A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '1 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength03B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '1 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength03C(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '1 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength04A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '1 * 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength04B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '1 * 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opMultiply_variableBitLength04C(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '1 * 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterIndex01(self):
+        """tests opMultiply on 'r1024 * r1 = r2' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterIndex02(self):
+        """tests opMultiply on 'r0 * r1024 = r2' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterIndex03(self):
+        """tests opMultiply on 'r0 * r1 = r1024' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize01A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '0 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize01B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '0 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize01C(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '0 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize02A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '0 * 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize02B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '0 * 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize02C(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '0 * 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize03A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '1 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize03B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '1 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize03C(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '1 * 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize04A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '1 * 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize04B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '1 * 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize04C(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '1 * 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize05A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 8, 8' -> '0x80 * 0x80 = 0x00'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize05B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1024, 8' -> '0x80 * 0x80 = 0x00'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize05C(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 1024' -> '0x80 * 0x80 = 0x04000'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize06A(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 8, 8' -> '0xffff... * 0xff = 0x01'"""
+        raise NotImplementedError
+
+    def test_opMultiply_largeRegisterSize06B(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**18) * 2**(2**18) = (2**(2**19))'"""
+        raise NotImplementedError
+
+    def test_opMultiply_zfighting01(self):
+        """tests opMultiply on 'r0 * r0 = r0' with bitLength '8, 8, 8' -> '0x08 * 0x08 = 0x40'"""
+        raise NotImplementedError
+
+    def test_opMultiply_inputBitPattern1BitSweep01(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) * (1 << y) = 2**(x + y)' for x in range(8) for y in range(8)]"""
+        raise NotImplementedError
+
+    def test_opMultiply_inputBitPattern1BitSweep02(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) * (1 << y) = 2**(x + y)' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opMultiply_inputBitPattern1BitSweep03(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) * (1 << y) = 2**(x + y)' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opMultiply_inputBitPatternCheckerboardConstructive01(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... * 0b1010... = ?'"""
+        raise NotImplementedError
+
+    def test_opMultiply_inputBitPatternCheckerboardConstructive02(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... * 0b0101... = ?'"""
+        raise NotImplementedError
+
+    def test_opMultiply_inputBitPatternCheckerboardDestructive01(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... * 0b0101... = ?'"""
+        raise NotImplementedError
+
+    def test_opMultiply_inputBitPatternCheckerboardDestructive02(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... * 0b1010... = ?'"""
+        raise NotImplementedError
+
+    def test_opMultiply_bitpattern8bit4Overlap(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0xfc * 0x3f = 0x3e04'"""
+        raise NotImplementedError
+
+    def test_opMultiply_8bitFullCombination01(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> ['x * y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+    
+    def test_opMultiply_8bitFullCombination02(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 18' -> ['x * y = x * y' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opMultiply_integration01(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> '0x08 * 0x08 = 0x40'"""
+        raise NotImplementedError
+
+    def test_opMultiply_integration02(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0x80 * 0x80 = 2**7 * 2**7 = 2**14'"""
+        raise NotImplementedError
+
+    def test_opMultiply_integration03(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '16, 16, 8' -> '0x80 * 0x80 = 2**7 * 2**7 = 0'"""
+        raise NotImplementedError
+
+    def test_opMultiply_integration04(self):
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0xff * 0xff = fe01'"""
+        raise NotImplementedError
+
+    #TODO testing on opMultiply_signedMultiElement
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def test_opTwosCompliment_Exception_funcReadNotFunction(self):
+        """tests opTwosCompliment raises an exception when funcRead is not a function"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_Exception_funcWriteNotFunction(self):
+        """tests opTwosCompliment raises an exception when funcWrite is not a function"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_Exception_funcGetConfigNotFunction(self):
+        """tests opTwosCompliment raises an exception when funcGetConfig is not a function"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_Exception_registerDestinationNotRegister(self):
+        """tests opTwosCompliment raises an exception when registerDestination is not a register"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_Exception_registerANotRegister(self):
+        """tests opTwosCompliment raises an exception when registerA is not a register"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_Exception_registerDestinationNotInMMMU(self):
+        """tests opTwosCompliment raises an exception when registerDestination is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_Exception_registerANotInMMMU(self):
+        """tests opTwosCompliment raises an exception when registerA is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_singleRegister01(self):
+        """tests opTwosCompliment on 'Twos r0 = r0' with bitLength '1, 1' -> 'Twos 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_singleRegister02(self):
+        """tests opTwosCompliment on 'Twos r0 = r0' with bitLength '1, 1' -> 'Twos 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_multiRegister01(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1' -> 'Twos 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_multiRegister02(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1' -> 'Twos 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_variableBitLength01A(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 1' -> 'Twos 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_variableBitLength01B(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 8' -> 'Twos 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_variableBitLength02A(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 1' -> 'Twos 0xff = 1'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_variableBitLength02B(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 8' -> 'Twos 1 = 0xff'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterIndex01(self):
+        """tests opTwosCompliment on 'Twos r1024 = r1' with bitLength '8, 8' -> 'Twos 0x0f = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterIndex02(self):
+        """tests opTwosCompliment on 'Twos r0 = r1024' with bitLength '8, 8' -> 'Twos 0x0f = 0xffff...f0'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterSize01A(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1024, 1' -> 'Twos 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterSize01B(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1024' -> 'Twos 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterSize02A(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1024, 1' -> 'Twos 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterSize02B(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1024' -> 'Twos 1 = 0xffff...ff'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterSize03A(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 1' -> 'Twos 0xffff... = 1'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterSize03B(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 2**20' -> 'Twos 1 = 0xffff...'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterSize04A(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 0xffff... = 1'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_largeRegisterSize04B(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 1 = 0xffff...'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_inputBitPattern1BitSweep01(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> ['Twos (1 << x) = ?' for x in range(8)]"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_inputBitPattern1BitSweep02(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '512, 512' -> ['Twos (1 << x) = ?' for x in range(512)]"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_inputBitPattern1BitSweep03(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '512, 2048' -> ['Twos (1 << x) = ?' for x in range(512)]"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_inputBitPatternCheckerboard01(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2048, 2048' -> 'Twos 0b1010... = ?'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_inputBitPatternCheckerboard02(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2048, 2048' -> 'Twos 0b0101... = ?'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_8bitFullCombination(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> ['Twos x = ?' for x in range(255)]"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_integration01(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_integration02(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 1 = 0xff'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_integration03(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0xf0 = 0x10'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_integration04(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0x02 = 0xfe'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_integration05(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 4' -> 'Twos 0xfe = 0x2'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_integration06(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '4, 8' -> 'Twos 0x1 = 0xff'"""
+        raise NotImplementedError
+
+    def test_opTwosCompliment_integration07(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '4, 8' -> 'Twos 0x4 = 0x04'"""
+        raise NotImplementedError
+
+    def test_opAND_Exception_funcReadNotFunction(self):
+        """tests opAND raises an exception when funcRead is not a function"""
+        raise NotImplementedError
+
+    def test_opAND_Exception_funcWriteNotFunction(self):
+        """tests opAND raises an exception when funcWrite is not a function"""
+        raise NotImplementedError
+
+    def test_opAND_Exception_funcGetConfigNotFunction(self):
+        """tests opAND raises an exception when funcGetConfig is not a function"""
+        raise NotImplementedError
+
+    def test_opAND_Exception_registerDestinationNotRegister(self):
+        """tests opAND raises an exception when registerDestination is not a register"""
+        raise NotImplementedError
+
+    def test_opAND_Exception_registerANotRegister(self):
+        """tests opAND raises an exception when registerA is not a register"""
+        raise NotImplementedError
+
+    def test_opAND_Exception_registerBNotRegister(self):
+        """tests opAND raises an exception when registerB is not a register"""
+        raise NotImplementedError
+
+    def test_opAND_Exception_registerDestinationNotInMMMU(self):
+        """tests opAND raises an exception when registerDestination is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opAND_Exception_registerANotInMMMU(self):
+        """tests opAND raises an exception when registerA is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opAND_Exception_registerBNotInMMMU(self):
+        """tests opAND raises an exception when registerB is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opAND_singleRegister01(self):
+        """tests opAND on 'r0 & r0 = r0' with bitLength '1, 1, 1' -> '0 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_singleRegister02(self):
+        """tests opAND on 'r0 & r0 = r0' with bitLength '1, 1, 1' -> '1 & 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opAND_multiRegister01(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '0 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_multiRegister02(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '0 & 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_multiRegister03(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '1 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_multiRegister04(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '1 & 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength01A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 1, 1' -> '0 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength01B(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 8, 1' -> '0 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength01C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 8' -> '0 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength02A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 1, 1' -> '0 & 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength02B(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 8, 1' -> '0 & 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength02C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 8' -> '0 & 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength03A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 1, 1' -> '1 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength03B(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 8, 1' -> '1 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength03C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 8' -> '1 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength04A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 1, 1' -> '1 & 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength04B(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 8, 1' -> '1 & 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opAND_variableBitLength04C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 8' -> '1 & 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterIndex01(self):
+        """tests opAND on 'r1024 & r1 = r2' with bitLength '8, 8, 8' -> '0xff & 0x0f = 0x0f'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterIndex02(self):
+        """tests opAND on 'r0 & r1024 = r2' with bitLength '8, 8, 8' -> '0xff & 0x0f = 0x0f'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterIndex03(self):
+        """tests opAND on 'r0 & r1 = r1024' with bitLength '8, 8, 8' -> '0xff & 0x0f = 0x0f'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize01A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1024, 1, 1' -> '0 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize01B(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1024, 1' -> '0 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize01C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1024' -> '0 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize02A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1024, 1, 1' -> '0 & 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize02B(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1024, 1' -> '0 & 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize02C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1024' -> '0 & 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize03A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1024, 1, 1' -> '1 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize03B(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1024, 1' -> '1 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize03C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1024' -> '1 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize04A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1024, 1, 1' -> '1 & 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize04B(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1024, 1' -> '1 & 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize04C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1024' -> '1 & 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize05A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1024, 8, 8' -> '0xff & 0x0f = 0x0f'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize05B(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 1024, 8' -> '0xff & 0x0f = 0x0f'"""
+        raise NotImplementedError
+
+    def test_opAND_largeRegisterSize05C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 1024' -> '0xff & 0x0f = 0x0f'"""
+        raise NotImplementedError
+
+    def test_opAND_zfighting01(self):
+        """tests opAND on 'r0 & r0 = r0' with bitLength '8, 8, 8' -> '0xff & 0xff = 0xff'"""
+        raise NotImplementedError
+
+    def test_opAND_inputBitPattern1BitSweep01(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) & (1 << y) = ?' for x in range(8) for y in range(8)]"""
+        raise NotImplementedError
+
+    def test_opAND_inputBitPattern1BitSweep02(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) & (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opAND_inputBitPattern1BitSweep03(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) & (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opAND_inputBitPatternCheckerboardConstructive01(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... & 0b1010... = 0b1010...'"""
+        raise NotImplementedError
+
+    def test_opAND_inputBitPatternCheckerboardConstructive02(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... & 0b0101... = 0b0101...'"""
+        raise NotImplementedError
+
+    def test_opAND_inputBitPatternCheckerboardDestructive01(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... & 0b0101... = 0b0000...'"""
+        raise NotImplementedError
+
+    def test_opAND_inputBitPatternCheckerboardDestructive02(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... & 0b1010... = 0b0000...'"""
+        raise NotImplementedError
+
+    def test_opAND_bitpattern8bit4Overlap(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> '0xfc & 0x3f = 0x3c'"""
+        raise NotImplementedError
+
+    def test_opAND_8bitFullCombination(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> ['x & y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opAND_integration01(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> '0 & 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_integration02(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> '1 & 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opAND_integration03(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> '0x0f & 0xf0 = 0'"""
+        raise NotImplementedError
+
+    def test_opAND_integration04(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> '0x03 & 0x02 = 0x02'"""
+        raise NotImplementedError
+
+    def test_opOR_Exception_funcReadNotFunction(self):
+        """tests opOR raises an exception when funcRead is not a function"""
+        raise NotImplementedError
+
+    def test_opOR_Exception_funcWriteNotFunction(self):
+        """tests opOR raises an exception when funcWrite is not a function"""
+        raise NotImplementedError
+
+    def test_opOR_Exception_funcGetConfigNotFunction(self):
+        """tests opOR raises an exception when funcGetConfig is not a function"""
+        raise NotImplementedError
+
+    def test_opOR_Exception_registerDestinationNotRegister(self):
+        """tests opOR raises an exception when registerDestination is not a register"""
+        raise NotImplementedError
+
+    def test_opOR_Exception_registerANotRegister(self):
+        """tests opOR raises an exception when registerA is not a register"""
+        raise NotImplementedError
+
+    def test_opOR_Exception_registerBNotRegister(self):
+        """tests opOR raises an exception when registerB is not a register"""
+        raise NotImplementedError
+
+    def test_opOR_Exception_registerDestinationNotInMMMU(self):
+        """tests opOR raises an exception when registerDestination is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opOR_Exception_registerANotInMMMU(self):
+        """tests opOR raises an exception when registerA is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opOR_Exception_registerBNotInMMMU(self):
+        """tests opOR raises an exception when registerB is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opOR_singleRegister01(self):
+        """tests opOR on 'r0 | r0 = r0' with bitLength '1, 1, 1' -> '0 | 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opOR_singleRegister02(self):
+        """tests opOR on 'r0 | r0 = r0' with bitLength '1, 1, 1' -> '1 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_multiRegister01(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 1' -> '0 | 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opOR_multiRegister02(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 1' -> '0 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_multiRegister03(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 1' -> '1 | 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_multiRegister04(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 1' -> '1 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength01A(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 1, 1' -> '0 | 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength01B(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 8, 1' -> '0 | 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength01C(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 8' -> '0 | 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength02A(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 1, 1' -> '0 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength02B(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 8, 1' -> '0 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength02C(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 8' -> '0 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength03A(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 1, 1' -> '1 | 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength03B(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 8, 1' -> '1 | 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength03C(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 8' -> '1 | 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength04A(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 1, 1' -> '1 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength04B(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 8, 1' -> '1 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_variableBitLength04C(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 8' -> '1 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterIndex01(self):
+        """tests opOR on 'r1024 | r1 = r2' with bitLength '8, 8, 8' -> '0xff | 0x0f = 0xff'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterIndex02(self):
+        """tests opOR on 'r0 | r1024 = r2' with bitLength '8, 8, 8' -> '0xff | 0x0f = 0xff'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterIndex03(self):
+        """tests opOR on 'r0 | r1 = r1024' with bitLength '8, 8, 8' -> '0xff | 0x0f = 0xff'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize01A(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1024, 1, 1' -> '0 | 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize01B(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1024, 1' -> '0 | 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize01C(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 1024' -> '0 | 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize02A(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1024, 1, 1' -> '0 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize02B(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1024, 1' -> '0 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize02C(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 1024' -> '0 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize03A(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1024, 1, 1' -> '1 | 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize03B(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1024, 1' -> '1 | 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize03C(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 1024' -> '1 | 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize04A(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1024, 1, 1' -> '1 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize04B(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1024, 1' -> '1 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize04C(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1, 1, 1024' -> '1 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize05A(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '1024, 8, 8' -> '0xff | 0x0f = 0xff'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize05B(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 1024, 8' -> '0xff | 0x0f = 0xff'"""
+        raise NotImplementedError
+
+    def test_opOR_largeRegisterSize05C(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 8, 1024' -> '0xff | 0x0f = 0xff'"""
+        raise NotImplementedError
+
+    def test_opOR_zfighting01(self):
+        """tests opOR on 'r0 | r0 = r0' with bitLength '8, 8, 8' -> '0xff | 0xff = 0xff'"""
+        raise NotImplementedError
+
+    def test_opOR_inputBitPattern1BitSweep01(self):
+        """tests opAddCarryOverflow on 'r0 | r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) | (1 << y) = ?' for x in range(8) for y in range(8)]"""
+        raise NotImplementedError
+
+    def test_opOR_inputBitPattern1BitSweep02(self):
+        """tests opAddCarryOverflow on 'r0 | r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) | (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opOR_inputBitPattern1BitSweep03(self):
+        """tests opAddCarryOverflow on 'r0 | r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) | (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opOR_inputBitPatternCheckerboardConstructive01(self):
+        """tests opAddCarryOverflow on 'r0 | r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... | 0b1010... = 0b1010...'"""
+        raise NotImplementedError
+
+    def test_opOR_inputBitPatternCheckerboardConstructive02(self):
+        """tests opAddCarryOverflow on 'r0 | r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... | 0b0101... = 0b0101...'"""
+        raise NotImplementedError
+
+    def test_opOR_inputBitPatternCheckerboardDestructive01(self):
+        """tests opAddCarryOverflow on 'r0 | r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... | 0b0101... = 0b1111...'"""
+        raise NotImplementedError
+
+    def test_opOR_inputBitPatternCheckerboardDestructive02(self):
+        """tests opAddCarryOverflow on 'r0 | r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... | 0b1010... = 0b1111...'"""
+        raise NotImplementedError
+
+    def test_opOR_bitpattern8bit4Overlap(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 8, 8' -> '0xfc | 0x3f = 0xff'"""
+        raise NotImplementedError
+
+    def test_opOR_8bitFullCombination(self):
+        """tests opAddCarryOverflow on 'r0 | r1 = r2' with bitLength '8, 8, 8' -> ['x | y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opOR_integration01(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 8, 8' -> '0 | 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opOR_integration02(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 8, 8' -> '1 | 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opOR_integration03(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 8, 8' -> '0x0f | 0xf0 = 0xff'"""
+        raise NotImplementedError
+
+    def test_opOR_integration04(self):
+        """tests opOR on 'r0 | r1 = r2' with bitLength '8, 8, 8' -> '0x03 | 0x02 = 0x03'"""
+        raise NotImplementedError
+
+    def test_opXOR_Exception_funcReadNotFunction(self):
+        """tests opXOR raises an exception when funcRead is not a function"""
+        raise NotImplementedError
+
+    def test_opXOR_Exception_funcWriteNotFunction(self):
+        """tests opXOR raises an exception when funcWrite is not a function"""
+        raise NotImplementedError
+
+    def test_opXOR_Exception_funcGetConfigNotFunction(self):
+        """tests opXOR raises an exception when funcGetConfig is not a function"""
+        raise NotImplementedError
+
+    def test_opXOR_Exception_registerDestinationNotRegister(self):
+        """tests opXOR raises an exception when registerDestination is not a register"""
+        raise NotImplementedError
+
+    def test_opXOR_Exception_registerANotRegister(self):
+        """tests opXOR raises an exception when registerA is not a register"""
+        raise NotImplementedError
+
+    def test_opXOR_Exception_registerBNotRegister(self):
+        """tests opXOR raises an exception when registerB is not a register"""
+        raise NotImplementedError
+
+    def test_opXOR_Exception_registerDestinationNotInMMMU(self):
+        """tests opXOR raises an exception when registerDestination is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opXOR_Exception_registerANotInMMMU(self):
+        """tests opXOR raises an exception when registerA is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opXOR_Exception_registerBNotInMMMU(self):
+        """tests opXOR raises an exception when registerB is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opXOR_singleRegister01(self):
+        """tests opXOR on 'r0 ^ r0 = r0' with bitLength '1, 1, 1' -> '0 ^ 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_singleRegister02(self):
+        """tests opXOR on 'r0 ^ r0 = r0' with bitLength '1, 1, 1' -> '1 ^ 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_multiRegister01(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 1' -> '0 ^ 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_multiRegister02(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 1' -> '0 ^ 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_multiRegister03(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 1' -> '1 ^ 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_multiRegister04(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 1' -> '1 ^ 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength01A(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 1, 1' -> '0 ^ 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength01B(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 8, 1' -> '0 ^ 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength01C(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 8' -> '0 ^ 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength02A(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 1, 1' -> '0 ^ 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength02B(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 8, 1' -> '0 ^ 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength02C(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 8' -> '0 ^ 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength03A(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 1, 1' -> '1 ^ 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength03B(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 8, 1' -> '1 ^ 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength03C(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 8' -> '1 ^ 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength04A(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 1, 1' -> '1 ^ 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength04B(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 8, 1' -> '1 ^ 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_variableBitLength04C(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 8' -> '1 ^ 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterIndex01(self):
+        """tests opXOR on 'r1024 ^ r1 = r2' with bitLength '8, 8, 8' -> '0xff ^ 0x0f = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterIndex02(self):
+        """tests opXOR on 'r0 ^ r1024 = r2' with bitLength '8, 8, 8' -> '0xff ^ 0x0f = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterIndex03(self):
+        """tests opXOR on 'r0 ^ r1 = r1024' with bitLength '8, 8, 8' -> '0xff ^ 0x0f = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize01A(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1024, 1, 1' -> '0 ^ 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize01B(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1024, 1' -> '0 ^ 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize01C(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 1024' -> '0 ^ 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize02A(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1024, 1, 1' -> '0 ^ 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize02B(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1024, 1' -> '0 ^ 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize02C(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 1024' -> '0 ^ 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize03A(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1024, 1, 1' -> '1 ^ 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize03B(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1024, 1' -> '1 ^ 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize03C(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 1024' -> '1 ^ 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize04A(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1024, 1, 1' -> '1 ^ 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize04B(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1024, 1' -> '1 ^ 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize04C(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1, 1, 1024' -> '1 ^ 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize05A(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '1024, 8, 8' -> '0xff ^ 0x0f = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize05B(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 1024, 8' -> '0xff ^ 0x0f = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opXOR_largeRegisterSize05C(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 8, 1024' -> '0xff ^ 0x0f = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opXOR_zfighting01(self):
+        """tests opXOR on 'r0 ^ r0 = r0' with bitLength '8, 8, 8' -> '0xff ^ 0xff = 0x00'"""
+        raise NotImplementedError
+
+    def test_opXOR_inputBitPattern1BitSweep01(self):
+        """tests opAddCarryOverflow on 'r0 ^ r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) ^ (1 << y) = ?' for x in range(8) for y in range(8)]"""
+        raise NotImplementedError
+
+    def test_opXOR_inputBitPattern1BitSweep02(self):
+        """tests opAddCarryOverflow on 'r0 ^ r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) ^ (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opXOR_inputBitPattern1BitSweep03(self):
+        """tests opAddCarryOverflow on 'r0 ^ r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) ^ (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opXOR_inputBitPatternCheckerboardConstructive01(self):
+        """tests opAddCarryOverflow on 'r0 ^ r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... ^ 0b1010... = 0b0000...'"""
+        raise NotImplementedError
+
+    def test_opXOR_inputBitPatternCheckerboardConstructive02(self):
+        """tests opAddCarryOverflow on 'r0 ^ r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... ^ 0b0101... = 0b0000...'"""
+        raise NotImplementedError
+
+    def test_opXOR_inputBitPatternCheckerboardDestructive01(self):
+        """tests opAddCarryOverflow on 'r0 ^ r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... ^ 0b0101... = 0b1111...'"""
+        raise NotImplementedError
+
+    def test_opXOR_inputBitPatternCheckerboardDestructive02(self):
+        """tests opAddCarryOverflow on 'r0 ^ r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... ^ 0b1010... = 0b1111...'"""
+        raise NotImplementedError
+
+    def test_opXOR_bitpattern8bit4Overlap(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 8, 8' -> '0xfc ^ 0x3f = 0xc3'"""
+        raise NotImplementedError
+
+    def test_opXOR_8bitFullCombination(self):
+        """tests opAddCarryOverflow on 'r0 ^ r1 = r2' with bitLength '8, 8, 8' -> ['x ^ y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opXOR_integration01(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 8, 8' -> '0 ^ 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_integration02(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 8, 8' -> '1 ^ 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opXOR_integration03(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 8, 8' -> '0x0f ^ 0xf0 = 0xff'"""
+        raise NotImplementedError
+
+    def test_opXOR_integration04(self):
+        """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 8, 8' -> '0x03 ^ 0x02 = 0x01'"""
+        raise NotImplementedError
+
+    def test_opNOT_Exception_funcReadNotFunction(self):
+        """tests opNOT raises an exception when funcRead is not a function"""
+        raise NotImplementedError
+
+    def test_opNOT_Exception_funcWriteNotFunction(self):
+        """tests opNOT raises an exception when funcWrite is not a function"""
+        raise NotImplementedError
+
+    def test_opNOT_Exception_funcGetConfigNotFunction(self):
+        """tests opNOT raises an exception when funcGetConfig is not a function"""
+        raise NotImplementedError
+
+    def test_opNOT_Exception_registerDestinationNotRegister(self):
+        """tests opNOT raises an exception when registerDestination is not a register"""
+        raise NotImplementedError
+
+    def test_opNOT_Exception_registerANotRegister(self):
+        """tests opNOT raises an exception when registerA is not a register"""
+        raise NotImplementedError
+
+    def test_opNOT_Exception_registerDestinationNotInMMMU(self):
+        """tests opNOT raises an exception when registerDestination is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opNOT_Exception_registerANotInMMMU(self):
+        """tests opNOT raises an exception when registerA is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opNOT_singleRegister01(self):
+        """tests opNOT on '! r0 = r0' with bitLength '1, 1' -> '! 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opNOT_singleRegister02(self):
+        """tests opNOT on '! r0 = r0' with bitLength '1, 1' -> '! 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opNOT_multiRegister01(self):
+        """tests opNOT on '! r0 = r1' with bitLength '1, 1' -> '! 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opNOT_multiRegister02(self):
+        """tests opNOT on '! r0 = r1' with bitLength '1, 1' -> '! 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opNOT_variableBitLength01A(self):
+        """tests opNOT on '! r0 = r1' with bitLength '8, 1' -> '! 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opNOT_variableBitLength01B(self):
+        """tests opNOT on '! r0 = r1' with bitLength '1, 8' -> '! 0 = 0xff'"""
+        raise NotImplementedError
+
+    def test_opNOT_variableBitLength02A(self):
+        """tests opNOT on '! r0 = r1' with bitLength '8, 1' -> '! 0xff = 0'"""
+        raise NotImplementedError
+
+    def test_opNOT_variableBitLength02B(self):
+        """tests opNOT on '! r0 = r1' with bitLength '1, 8' -> '! 1 = 0xfe'"""
+        raise NotImplementedError
+
+    def test_opNOT_largeRegisterIndex01(self):
+        """tests opNOT on '! r1024 = r1' with bitLength '8, 8' -> '! 0x0f = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opNOT_largeRegisterIndex02(self):
+        """tests opNOT on '! r0 = r1024' with bitLength '8, 8' -> '! 0x0f = 0xffff...f0'"""
+        raise NotImplementedError
+
+    def test_opNOT_largeRegisterSize01A(self):
+        """tests opNOT on '! r0 = r1' with bitLength '1024, 1' -> '! 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opNOT_largeRegisterSize01B(self):
+        """tests opNOT on '! r0 = r1' with bitLength '1, 1024' -> '! 0 = 0xffff...'"""
+        raise NotImplementedError
+
+    def test_opNOT_largeRegisterSize02A(self):
+        """tests opNOT on '! r0 = r1' with bitLength '1024, 1' -> '! 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opNOT_largeRegisterSize02B(self):
+        """tests opNOT on '! r0 = r1' with bitLength '1, 1024' -> '! 1 = 0xffff...fe'"""
+        raise NotImplementedError
+
+    def test_opNOT_inputBitPattern1BitSweep01(self):
+        """tests opNOT on '! r0 = r1' with bitLength '8, 8' -> ['! (1 << x) = ?' for x in range(8)]"""
+        raise NotImplementedError
+
+    def test_opNOT_inputBitPattern1BitSweep02(self):
+        """tests opNOT on '! r0 = r1' with bitLength '512, 512' -> ['! (1 << x) = ?' for x in range(512)]"""
+        raise NotImplementedError
+
+    def test_opNOT_inputBitPattern1BitSweep03(self):
+        """tests opNOT on '! r0 = r1' with bitLength '512, 2048' -> ['! (1 << x) = ?' for x in range(512)]"""
+        raise NotImplementedError
+
+    def test_opNOT_inputBitPatternCheckerboard01(self):
+        """tests opNOT on '! r0 = r1' with bitLength '2048, 2048' -> '! 0b1010... = 0b0101...'"""
+        raise NotImplementedError
+
+    def test_opNOT_inputBitPatternCheckerboard02(self):
+        """tests opNOT on '! r0 = r1' with bitLength '2048, 2048' -> '! 0b0101... = 0b1010...'"""
+        raise NotImplementedError
+
+    def test_opNOT_8bitFullCombination(self):
+        """tests opNOT on '! r0 = r1' with bitLength '8, 8' -> ['! x = ?' for x in range(255)]"""
+        raise NotImplementedError
+
+    def test_opNOT_integration01(self):
+        """tests opNOT on '! r0 = r1' with bitLength '8, 8' -> '! 0 = 0xff'"""
+        raise NotImplementedError
+
+    def test_opNOT_integration02(self):
+        """tests opNOT on '! r0 = r1' with bitLength '8, 8' -> '! 1 = 0xfe'"""
+        raise NotImplementedError
+
+    def test_opNOT_integration03(self):
+        """tests opNOT on '! r0 = r1' with bitLength '8, 8' -> '! 0xf0 = 0x0f'"""
+        raise NotImplementedError
+
+    def test_opNOT_integration04(self):
+        """tests opNOT on '! r0 = r1' with bitLength '8, 8' -> '! 0x02 = 0xfd'"""
+        raise NotImplementedError
+
+    def test_opNot_integration05(self):
+        """tests opNOT on '! r0 = r1' with bitLength '8, 4' -> '! 0xfe = 0x1'"""
+        raise NotImplementedError
+
+    def test_opNot_integration06(self):
+        """tests opNOT on '! r0 = r1' with bitLength '4, 8' -> '! 0x01 = 0x0f'"""
+        raise NotImplementedError
 
     #TODO testing on opJump
 
-    #TODO testing on opShiftL
+    def test_opShiftL_Exception_funcReadNotFunction(self):
+        """tests opShiftL raises an exception when funcRead is not a function"""
+        raise NotImplementedError
 
-    #TODO testing on opShiftR
+    def test_opShiftL_Exception_funcWriteNotFunction(self):
+        """tests opShiftL raises an exception when funcWrite is not a function"""
+        raise NotImplementedError
 
-    #TODO testing on opRotate
+    def test_opShiftL_Exception_funcGetConfigNotFunction(self):
+        """tests opShiftL raises an exception when funcGetConfig is not a function"""
+        raise NotImplementedError
 
+    def test_opShiftL_Exception_registerDestinationNotRegister(self):
+        """tests opShiftL raises an exception when registerDestination is not a register"""
+        raise NotImplementedError
+
+    def test_opShiftL_Exception_registerANotRegister(self):
+        """tests opShiftL raises an exception when registerA is not a register"""
+        raise NotImplementedError
+
+    def test_opShiftL_Exception_registerShiftOffsetNotRegister(self):
+        """tests opShiftL raises an exception when registerShiftOffset is not a register"""
+        raise NotImplementedError
+
+    def test_opShiftL_Exception_registerDestinationNotInMMMU(self):
+        """tests opShiftL raises an exception when registerDestination is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opShiftL_Exception_registerANotInMMMU(self):
+        """tests opShiftL raises an exception when registerA is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opShiftL_Exception_registerShiftOffsetNotInMMMU(self):
+        """tests opShiftL raises an exception when registerShiftOffset is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opShiftL_singleRegister01(self):
+        """tests opShiftL on 'r0 << r0 = r0' with bitLength '1, 1, 1' -> '0 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_singleRegister02(self):
+        """tests opShiftL on 'r0 << r0 = r0' with bitLength '8, 8, 8' -> '1 << 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opShiftL_singleRegister03(self):
+        """tests opShiftL on 'r0 << r0 = r0' with bitLength '8, 8, 8' -> '2 << 2 = 8'"""
+        raise NotImplementedError
+
+    def test_opShiftL_singleRegister04(self):
+        """tests opShiftL on 'r0 << r0 = r0' with bitLength '8, 8, 8' -> '3 << 3 = 24'"""
+        raise NotImplementedError
+
+    def test_opShiftL_multiRegister01(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 1' -> '0 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_multiRegister02(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 1' -> '0 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_multiRegister03(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 1' -> '1 << 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftL_multiRegister04(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 1' -> '1 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_multiRegister05(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 8' -> '1 << 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength01A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 1, 1' -> '0 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength01B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 8, 1' -> '0 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength01C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 8' -> '0 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength02A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 1, 1' -> '0 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength02B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 8, 1' -> '0 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength02C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 8' -> '0 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength03A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 1, 1' -> '1 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength03B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 8, 1' -> '1 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength03C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 8' -> '1 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength04A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 1, 1' -> '1 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength04B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 8, 1' -> '1 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_variableBitLength04C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 8' -> '1 << 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterIndex01(self):
+        """tests opShiftL on 'r1024 << r1 = r2' with bitLength '8, 8, 8' -> '0x0f << 0x04 = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterIndex02(self):
+        """tests opShiftL on 'r0 << r1024 = r2' with bitLength '8, 8, 8' -> '0x0f << 0x04 = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterIndex03(self):
+        """tests opShiftL on 'r0 << r1 = r1024' with bitLength '8, 8, 8' -> '0x0f << 0x04 = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize01A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1024, 1, 1' -> '0 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize01B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1024, 1' -> '0 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize01C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 1024' -> '0 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize02A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1024, 1, 1' -> '0 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize02B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1024, 1' -> '0 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize02C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 1024' -> '0 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize03A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1024, 1, 1' -> '1 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize03B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1024, 1' -> '1 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize03C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 1024' -> '1 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize04A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1024, 1, 1' -> '1 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize04B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1024, 1' -> '1 << 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize04C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1, 1024' -> '1 << 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize05A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1024, 8, 8' -> '0xff << 1 = 0xfe'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize05B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 1024, 8' -> '0xff << 0xff = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize05C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 1024' -> '0xff << 0xff = ?'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize06A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1024, 1024, 2**20' -> '1 << 0xff = 2**0xff'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize06B(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1024, 1024, 2**20' -> '1 << 0xffff = 2**0xffff'"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize06C(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1024, 1024, 2**20' -> '3 << 0xffff = 2**0xffff + 2**0x10000"""
+        raise NotImplementedError
+
+    def test_opShiftL_largeRegisterSize07A(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1024, 1024, 2**20' -> '1 << 2**18 = 2**(2**19)"""
+        raise NotImplementedError
+
+    def test_opShiftL_zfighting01(self):
+        """tests opShiftL on 'r0 << r0 = r0' with bitLength '8, 8, 8' -> '2 << 2 = 8'"""
+        raise NotImplementedError
+
+    def test_opShiftL_inputBitPattern1BitSweep01(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) << (1 << y) = ?' for x in range(8) for y in range(8)]"""
+        raise NotImplementedError
+
+    def test_opShiftL_inputBitPattern1BitSweep02(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) << (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opShiftL_inputBitPattern1BitSweep03(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) << (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opShiftL_inputBitPatternCheckerboardConstructive01(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... << 0b1010... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_inputBitPatternCheckerboardConstructive02(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... << 0b0101... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_inputBitPatternCheckerboardDestructive01(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... << 0b0101... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_inputBitPatternCheckerboardDestructive02(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... << 0b1010... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_bitpattern8bit4Overlap(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 8' -> '0xfc << 0x3f = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_8bitFullCombination01(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 8' -> ['x << y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opShiftL_8bitFullCombination02(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 1024' -> ['x << y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opShiftL_integration01(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 8' -> '0 << 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_integration02(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 8' -> '1 << 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opShiftL_integration03(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 8' -> '1 << 7 = 128'"""
+        raise NotImplementedError
+
+    def test_opShiftL_integration04(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 8' -> '1 << 8 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftL_integration05(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '8, 8, 8' -> '0xff << 7 = 128'"""
+        raise NotImplementedError
+
+    def test_opShiftL_integration06(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1024, 2**20' -> '1 << 2**20 - 1 = 0x8000...'"""
+        raise NotImplementedError
+
+    def test_opShiftL_integration07(self):
+        """tests opShiftL on 'r0 << r1 = r2' with bitLength '1, 1024, 2**20' -> '1 << 2**20 = 0x0000...'"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_funcReadNotFunction(self):
+        """tests opShiftR raises an exception when funcRead is not a function"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_funcWriteNotFunction(self):
+        """tests opShiftR raises an exception when funcWrite is not a function"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_funcGetConfigNotFunction(self):
+        """tests opShiftR raises an exception when funcGetConfig is not a function"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_registerDestinationNotRegister(self):
+        """tests opShiftR raises an exception when registerDestination is not a register"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_registerANotRegister(self):
+        """tests opShiftR raises an exception when registerA is not a register"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_registerShiftOffsetNotRegister(self):
+        """tests opShiftR raises an exception when registerShiftOffset is not a register"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_arithmeticNotBool(self):
+        """tests opShiftR raises an exception when arithmetic is not a bool"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_registerDestinationNotInMMMU(self):
+        """tests opShiftR raises an exception when registerDestination is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_registerANotInMMMU(self):
+        """tests opShiftR raises an exception when registerA is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opShiftR_Exception_registerShiftOffsetNotInMMMU(self):
+        """tests opShiftR raises an exception when registerShiftOffset is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opShiftR_singleRegister01(self):
+        """tests opShiftR on 'r0 >> r0 = r0' with bitLength '1, 1, 1' -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_singleRegister02(self):
+        """tests opShiftR on 'r0 >> r0 = r0' with bitLength '8, 8, 8' -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_singleRegister03(self):
+        """tests opShiftR on 'r0 >> r0 = r0' with bitLength '8, 8, 8' -> '2 >> 2 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_singleRegister04(self):
+        """tests opShiftR on 'r0 >> r0 = r0' with bitLength '8, 8, 8' -> '3 >> 3 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_multiRegister01(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1' -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_multiRegister02(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1' -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_multiRegister03(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1' -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_multiRegister04(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1' -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_multiRegister05(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' -> '4 >> 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opShiftR_arithmetic01(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1' with arithmetic = False -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_arithmetic02(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1' with arithmetic = True -> '1 >> 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_arithmetic03(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = False -> '0xf0 >> 1 = 0x78'"""
+        raise NotImplementedError
+
+    def test_opShiftR_arithmetic04(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = True -> '0xf0 >> 1 = 0xf8'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength01A1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 1, 1' with arithmetic = False -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength01B1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 8, 1' with arithmetic = False -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength01C1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 8' with arithmetic = False -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength01A2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 1, 1' with arithmetic = True -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength01B2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 8, 1' with arithmetic = True -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength01C2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 8' with arithmetic = True -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength02A1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 1, 1' with arithmetic = False -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength02B1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 8, 1' with arithmetic = False -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength02C1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 8' with arithmetic = False -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength02A2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 1, 1' with arithmetic = True -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength02B2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 8, 1' with arithmetic = True -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength02C2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 8' with arithmetic = True -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength03A1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 1, 1' with arithmetic = False -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength03B1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 8, 1' with arithmetic = False -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength03C1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 8' with arithmetic = False -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength03A2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 1, 1' with arithmetic = True -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength03B2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 8, 1' with arithmetic = True -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength03C2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 8' with arithmetic = True -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength04A1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 1, 1' with arithmetic = False -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength04B1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 8, 1' with arithmetic = False -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength04C1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 8' with arithmetic = False -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength04A2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 1, 1' with arithmetic = True -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength04B2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 8, 1' with arithmetic = True -> '1 >> 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_variableBitLength04C2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 8' with arithmetic = True -> '1 >> 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterIndex01(self):
+        """tests opShiftR on 'r1024 >> r1 = r2' with bitLength '8, 8, 8' -> '0xff >> 1 = 0x78'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterIndex02(self):
+        """tests opShiftR on 'r0 >> r1024 = r2' with bitLength '8, 8, 8' -> '0xff >> 1 = 0x78'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterIndex03(self):
+        """tests opShiftR on 'r0 >> r1 = r1024' with bitLength '8, 8, 8' -> '0xff >> 1 = 0x78'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize01A1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1024, 1, 1' with arithmetic = False -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize01B1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1024, 1' with arithmetic = False -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize01C1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1024' with arithmetic = False -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize01A2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1024, 1, 1' with arithmetic = True -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize01B2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1024, 1' with arithmetic = True -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize01C2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1024' with arithmetic = True -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize02A1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1024, 1, 1' with arithmetic = False -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize02B1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1024, 1' with arithmetic = False -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize02C1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1024' with arithmetic = False -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize02A2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1024, 1, 1' with arithmetic = True -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize02B2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1024, 1' with arithmetic = True -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize02C2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1024' with arithmetic = True -> '0 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize03A1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1024, 1, 1' with arithmetic = False -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize03B1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1024, 1' with arithmetic = False -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize03C1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1024' with arithmetic = False -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize03A2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1024, 1, 1' with arithmetic = True -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize03B2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1024, 1' with arithmetic = True -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize03C2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1024' with arithmetic = True -> '1 >> 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize04A1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1024, 1, 1' with arithmetic = False -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize04B1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1024, 1' with arithmetic = False -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize04C1(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1024' with arithmetic = False -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize04A2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1024, 1, 1' with arithmetic = True -> '1 >> 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize04B2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1024, 1' with arithmetic = True -> '1 >> 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_largeRegisterSize04C2(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '1, 1, 1024' with arithmetic = True -> '1 >> 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_zfighting01(self):
+        """tests opShiftR on 'r0 >> r0 = r0' with bitLength '8, 8, 8' -> '2 >> 2 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPattern1BitSweep01(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = False -> ['(1 << x) >> (1 << y) = ?' for x in range(8) for y in range(8)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPattern1BitSweep02(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '512, 512, 512' with arithmetic = False -> ['(1 << x) >> (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPattern1BitSweep03(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '512, 512, 2048' with arithmetic = False -> ['(1 << x) >> (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPattern1BitSweep01B(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = True -> ['(1 << x) >> (1 << y) = ?' for x in range(8) for y in range(8)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPattern1BitSweep02B(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '512, 512, 512' with arithmetic = True -> ['(1 << x) >> (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPattern1BitSweep03B(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '512, 512, 2048' with arithmetic = True -> ['(1 << x) >> (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPatternCheckerboardConstructive01(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2048, 2048, 2048' with arithmetic = False -> '0b1010... >> 0b1010... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPatternCheckerboardConstructive02(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2048, 2048, 2048' with arithmetic = False -> '0b0101... >> 0b0101... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPatternCheckerboardDestructive01(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2048, 2048, 2048' with arithmetic = False -> '0b1010... >> 0b0101... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPatternCheckerboardDestructive02(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2048, 2048, 2048' with arithmetic = False -> '0b0101... >> 0b1010... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPatternCheckerboardConstructive01B(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2048, 2048, 2048' with arithmetic = True -> '0b1010... >> 0b1010... = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPatternCheckerboardConstructive02B(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2048, 2048, 2048' with arithmetic = True -> '0b0101... >> 0b0101... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPatternCheckerboardDestructive01B(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2048, 2048, 2048' with arithmetic = True -> '0b1010... >> 0b0101... = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_inputBitPatternCheckerboardDestructive02B(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2048, 2048, 2048' with arithmetic = True -> '0b0101... >> 0b1010... = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_bitpattern8bit4Overlap(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = False -> '0xfc >> 0x3f = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_bitpattern8bit4OverlapB(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = True -> '0xfc >> 0x3f = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_8bitFullCombination01(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = False -> ['x >> y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_8bitFullCombination02(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 1024' with arithmetic = False -> ['x >> y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_8bitFullCombination01B(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = True -> ['x >> y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_8bitFullCombination02B(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 1024' with arithmetic = True -> ['x >> y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opShiftR_integration01(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' -> '0 >> 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_integration02(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = False -> '0x80 >> 7 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_integration03(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = True -> '0x80 >> 7 = 0xff'"""
+        raise NotImplementedError
+
+    def test_opShiftR_integration04(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = False -> '0x80 >> 8 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_integration05(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '8, 8, 8' with arithmetic = True -> '0x80 >> 8 = 0xff'"""
+        raise NotImplementedError
+
+    def test_opShiftR_integration06(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2**20, 1024, 2**20' with arithmetic = False -> '0x8000... >> 2**20 - 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opShiftR_integration07(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2**20, 1024, 2**20' with arithmetic = True -> '0x8000... >> 2**20 - 1 = 0xffff...'"""
+        raise NotImplementedError
+
+    def test_opShiftR_integration08(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2**20, 1024, 2**20' with arithmetic = False -> '0x8000... >> 2**20 = 0'"""
+        raise NotImplementedError
+
+    def test_opShiftR_integration09(self):
+        """tests opShiftR on 'r0 >> r1 = r2' with bitLength '2**20, 1024, 2**20' with arithmetic = True -> '0x8000... >> 2**20 = 0xffff...'"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_funcReadNotFunction(self):
+        """tests opRotate raises an exception when funcRead is not a function"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_funcWriteNotFunction(self):
+        """tests opRotate raises an exception when funcWrite is not a function"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_funcGetConfigNotFunction(self):
+        """tests opRotate raises an exception when funcGetConfig is not a function"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_registerDestinationNotRegister(self):
+        """tests opRotate raises an exception when registerDestination is not a register"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_registerANotRegister(self):
+        """tests opRotate raises an exception when registerA is not a register"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_registerShiftOffsetNotRegister(self):
+        """tests opRotate raises an exception when registerShiftOffset is not a register"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_leftOrRightNotLeftOrRight(self):
+        """tests opRotate raises an exception when leftOrRight is not 'left' or 'right''"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_registerDestinationNotInMMMU(self):
+        """tests opRotate raises an exception when registerDestination is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_registerANotInMMMU(self):
+        """tests opRotate raises an exception when registerA is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opRotate_Exception_registerShiftOffsetNotInMMMU(self):
+        """tests opRotate raises an exception when registerShiftOffset is not in the MMMU"""
+        raise NotImplementedError
+
+    def test_opRotate_singleRegister01(self):
+        """tests opRotate on 'r0 Rotate Left r0 = r0' with bitLength '1, 1, 1' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_singleRegister02(self):
+        """tests opRotate on 'r0 Rotate Right r0 = r0' with bitLength '1, 1, 1' -> '0 Rotate Right 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_singleRegister03(self):
+        """tests opRotate on 'r0 Rotate Left r0 = r0' with bitLength '8, 8, 8' -> '1 Rotate Left 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opRotate_singleRegister04(self):
+        """tests opRotate on 'r0 Rotate Right r0 = r0' with bitLength '8, 8, 8' -> '1 Rotate Right 1 = 0x80'"""
+        raise NotImplementedError
+
+    def test_opRotate_singleRegister05(self):
+        """tests opRotate on 'r0 Rotate Left r0 = r0' with bitLength '8, 8, 8' -> '2 Rotate Left 2 = 8'"""
+        raise NotImplementedError
+
+    def test_opRotate_singleRegister06(self):
+        """tests opRotate on 'r0 Rotate Right r0 = r0' with bitLength '8, 8, 8' -> '2 Rotate Right 2 = 0x80'"""
+        raise NotImplementedError
+
+    def test_opRotate_singleRegister07(self):
+        """tests opRotate on 'r0 Rotate Left r0 = r0' with bitLength '8, 8, 8' -> '3 Rotate Left 3 = 0x18'"""
+        raise NotImplementedError
+
+    def test_opRotate_singleRegister08(self):
+        """tests opRotate on 'r0 Rotate Right r0 = r0' with bitLength '8, 8, 8' -> '3 Rotate Right 3 = 0x60'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister01(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 1' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister02(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 1' -> '0 Rotate Right 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister03(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 1' -> '0 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister04(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 1' -> '0 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister05(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 1' -> '1 Rotate Left 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister06(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 1' -> '1 Rotate Right 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister07(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 1' -> '1 Rotate Left 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister08(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 1' -> '1 Rotate Right 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister09(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 8, 8' -> '1 Rotate Left 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opRotate_multiRegister10(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 8, 8' -> '1 Rotate Right 1 = 0x80'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength01A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 1, 1' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength01B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 8, 1' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength01C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 8' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength02A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 1, 1' -> '0 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength02B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 8, 1' -> '0 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength02C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 8' -> '0 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength03A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 1, 1' -> '1 Rotate Left 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength03B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 8, 1' -> '1 Rotate Left 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength03C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 8' -> '1 Rotate Left 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength04A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 1, 1' -> '1 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength04B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 8, 1' -> '1 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength04C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 8' -> '1 Rotate Left 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength01A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 1, 1' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength01B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 8, 1' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength01C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 8' -> '0 Rotate Right 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength02A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 1, 1' -> '0 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength02B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 8, 1' -> '0 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength02C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 8' -> '0 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength03A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 1, 1' -> '1 Rotate Right 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength03B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 8, 1' -> '1 Rotate Right 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength03C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 8' -> '1 Rotate Right 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength04A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 1, 1' -> '1 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength04B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 8, 1' -> '1 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_variableBitLength04C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 8' -> '1 Rotate Right 1 = 0x80'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterIndex01A(self):
+        """tests opRotate on 'r1024 Rotate Left r1 = r2' with bitLength '8, 8, 8' -> '0x0f Rotate Left 0x04 = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterIndex02A(self):
+        """tests opRotate on 'r0 Rotate Left r1024 = r2' with bitLength '8, 8, 8' -> '0x0f Rotate Left 0x04 = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterIndex03A(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r1024' with bitLength '8, 8, 8' -> '0x0f Rotate Left 0x04 = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterIndex01B(self):
+        """tests opRotate on 'r1024 Rotate Right r1 = r2' with bitLength '8, 8, 8' -> '0x0f Rotate Right 0x04 = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterIndex02B(self):
+        """tests opRotate on 'r0 Rotate Right r1024 = r2' with bitLength '8, 8, 8' -> '0x0f Rotate Right 0x04 = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterIndex03B(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r1024' with bitLength '8, 8, 8' -> '0x0f Rotate Right 0x04 = 0xf0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize01A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1024, 1, 1' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+        
+    def test_opRotate_largeRegisterSize01B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1024, 1' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize01C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 1024' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize02A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1024, 1, 1' -> '0 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize02B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1024, 1' -> '0 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize02C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 1024' -> '0 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize03A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1024, 1, 1' -> '1 Rotate Left 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize03B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1024, 1' -> '1 Rotate Left 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize03C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 1024' -> '1 Rotate Left 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize04A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1024, 1, 1' -> '1 Rotate Left 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize04B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1024, 1' -> '1 Rotate Left 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize04C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1, 1, 1024' -> '1 Rotate Left 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize05A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1024, 8, 8' -> '0xff Rotate Left 1 = 0xfe'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize05B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 1024, 8' -> '0xff Rotate Left 0xff = 0xff'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize05C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 8, 1024' -> '0xff Rotate Left 0xff = 0xff'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize06A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1024, 1024, 2**20' -> '1 Rotate Left 0xff = ?'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize06B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1024, 1024, 2**20' -> '1 Rotate Left 0xffff = ?'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize06C1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '1024, 1024, 2**20' -> '3 Rotate Left 0xffff = ?'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize07A1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '2**20, 1024, 2**20' -> '1 Rotate Left 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize07B1(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '2**20, 1024, 2**20' -> '1 Rotate Left 2**20 - 1 = 2**(2**20 - 1)'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize01A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1024, 1, 1' -> '0 Rotate Right 0 = 0'"""
+        raise NotImplementedError
+        
+    def test_opRotate_largeRegisterSize01B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1024, 1' -> '0 Rotate Right 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize01C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 1024' -> '0 Rotate Right 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize02A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1024, 1, 1' -> '0 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize02B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1024, 1' -> '0 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize02C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 1024' -> '0 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize03A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1024, 1, 1' -> '1 Rotate Right 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize03B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1024, 1' -> '1 Rotate Right 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize03C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 1024' -> '1 Rotate Right 0 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize04A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1024, 1, 1' -> '1 Rotate Right 1 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize04B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1024, 1' -> '1 Rotate Right 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize04C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1, 1, 1024' -> '1 Rotate Right 1 = 1'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize05A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1024, 8, 8' -> '0xff Rotate Right 1 = 0x8f'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize05B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 1024, 8' -> '0xff Rotate Right 0xff = 0xff'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize05C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 8, 1024' -> '0xff Rotate Right 0xff = 0xff'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize06A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1024, 1024, 2**20' -> '1 Rotate Right 0xff = ?'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize06B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1024, 1024, 2**20' -> '1 Rotate Right 0xffff = ?'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize06C2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '1024, 1024, 2**20' -> '3 Rotate Right 0xffff = ?"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize07A2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '2**20, 1024, 2**20' -> '1 Rotate Right 1 = 2**(2**20 - 1)'"""
+        raise NotImplementedError
+
+    def test_opRotate_largeRegisterSize07B2(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '2**20, 1024, 2**20' -> '1 Rotate Right 2**20 - 1 = 2'"""
+        raise NotImplementedError
+
+    def test_opRotate_zfighting01(self):
+        """tests opRotate on 'r0 Rotate Left r0 = r0' with bitLength '8, 8, 8' -> '2 Rotate Left 2 = 8'"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPattern1BitSweep01A(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) Rotate Left (1 << y) = ?' for x in range(8) for y in range(8)]"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPattern1BitSweep02A(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) Rotate Left (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPattern1BitSweep03A(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) Rotate Left (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPattern1BitSweep01B(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) Rotate Right (1 << y) = ?' for x in range(8) for y in range(8)]"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPattern1BitSweep02B(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) Rotate Right (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPattern1BitSweep03B(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) Rotate Right (1 << y) = ?' for x in range(512) for y in range(512)]"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPatternCheckerboardConstructive01(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... Rotate Left 0b1010... = 0b1010...'"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPatternCheckerboardConstructive02(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... Rotate Left 0b0101... = 0b1010...'"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPatternCheckerboardDestructive01(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... Rotate Left 0b0101... = 0b0101...'"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPatternCheckerboardDestructive02(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... Rotate Left 0b1010... = 0b0101...'"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPatternCheckerboardConstructive01(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... Rotate Right 0b1010... = 0b1010...'"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPatternCheckerboardConstructive02(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... Rotate Right 0b0101... = 0b1010...'"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPatternCheckerboardDestructive01(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... Rotate Right 0b0101... = 0b0101...'"""
+        raise NotImplementedError
+
+    def test_opRotate_inputBitPatternCheckerboardDestructive02(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... Rotate Right 0b1010... = 0b0101...'"""
+        raise NotImplementedError
+
+    def test_opRotate_bitpattern8bit4OverlapA(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 8, 8' -> '0xfc Rotate Left 0x3f = ?'"""
+        raise NotImplementedError
+
+    def test_opRotate_bitpattern8bit4OverlapB(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 8, 8' -> '0xfc Rotate Right 0x3f = ?'"""
+        raise NotImplementedError
+
+    def test_opRotate_8bitFullCombination01A(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 8, 8' -> ['x Rotate Left y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opRotate_8bitFullCombination02A(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 8, 1024' -> ['x Rotate Left y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opRotate_8bitFullCombination01B(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 8, 8' -> ['x Rotate Right y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opRotate_8bitFullCombination02B(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 8, 1024' -> ['x Rotate Right y = ?' for x in range(255) for y in range(255)]"""
+        raise NotImplementedError
+
+    def test_opRotate_integration01(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 8, 8' -> '0 Rotate Left 0 = 0'"""
+        raise NotImplementedError
+
+    def test_opRotate_integration02(self):
+        """tests opRotate on 'r0 Rotate Left r1 = r2' with bitLength '8, 8, 8' -> '1 Rotate Left 7 = 0x80'"""
+        raise NotImplementedError
+
+    def test_opRotate_integration03(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 8, 8' -> '1 Rotate Right 1 = 0x80'"""
+        raise NotImplementedError
+
+    def test_opRotate_integration04(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 8, 16' -> '0xfe Rotate Left 1 = 0xfd'"""
+        raise NotImplementedError
+
+    def test_opRotate_integration05(self):
+        """tests opRotate on 'r0 Rotate Right r1 = r2' with bitLength '8, 8, 2' -> '0xfe Rotate Left 1 = 1'"""
+        raise NotImplementedError
+    
     #TODO testing on opCopyElement
+
+    #TODO testing on opCopyMultiElemnt
 
     #TODO testing on englatAdd_RippleCarry
 
