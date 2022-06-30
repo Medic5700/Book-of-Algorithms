@@ -5205,7 +5205,17 @@ class CPUsim_v4:
             assert len(bitArray) > 0
             assert all([(type(i) is int or type(i) is bool) for i in bitArray])
 
-            return sum([bit << i for i, bit in enumerate(bitArray)])
+            # This algorithm causes massive memory usage (>50GB) if bitLength is large (== 2**20)
+            # return sum([bit << i for i, bit in enumerate(bitArray)])
+
+            # This algorithm uses far less memory then using alternate method
+            result : int = 0
+            i : int
+            bit : int
+            for i, bit in enumerate(bitArray):
+                result += bit << i
+
+            return result
 
         def microEnforceAccess(self, register : tuple[int | str, int | str], key : str | int) -> tuple[int | str, int | str]:
             """returns register tuple iff register[0] matches key, raises exception otherwise"""
@@ -5240,7 +5250,7 @@ class CPUsim_v4:
             funcWrite : Callable[[tuple[int | str, int | str], int], None | tuple[str, int]],
 
             value : int
-            ) -> tuple[str, int]:
+        ) -> tuple[str, int]:
             """Takes in a value (positive or negative), and returns an immediate register vector that contains the specified value.
             
             bitLength of created '_imm' will be minimum required to store the value
@@ -5351,7 +5361,8 @@ class CPUsim_v4:
         def microSelectBits(self,
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None],
             registerA : tuple[str, int | str],
-            bitStart : int, bitEnd: int) -> tuple[int | str, int | str]:
+            bitStart : int, bitEnd: int
+        ) -> tuple[int | str, int | str]:
             """Takes a register, selects the bits starting at bitStart inclusive and ending at bitEnd inclusive. Takes result, adds it as an immediate register, returns the register address
             
             Note: bit 0 is least significant bit
@@ -5398,7 +5409,7 @@ class CPUsim_v4:
             registerDestination : tuple[int | str, int | str], 
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str]
-            ) -> None:
+        ) -> None:
             """Adds registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
 
@@ -5444,7 +5455,7 @@ class CPUsim_v4:
 
             registerCarry : Optional[tuple[int | str, int | str] | None] = None, 
             registerOverflow : Optional[tuple[int | str, int | str] | None] = None
-            ) -> None:
+        ) -> None:
             """Adds registerA and registerB, stores result in registerDestination, stores carry in registerCarry iff specified, stores overflow in registerOverflow iff specified
             
             Algorithm Overview - Add with Carry and Overflow:
@@ -5494,7 +5505,7 @@ class CPUsim_v4:
                 registerDestination             = 0
                 registerCarry                   = None
                 registerOverflow                = None
-                ->  # written
+                -> # written
                 r0 = [0, 0];                    value = 0; bitLength = 1                |
 
             Case: # Test_InstructionSetDefault_BuildingBlocks.test_opAddCarryOverflow_integration02
@@ -5524,7 +5535,7 @@ class CPUsim_v4:
                 registerCarry                   = None
                 registerOverflow                = None
                 -> # written
-                r2 = [0, 0];                    value = 2;          bitLength = 8
+                r2 = [0, 2];                    value = 2;          bitLength = 8
 
             Case: # Test_InstructionSetDefault_BuildingBlocks.test_opAddCarryOverflow_integration05
                 'r0 + r1 = r2, c = c0, o = o0' with bitLength '2, 2, 2, 1, 1' -> '3 + 2 = 1, c = 1, o = 1'
@@ -5555,7 +5566,7 @@ class CPUsim_v4:
                 registerCarry                   = 1
                 registerOverflow                = 1
                 -> # written
-                r2 = [0, 0];                    value = 1;             bitLength = 2
+                r2 = [0, 2];                    value = 1;             bitLength = 2
                 c0 = ['c', 0];                  value = 1;             bitLength = 1
                 o0 = ['o', 0];                  value = 1;             bitLength = 1
                 
@@ -5586,7 +5597,7 @@ class CPUsim_v4:
                 registerCarry                   = None
                 registerOverflow                = None
                 -> # written
-                r2 = [0, 0];                    value = ?;             bitLength = 8
+                r2 = [0, 2];                    value = ?;             bitLength = 8
             
             Case: # Test_InstructionSetDefault_BuildingBlocks.test_opAddCarryOverflow_zfighting01
                 'r0 + r0 = r0, c = r0, o = r0' with bitLength '8, 8, 8, 8, 8' -> '0xff + 0xff = 0x1fe = 0xfe, c = 1, o = 0'
@@ -5684,39 +5695,48 @@ class CPUsim_v4:
                 resultOverflow : int = overflow & (2**overflowBitLength - 1) # trunk result
                 funcWrite(registerOverflow, resultOverflow)
 
-        def opMultiply(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]):
+        def opMultiply(self,
+            funcRead : Callable[[tuple[int | str, int | str]], int], 
+            funcWrite : Callable[[tuple[int | str, int | str], int], None], 
+            funcGetConfig : Callable[[tuple[int | str, int | str]], dict[str, Any]],
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str], 
+            registerB : tuple[int | str, int | str]
+        ) -> None:
             """Multiplies registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
-            assert type(engineFunc) is dict
-            assert all([callable(j) for _, j in engineFunc.items()])
-            assert type(engineStatus) is dict
-            
+
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is int or type(registerB[0]) is str 
-            assert type(registerB[1]) is int or type(registerB[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
 
             a : int = funcRead(registerA)
             b : int = funcRead(registerB)
-
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
             c : int = a * b
-            c = c & (2**bitLength - 1)
+            result : int = c & (2**bitLength - 1) # trunk result
 
-            funcWrite(registerDestination, c)
+            funcWrite(registerDestination, result)
 
         def opMultiplySignedMultiElement(self,
             funcRead : Callable[[tuple[int | str, int | str]], int], 
@@ -5726,44 +5746,88 @@ class CPUsim_v4:
             registerDestination : tuple[tuple[int | str, int | str], ...], 
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str],
+            
             endiness : Literal['big', 'little'] = 'little'
-            ) -> None:
+        ) -> None:
+            assert callable(funcRead)
+
+            assert callable(funcWrite)
+
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) > 0
+            for register in registerDestination:
+                assert len(register) == 2
+                assert all([type(i) is str or type(i) is int for i in register])
+                assert all([i >= 0 for i in register if type(i) is int])
+                assert self.isISARegisterVector(register)
+
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
+
+            assert type(endiness) is str
+            assert endiness in ['big', 'little']
+
             raise NotImplementedError
 
         def opTwosCompliment(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str]):
+            funcRead : Callable[[tuple[int | str, int | str]], int], 
+            funcWrite : Callable[[tuple[int | str, int | str], int], None], 
+            funcGetConfig : Callable[[tuple[int | str, int | str]], dict[str, Any]],
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str]
+        ) -> None:
             """Takes value from registerA, performs twos compliment, stores result in registerDestination
             
             #TODO if destination register is larger, should extend most significant bit to larger register size
             """
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
-            assert type(engineFunc) is dict
-            assert all([callable(j) for _, j in engineFunc.items()])
-            assert type(engineStatus) is dict
-            
+
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
 
             a : int = funcRead(registerA)
-
             bitLength : int = funcGetConfig(registerDestination)["bitLength"]
 
             inputNumber : int = a & (2**bitLength - 1) # Cuts down number to correct bitLength BEFORE converting it
             bitArray : list[int] = [inputNumber >> i & 1 for i in range(bitLength)] # Converts to bit array, index 0 is least significant bit
             bitArray : list[int] = [not i for i in bitArray] # performs the bitwise NOT operation
-            result : int = sum([bit << i for i, bit in enumerate(bitArray)])
-            result += 1
+            # This algorithm uses far less memory then using alternate method
+            result : int = 1
+            i : int
+            bit : int
+            for i, bit in enumerate(bitArray):
+                result += bit << i
 
-            result = result & (2**bitLength - 1) # Cuts down number to correct bitLength again
+            # This algorithm causes massive memory usage (>50GB) if bitLength is large (== 2**20)
+            # result : int = sum([bit << i for i, bit in enumerate(bitArray)])
+            # result += 1
+
+            result = result & (2**bitLength - 1) # trunk result
 
             funcWrite(registerDestination, result)
 
@@ -5775,7 +5839,7 @@ class CPUsim_v4:
             registerDestination : tuple[int | str, int | str], 
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str]
-            ) -> None:
+        ) -> None:
             """Performs AND operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
 
@@ -5807,6 +5871,7 @@ class CPUsim_v4:
 
             c : int = a & b
             result : int = c & (2**bitLength - 1) # trunk result
+
             funcWrite(registerDestination, result)
 
         def opOR(self,
@@ -5817,7 +5882,7 @@ class CPUsim_v4:
             registerDestination : tuple[int | str, int | str], 
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str]
-            ) -> None:
+        ) -> None:
             """Performs OR operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
 
@@ -5849,6 +5914,7 @@ class CPUsim_v4:
 
             c : int = a | b
             result : int = c & (2**bitLength - 1) # trunk result
+
             funcWrite(registerDestination, result)
 
         def opXOR(self,
@@ -5859,7 +5925,7 @@ class CPUsim_v4:
             registerDestination : tuple[int | str, int | str], 
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str]
-            ) -> None:
+        ) -> None:
             """Performs XOR operation between registerA and registerB, stores result in registerDestination"""
             assert callable(funcRead)
 
@@ -5891,6 +5957,7 @@ class CPUsim_v4:
 
             c : int = a ^ b
             result : int = c & (2**bitLength - 1) # trunk result
+
             funcWrite(registerDestination, result)
 
         def opNOT(self, 
@@ -5920,7 +5987,15 @@ class CPUsim_v4:
             inputNumber : int = a & (2**bitLength - 1) # Cuts down number to correct bitLength BEFORE converting it
             bitArray : list[int] = [inputNumber >> i & 1 for i in range(bitLength)] # Converts to bit array, index 0 is least significant bit
             bitArray = [not i for i in bitArray] # performs the bitwise NOT operation
-            result : int = sum([bit << i for i, bit in enumerate(bitArray)])
+            # This algorithm uses far less memory then using alternate method
+            result : int = 0
+            i : int
+            bit : int
+            for i, bit in enumerate(bitArray):
+                result += bit << i
+
+            # This algorithm causes massive memory usage (>50GB) if bitLength is large (== 2**20)
+            # result : int = sum([bit << i for i, bit in enumerate(bitArray)])
 
             result = result & (2**bitLength - 1) # Cuts down number to correct bitLength again
 
@@ -6213,7 +6288,7 @@ class CPUsim_v4:
             bitsToCopy : int,
             arithimetic : bool = False,
             endiness : Literal['big', 'little'] = 'little',
-            ) -> None:
+        ) -> None:
             """Copies a value from registerA to registerDestination
             
             Use Cases:
@@ -6229,7 +6304,7 @@ class CPUsim_v4:
         def englatAdd_RippleCarry(self, 
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
             registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
-            ) -> dict[Literal["energy", "latency"], int]:
+        ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of ripple carry add operation on those registers. Returns the energy and latency as a dictionary
             
             The value of the registers are not used, only the size of the registers
@@ -6269,7 +6344,7 @@ class CPUsim_v4:
         def englatMultiply_ShiftAdd1(self, 
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
             registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
-            ) -> dict[Literal["energy", "latency"], int]:
+        ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
 
             The value of the registers are not used, only the size of the registers
@@ -6309,7 +6384,7 @@ class CPUsim_v4:
         def englatMultiply_ShiftAdd2(self, 
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
             registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
-            ) -> dict[Literal["energy", "latency"], int]:
+        ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
 
             The value of the registers are not used, only the size of the registers
@@ -6349,7 +6424,7 @@ class CPUsim_v4:
         def englatAND(self, 
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
             registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
-            ) -> dict[Literal["energy", "latency"], int]:
+        ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
             
             The value of the registers are not used, only the size of the registers
@@ -6388,7 +6463,7 @@ class CPUsim_v4:
         def englatNOT(self, 
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
             registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str]
-            ) -> dict[Literal["energy", "latency"], int]:
+        ) -> dict[Literal["energy", "latency"], int]:
             """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
             
             The value of the registers are not used, only the size of the registers
@@ -15307,7 +15382,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 0,                 0),                                     # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 1
 
@@ -15370,7 +15445,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 0,                 1),                                     # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 1
 
@@ -15433,7 +15508,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 0,                 0),                                     # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 0
 
@@ -15499,7 +15574,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 1,                 0),                                     # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 1
 
@@ -15565,7 +15640,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 1,                 1),                                     # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 1
 
@@ -15631,7 +15706,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 1,                 0),                                     # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 0
 
@@ -15700,7 +15775,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 2,                 2),                                     # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 2
 
@@ -15769,7 +15844,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 1,                 2),                                     # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 2
 
@@ -15838,7 +15913,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 0,                 2),                                     # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 2
 
@@ -15901,7 +15976,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 0,                 0xffffffff),                            # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 32
 
@@ -15964,7 +16039,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 0,                 0xffffffff),                            # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 32
 
@@ -16027,7 +16102,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 0,                 0x00000000),                            # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 32
 
@@ -16090,7 +16165,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('_imm', 0,                 2**(2**20 - 1)),                        # input, no change
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         expectedBitLength : int = 2**20
 
@@ -16284,7 +16359,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r0 = [0, 0];                    value = 0; bitLength = 1                |
         """
 
@@ -16316,7 +16391,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 0,                      r0_out)                                 # input, output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16349,7 +16424,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r0 = [0, 0];                    value = 0; bitLength = 1                |
         """
 
@@ -16381,7 +16456,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 0,                      r0_out)                                 # input, output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16416,7 +16491,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 1                |
         """
 
@@ -16453,7 +16528,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16488,7 +16563,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 1 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 1                |
         """
 
@@ -16525,7 +16600,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16560,7 +16635,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 0 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 1                |
         """
 
@@ -16597,7 +16672,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16632,7 +16707,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 1                |
         """
 
@@ -16669,7 +16744,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16704,7 +16779,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 0                |
         """
         
@@ -16741,7 +16816,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16776,7 +16851,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 2'
         -> # output
         registerDestination             = 2
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 2; bitLength = 8
         """
         
@@ -16813,7 +16888,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16848,7 +16923,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 1 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 8
         """
         
@@ -16885,7 +16960,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16920,7 +16995,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 0 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 8
         """
         
@@ -16957,7 +17032,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -16992,7 +17067,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 0                |
         """
         
@@ -17029,7 +17104,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17064,7 +17139,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 1
         """
 
@@ -17101,7 +17176,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17136,7 +17211,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 1
         """
 
@@ -17173,7 +17248,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17208,7 +17283,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 8
         """
 
@@ -17245,7 +17320,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17280,7 +17355,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 1 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 1
         """
 
@@ -17317,7 +17392,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17352,7 +17427,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 1 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 1
         """
 
@@ -17389,7 +17464,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17424,7 +17499,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 1 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 8
         """
 
@@ -17461,7 +17536,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17496,7 +17571,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 0 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 1
         """
 
@@ -17533,7 +17608,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17568,7 +17643,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 0 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 1
         """
 
@@ -17605,7 +17680,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17640,7 +17715,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 0 = 1'
         -> # output
         registerDestination             = 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 1; bitLength = 8
         """
 
@@ -17677,7 +17752,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17712,7 +17787,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 1
         """
 
@@ -17749,7 +17824,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17784,7 +17859,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 1
         """
 
@@ -17821,7 +17896,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17856,7 +17931,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 2'
         -> # output 
         registerDestination             = 2
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 2; bitLength = 8
         """
 
@@ -17893,7 +17968,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -17928,7 +18003,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0x08 + 0x0a = 0x12'
         -> # output
         registerDestination             = 0x12
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x12; bitLength = 8
         '"""
 
@@ -17965,7 +18040,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18000,7 +18075,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0x08 + 0x0a = 0x12'
         -> # output
         registerDestination             = 0x12
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x12; bitLength = 8
         """
         
@@ -18037,7 +18112,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18072,7 +18147,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0x08 + 0x0a = 0x12'
         -> # output
         registerDestination             = 0x12
-        ->  # written
+        -> # written
         r1024 = [0, 1024];              value = 0x12; bitLength = 8
         """
 
@@ -18109,7 +18184,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 1024,                   r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18144,7 +18219,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0x00
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x00; bitLength = 1
         """
 
@@ -18181,7 +18256,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18216,7 +18291,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0x00
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x00; bitLength = 1
         """
 
@@ -18253,7 +18328,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18288,7 +18363,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0x00
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x00; bitLength = 1024          |
         """
 
@@ -18325,7 +18400,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18360,7 +18435,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 1 = 1'
         -> # output
         registerDestination             = 0x01
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x01; bitLength = 1
         """
 
@@ -18397,7 +18472,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18432,7 +18507,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 1 = 1'
         -> # output
         registerDestination             = 0x01
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x01; bitLength = 1
         """
 
@@ -18469,7 +18544,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18504,7 +18579,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 1 = 1'
         -> # output
         registerDestination             = 0x01
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x01; bitLength = 1024          |
         """
 
@@ -18541,7 +18616,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18576,7 +18651,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 0 = 1'
         -> # output
         registerDestination             = 0x01
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x01; bitLength = 1
         """
 
@@ -18613,7 +18688,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18648,7 +18723,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 0 = 1'
         -> # output
         registerDestination             = 0x01
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x01; bitLength = 1
         """
 
@@ -18685,7 +18760,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18720,7 +18795,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 0 = 1'
         -> # output
         registerDestination             = 0x01
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x01; bitLength = 1
         """
 
@@ -18757,7 +18832,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18792,7 +18867,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 0'
         -> # output
         registerDestination             = 0x00
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x00; bitLength = 1
         """
         
@@ -18829,7 +18904,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18864,7 +18939,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 0'
         -> # output
         registerDestination             = 0x00
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x00; bitLength = 1
         """
 
@@ -18901,7 +18976,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -18936,7 +19011,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 2'
         -> # output
         registerDestination             = 0x00
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x02; bitLength = 1024
         """
 
@@ -18973,7 +19048,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19008,7 +19083,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0x0f + 0x0f = 0x1e'
         -> # output
         registerDestination             = 0x1e
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x1e; bitLength = 8
         """
 
@@ -19045,7 +19120,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19080,7 +19155,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0x0f + 0x0f = 0x1e'
         -> # output
         registerDestination             = 0x1e
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x1e; bitLength = 8
         """
 
@@ -19117,7 +19192,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19152,7 +19227,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0x0f + 0x0f = 0x1e'
         -> # output
         registerDestination             = 0x1e
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x1e; bitLength = 1024
         """
         
@@ -19189,7 +19264,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19224,7 +19299,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 2**(2**19) = 2**(2**19) + 1'
         -> # output
         registerDestination             = 2**(2**19) + 1
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 2**(2**19) + 1; bitLength = 2**20
         """
 
@@ -19261,7 +19336,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19296,7 +19371,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '2**(2**19) + 2**(2**19) = 2**(2**19 + 1)'
         -> # output
         registerDestination             = 2**(2**19 + 1)
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 2**(2**19 + 1); bitLength = 2**20
         """
 
@@ -19333,7 +19408,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19368,7 +19443,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0xff + 0xff = 0xfe'
         -> # output
         registerDestination             = 0xfe
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0xfe; bitLength = 8
         """
 
@@ -19405,7 +19480,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19440,7 +19515,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '(1 << x) + (1 << y) = ?'
         -> # output
         registerDestination             = ?
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = ?; bitLength = 8
         """
         
@@ -19479,7 +19554,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     (0, 2,              r2_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19514,7 +19589,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '(1 << x) + (1 << y) = ?'
         -> # output
         registerDestination             = ?
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = ?; bitLength = 512
         """
         
@@ -19553,7 +19628,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     (0, 2,              r2_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19588,7 +19663,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '(1 << x) + (1 << y) = ?'
         -> # output
         registerDestination             = ?
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = ?; bitLength = 2048
         """
         
@@ -19627,7 +19702,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     (0, 2,              r2_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19662,7 +19737,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0b1010... + 0b1010... = 0b0101...'
         -> # output
         registerDestination             = 0b0101...
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0b0101...; bitLength = 2048
         """
         
@@ -19699,7 +19774,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19734,7 +19809,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0b0101... + 0b0101... = 0b1010...'
         -> # output
         registerDestination             = 0b1010...
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0b1010...; bitLength = 2048
         """
         
@@ -19771,7 +19846,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19806,7 +19881,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0b1010... + 0b0101... = 0b1111...'
         -> # output
         registerDestination             = 0b1111...
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0b1111...; bitLength = 2048
         """
         
@@ -19843,7 +19918,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19878,7 +19953,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0b0101... + 0b1010... = 0b1111...'
         -> # output
         registerDestination             = 0b1111...
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0b1111...; bitLength = 2048
         """
         
@@ -19915,7 +19990,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -19950,7 +20025,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0xfc + 0x3f = 0x3b'
         -> # output
         registerDestination             = 0x3b
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x3b; bitLength = 8
         """
         
@@ -19987,7 +20062,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20022,11 +20097,11 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         'x + y = ?'
         -> # output
         registerDestination             = ?
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = ?; bitLength = 8
         """
         
-        for x, y in [(x, y) for x in range(255) for y in range(255)]:
+        for x, y in [(x, y) for x in range(256) for y in range(256)]:
             with self.subTest(x=x, y=y):
                 r0 : int = x
                 r1 : int = y
@@ -20061,7 +20136,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     (0, 2,              r2_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20096,11 +20171,11 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         'x + y = ?'
         -> # output
         registerDestination             = ?
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = ?; bitLength = 16
         """
         
-        for x, y in [(x, y) for x in range(255) for y in range(255)]:
+        for x, y in [(x, y) for x in range(256) for y in range(256)]:
             with self.subTest(x=x, y=y):
                 r0 : int = x
                 r1 : int = y
@@ -20135,7 +20210,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     (0, 2,              r2_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20170,7 +20245,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0 + 0 = 0'
         -> # output
         registerDestination             = 0
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0; bitLength = 8
         """
         
@@ -20207,7 +20282,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20242,7 +20317,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '1 + 1 = 2'
         -> # output
         registerDestination             = 2
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 2; bitLength = 8
         """
         
@@ -20279,7 +20354,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20314,7 +20389,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0x0f + 0xf0 = 0xff'
         -> # output
         registerDestination             = 0xff
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0xff; bitLength = 8
         """
         
@@ -20351,7 +20426,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20386,7 +20461,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0x03 + 0x02 = 0x05'
         -> # output
         registerDestination             = 0x05
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x05; bitLength = 8
         """
         
@@ -20423,7 +20498,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20458,7 +20533,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         '0xff + 0x01 = 0x00'
         -> # output
         registerDestination             = 0x00
-        ->  # written
+        -> # written
         r2 = [0, 2];                    value = 0x00; bitLength = 8
         """
         
@@ -20495,7 +20570,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20779,7 +20854,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         registerDestination             = 0
         registerCarry                   = None
         registerOverflow                = None
-        ->  # written
+        -> # written
         r0 = [0, 0];                    value = 0; bitLength = 1                |
         """
 
@@ -20813,7 +20888,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 0,                      r0_out)                                 # input, output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20850,7 +20925,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         registerDestination             = 0
         registerCarry                   = None
         registerOverflow                = None
-        ->  # written
+        -> # written
         r0 = [0, 0];                    value = 0; bitLength = 1                |
         """
         
@@ -20884,7 +20959,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 0,                      r0_out)                                 # input, output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -20962,7 +21037,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21040,7 +21115,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21050,7 +21125,6 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
-
 
     def test_opAddCarryOverflow_multiRegister03(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2' with bitLength '1, 1, 1' -> '1 + 0 = 1'
@@ -21119,7 +21193,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21197,7 +21271,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21282,7 +21356,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('c', 0,                    c0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21367,7 +21441,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('c', 0,                    c0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21452,7 +21526,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('c', 0,                    c0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21537,7 +21611,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('c', 0,                    c0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21622,7 +21696,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21707,7 +21781,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21792,7 +21866,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21877,7 +21951,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -21969,7 +22043,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22061,7 +22135,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22153,7 +22227,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22245,7 +22319,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22256,7 +22330,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAdd_zeroBitLength01(self):
+    def test_opAddCarryOverflow_zeroBitLength01(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '0, 0, 0, 0, 0' -> '0 + 0 = 0, c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '0, 0, 0, 0, 0' -> '0 + 0 = 0, c = 0, o = 0'
@@ -22337,7 +22411,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22348,7 +22422,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAdd_zeroBitLength02(self):
+    def test_opAddCarryOverflow_zeroBitLength02(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 8, 8' -> '0x81 + 0x81 = 0x102 = 0x02, c = 1, o = 1'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 8, 8' -> '0x81 + 0x81 = 0x102 = 0x02, c = 1, o = 1'
@@ -22429,7 +22503,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22440,7 +22514,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAdd_zeroBitLength03A(self):
+    def test_opAddCarryOverflow_zeroBitLength03A(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '0, 8, 8, 8, 8' -> '0 + 0x81 = 0x81, c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '0, 8, 8, 8, 8' -> '0 + 0x81 = 0x81, c = 0, o = 0'
@@ -22521,7 +22595,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22532,7 +22606,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
     
-    def test_opAdd_zeroBitLength03B(self):
+    def test_opAddCarryOverflow_zeroBitLength03B(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 0, 8, 8, 8' -> '0x81 + 0 = 0x81, c = 0, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 0, 8, 8, 8' -> '0x81 + 0 = 0x81, c = 0, o = 0'
@@ -22613,7 +22687,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22624,7 +22698,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAdd_zeroBitLength03C(self):
+    def test_opAddCarryOverflow_zeroBitLength03C(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 0, 8, 8' -> '0x81 + 0x81 = 0, c = 1, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 0, 8, 8' -> '0x81 + 0x81 = 0, c = 1, o = 0'
@@ -22705,7 +22779,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22716,7 +22790,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAdd_zeroBitLength03D(self):
+    def test_opAddCarryOverflow_zeroBitLength03D(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 0, 8' -> '0x81 + 0x81 = 0x102 = 0x02, c = 0, o = 1'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 0, 8' -> '0x81 + 0x81 = 0x102 = 0x02, c = 0, o = 1'
@@ -22797,7 +22871,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22808,7 +22882,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
-    def test_opAdd_zeroBitLength03E(self):
+    def test_opAddCarryOverflow_zeroBitLength03E(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 8, 0' -> '0x81 + 0x81 = 0x102 = 0x02, c = 1, o = 0'
         
         'r0 + r1 = r2, c = c0, o = o0' with bitLength '8, 8, 8, 8, 0' -> '0x81 + 0x81 = 0x102 = 0x02, c = 1, o = 0'
@@ -22889,7 +22963,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -22981,7 +23055,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23073,7 +23147,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23165,7 +23239,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23257,7 +23331,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23349,7 +23423,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23441,7 +23515,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23533,7 +23607,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23625,7 +23699,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23717,7 +23791,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23809,7 +23883,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23901,7 +23975,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -23993,7 +24067,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24085,7 +24159,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24177,7 +24251,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                      # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24269,7 +24343,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 1024,                 o1024_out)                              # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24361,7 +24435,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
         
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24453,7 +24527,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24545,7 +24619,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24637,7 +24711,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24729,7 +24803,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24821,7 +24895,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24913,7 +24987,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -24990,7 +25064,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 0,                      0x0),                                   # result is undetermined, due to conflicting writes
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25072,7 +25146,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      0x00),                                  # result is undetermined, due to conflicting writes
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25160,7 +25234,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25254,7 +25328,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     ('o', 0,            o0_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25348,7 +25422,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     ('o', 0,            o0_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25442,7 +25516,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     ('o', 0,            o0_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25534,7 +25608,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25544,7 +25618,6 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
-
 
     def test_opAddCarryOverflow_inputBitPatternCheckerboardConstructive02(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '2048, 2048, 2048, 1, 1' -> '0b0101.... + 0b0101... = 0b1010..., c = 0, o = 1'
@@ -25627,7 +25700,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25719,7 +25792,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25811,7 +25884,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25902,7 +25975,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -25949,7 +26022,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         o0 = ['o', 0];                  value = ?;             bitLength = 1
         """
         
-        for x, y in [(x, y) for x in range(255) for y in range(255)]:
+        for x, y in [(x, y) for x in range(256) for y in range(256)]:
             with self.subTest(x=x, y=y):
                 r0 : int = x
                 r1 : int = y
@@ -25996,7 +26069,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     ('o', 0,            o0_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -26074,7 +26147,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -26152,7 +26225,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -26230,7 +26303,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             (0, 2,                      r2_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -26273,7 +26346,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r2 = [0, 2];                    value = ?;             bitLength = 8
         """
         
-        for x, y in [(x, y) for x in range(255) for y in range(255)]:
+        for x, y in [(x, y) for x in range(256) for y in range(256)]:
             with self.subTest(x=x, y=y):
                 r0 : int = x
                 r1 : int = y
@@ -26310,7 +26383,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                     (0, 2,              r2_out)                                 # output
                 ]
 
-                resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
                 self.assertEqual(returnValue, None,
                     f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -26402,7 +26475,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('o', 0,                    o0_out)                                 # output
         ]
 
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i[0], i[1], MMMU.readWrittenRegister(i[0], i[1])) for i in expectedRegisters]
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
 
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
@@ -26415,509 +26488,7538 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
     def test_opMultiply_Exception_funcReadNotFunction(self):
         """tests opMultiply raises an exception when funcRead is not a function"""
-        raise NotImplementedError
+        
+        functions : list[Any] = self.functionInvalid
+
+        function : Any
+        for function in functions:
+            with self.subTest(function=function):
+                self.assertRaises(AssertionError, self.ISA.opMultiply, 
+                    funcRead                                                    = function, # test with invalid function
+                    funcWrite                                                   = self.functionNull, 
+                    funcGetConfig                                               = self.functionNull, 
+                    registerDestination                                         = self.registerNull, 
+                    registerA                                                   = self.registerNull, 
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opMultiply_Exception_funcWriteNotFunction(self):
         """tests opMultiply raises an exception when funcWrite is not a function"""
-        raise NotImplementedError
+        
+        functions : list[Any] = self.functionInvalid
+
+        function : Any
+        for function in functions:
+            with self.subTest(function=function):
+                self.assertRaises(AssertionError, self.ISA.opMultiply,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = function, # test with invalid function
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = self.registerNull,
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opMultiply_Exception_funcGetConfigNotFunction(self):
         """tests opMultiply raises an exception when funcGetConfig is not a function"""
-        raise NotImplementedError
+        
+        functions : list[Any] = self.functionInvalid
+
+        function : Any
+        for function in functions:
+            with self.subTest(function=function):
+                self.assertRaises(AssertionError, self.ISA.opMultiply,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = function, # test with invalid function
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = self.registerNull,
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opMultiply_Exception_registerDestinationNotRegister(self):
         """tests opMultiply raises an exception when registerDestination is not a register"""
-        raise NotImplementedError
+        
+        registers : list[Any] = self.registerInvalid
+
+        register : Any
+        for register in registers:
+            with self.subTest(register=register):
+                self.assertRaises(AssertionError, self.ISA.opMultiply,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = register, # test with invalid register
+                    registerA                                                   = self.registerNull,
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opMultiply_Exception_registerANotRegister(self):
         """tests opMultiply raises an exception when registerA is not a register"""
-        raise NotImplementedError
+        
+        registers : list[Any] = self.registerInvalid
+
+        register : Any
+        for register in registers:
+            with self.subTest(register=register):
+                self.assertRaises(AssertionError, self.ISA.opMultiply,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = register, # test with invalid register
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opMultiply_Exception_registerBNotRegister(self):
         """tests opMultiply raises an exception when registerB is not a register"""
-        raise NotImplementedError
+        
+        registers : list[Any] = self.registerInvalid
+
+        register : Any
+        for register in registers:
+            with self.subTest(register=register):
+                self.assertRaises(AssertionError, self.ISA.opMultiply,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = self.registerNull,
+                    registerB                                                   = register # test with invalid register
+                )
 
     def test_opMultiply_Exception_registerDestinationNotInMMMU(self):
         """tests opMultiply raises an exception when registerDestination is not in the MMMU"""
-        raise NotImplementedError
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
+
+        register : list[str | int, str | int] = [1, 1] # register not in MMMU
+
+        self.assertRaises(MMMUAccessError, self.ISA.opMultiply,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = register, # test with invalid register
+            registerA                                                           = self.registerNull,
+            registerB                                                           = self.registerNull
+        )
 
     def test_opMultiply_Exception_registerANotInMMMU(self):
         """tests opMultiply raises an exception when registerA is not in the MMMU"""
-        raise NotImplementedError
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
+
+        register : list[str | int, str | int] = [1, 1] # register not in MMMU
+
+        self.assertRaises(MMMUAccessError, self.ISA.opMultiply,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = self.registerNull,
+            registerA                                                           = register, # test with invalid register
+            registerB                                                           = self.registerNull
+        )
 
     def test_opMultiply_Exception_registerBNotInMMMU(self):
         """tests opMultiply raises an exception when registerB is not in the MMMU"""
-        raise NotImplementedError
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
+
+        register : list[str | int, str | int] = [1, 1] # register not in MMMU
+
+        self.assertRaises(MMMUAccessError, self.ISA.opMultiply,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = self.registerNull,
+            registerA                                                           = self.registerNull,
+            registerB                                                           = register # test with invalid register
+        )
 
     def test_opMultiply_singleRegister01(self):
-        """tests opMultiply on 'r0 * r0 = r0' with bitLength '1, 1, 1' -> '0 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r0 = r0' with bitLength '1, 1, 1' -> '0 * 0 = 0'
+        
+        'r0 * r0 = r0' with bitLength '1, 1, 1' -> '0 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1                |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 0]                                |
+            registerA                   = [0, 0]                                |
+            registerB                   = [0, 0]                                |
+        )
+        -> # input
+        registerA                       = 0 
+        registerB                       = 0
+        ->
+        '0 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r0 = [0, 0];                    value = 0; bitLength = 1                |
+        """
+        
+        r0 : int = 0
+        r0_out : int = 0
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 0],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 0,                                   1),
+            ('write',                   0, 0,                                   r0_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0_out)                                 # input, output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_singleRegister02(self):
-        """tests opMultiply on 'r0 * r0 = r0' with bitLength '1, 1, 1' -> '1 * 1 = 1'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r0 = r0' with bitLength '1, 1, 1' -> '1 * 1 = 1'
+        
+        'r0 * r0 = r0' with bitLength '1, 1, 1' -> '1 * 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1                |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 0]                                |
+            registerA                   = [0, 0]                                |
+            registerB                   = [0, 0]                                |
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '1 * 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r0 = [0, 0];                    value = 1; bitLength = 1                |
+        """
+        
+        r0 : int = 1
+        r0_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 0],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 0,                                   1),
+            ('write',                   0, 0,                                   r0_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0_out)                                 # input, output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_multiRegister01(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '0 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '0 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 1' -> '0 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_multiRegister02(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '0 * 1 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '0 * 1 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 1' -> '0 * 1 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 1
+        ->
+        '0 * 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 1
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_multiRegister03(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '1 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '1 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 1' -> '1 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 0
+        ->
+        '1 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_multiRegister04(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '1 * 1 = 1'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1' -> '1 * 1 = 1'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 1' -> '1 * 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '1 * 1 = 1'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 1
+        r2_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_zeroBitLength01(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '0, 0, 0' -> '0 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '0, 0, 0' -> '0 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '0, 0, 0' -> '0 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 0                |
+        r1 = [0, 1];                    value = 0; bitLength = 0                |
+        r2 = [0, 2];                    value = 0; bitLength = 0                |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]                                |
+            registerA                   = [0, 0]                                |
+            registerB                   = [0, 1]                                |
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 * 0 = 0'
+        -> # output
+        registerDestination             = 0                                     |
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 0                |
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 0)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 0)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 0)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   0),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_zeroBitLength02(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> '8 * 8 = 64'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> '8 * 8 = 64'
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 8' -> '8 * 8 = 64'
+        -> # create registers
+        r0 = [0, 0];                    value = 8; bitLength = 8
+        r1 = [0, 1];                    value = 8; bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 8
+        registerB                       = 8
+        ->
+        '8 * 8 = 64'
+        -> # output
+        registerDestination             = 64
+        -> # written
+        r2 = [0, 2];                    value = 64; bitLength = 8
+        """
+        
+        r0 : int = 8
+        r1 : int = 8
+        r2_out : int = 64
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_zeroBitLength03A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '0, 8, 8' -> '0 * 8 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '0, 8, 8' -> '0 * 8 = 0'
+        
+        'r0 * r1 = r2' with bitLength '0, 8, 8' -> '0 * 8 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 0                |
+        r1 = [0, 1];                    value = 8; bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]                                |
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 8
+        ->
+        '0 * 8 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        """
+        
+        r0 : int = 0
+        r1 : int = 8
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 0)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_zeroBitLength03B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 0, 8' -> '8 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 0, 8' -> '8 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '8, 0, 8' -> '8 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 8; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 0                |
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]                                |
+        )
+        -> # input
+        registerA                       = 8
+        registerB                       = 0
+        ->
+        '8 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        """
+        
+        r0 : int = 8
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 0)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_zeroBitLength03C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 0' -> '8 * 8 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 0' -> '8 * 8 = 0'
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 0' -> '8 * 8 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 8; bitLength = 8
+        r1 = [0, 1];                    value = 8; bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 0                |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]                                |
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 8
+        registerB                       = 8
+        ->
+        '8 * 8 = 0'
+        -> # output
+        registerDestination             = 0                                     |
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 0                |
+        """
+        
+        r0 : int = 8
+        r1 : int = 8
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 0)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   0),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength01A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '0 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '0 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '8, 1, 1' -> '0 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength01B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '0 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '0 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 8, 1' -> '0 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength01C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '0 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '0 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 8' -> '0 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength02A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '0 * 1 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '0 * 1 = 0'
+        
+        'r0 * r1 = r2' with bitLength '8, 1, 1' -> '0 * 1 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 8
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 1
+        ->
+        '0 * 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 1
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength02B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '0 * 1 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '0 * 1 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 8, 1' -> '0 * 1 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 1
+        ->
+        '0 * 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 1
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength02C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '0 * 1 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '0 * 1 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 8' -> '0 * 1 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 1
+        ->
+        '0 * 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        """
+        
+        r0 : int = 0
+        r1 : int = 1
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength03A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '1 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '1 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '8, 1, 1' -> '1 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 0
+        ->
+        '1 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength03B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '1 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '1 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 8, 1' -> '1 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 0
+        ->
+        '1 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength03C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '1 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '1 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 8' -> '1 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 0
+        ->
+        '1 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        """
+        
+        r0 : int = 1
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength04A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '1 * 1 = 1'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1, 1' -> '1 * 1 = 1'
+        
+        'r0 * r1 = r2' with bitLength '8, 1, 1' -> '1 * 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 8
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 1; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '1 * 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r2 = [0, 2];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 1
+        r2_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength04B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '1 * 1 = 1'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 8, 1' -> '1 * 1 = 1'
+        
+        'r0 * r1 = r2' with bitLength '1, 8, 1' -> '1 * 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 8
+        r2 = [0, 2];                    value = 1; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '1 * 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r2 = [0, 2];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 1
+        r2_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_variableBitLength04C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '1 * 1 = 1'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 8' -> '1 * 1 = 1'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 8' -> '1 * 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 1; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '1 * 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r2 = [0, 2];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 1
+        r2_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterIndex01(self):
-        """tests opMultiply on 'r1024 * r1 = r2' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r1024 * r1 = r2' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'
+        
+        'r1024 * r1 = r2' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'
+        -> # create registers
+        r1024 = [0, 1024];              value = 0x04; bitLength = 8             |
+        r1    = [0, 1];                 value = 0x04; bitLength = 8
+        r2    = [0, 2];                 value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 1024]                             |
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0x04
+        registerB                       = 0x04
+        ->
+        '0x04 * 0x04 = 0x10'
+        -> # output
+        registerDestination             = 0x10
+        -> # written
+        r2 = [0, 2];                    value = 0x10; bitLength = 8
+        """
+        
+        r1024 : int = 0x04
+        r1 : int = 0x04
+        r2_out : int = 0x10
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 1024,                                value = r1024, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 1024],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 1024,                                r1024),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 1024,                   r1024),                                 # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterIndex02(self):
-        """tests opMultiply on 'r0 * r1024 = r2' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1024 = r2' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'
+        
+        'r0 * r1024 = r2' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'
+        -> # create registers
+        r0    = [0, 0];                 value = 0x04; bitLength = 8
+        r1024 = [0, 1024];              value = 0x04; bitLength = 8             |
+        r2    = [0, 2];                 value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1024]                             |
+        )
+        -> # input
+        registerA                       = 0x04
+        registerB                       = 0x04
+        ->
+        '0x04 * 0x04 = 0x10'
+        -> # output
+        registerDestination             = 0x10
+        -> # written
+        r2 = [0, 2];                    value = 0x10; bitLength = 8
+        """
+        
+        r0 : int = 0x04
+        r1024 : int = 0x04
+        r2_out : int = 0x10
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1024,                                value = r1024, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1024]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1024,                                r1024),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1024,                   r1024),                                 # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterIndex03(self):
-        """tests opMultiply on 'r0 * r1 = r1024' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r1024' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'
+        
+        'r0 * r1 = r1024' with bitLength '8, 8, 8' -> '0x04 * 0x04 = 0x10'
+        -> # create registers
+        r0    = [0, 0];                 value = 0x04; bitLength = 8
+        r1    = [0, 1];                 value = 0x04; bitLength = 8
+        r1024 = [0, 1024];              value = 0; bitLength = 8                |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1024]                             |
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0x04
+        registerB                       = 0x04
+        ->
+        '0x04 * 0x04 = 0x10'
+        -> # output
+        registerDestination             = 0x10
+        -> # written
+        r1024 = [0, 1024];              value = 0x10; bitLength = 8             |
+        """
+        
+        r0 : int = 0x04
+        r1 : int = 0x04
+        r1024_out : int = 0x10
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 1024,                                value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1024],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 1024,                                8),
+            ('write',                   0, 1024,                                r1024_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+        
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 1024,                   r1024_out)                              # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize01A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '0 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '0 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '0 * 0 = 0'
+        -> # create registers
+        r0    = [0, 0];                 value = 0; bitLength = 1024             |
+        r1    = [0, 1];                 value = 0; bitLength = 1
+        r2    = [0, 2];                 value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]                                |
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1024)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize01B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '0 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '0 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '0 * 0 = 0'
+        -> # create registers
+        r0    = [0, 0];                 value = 0; bitLength = 1
+        r1    = [0, 1];                 value = 0; bitLength = 1024             |
+        r2    = [0, 2];                 value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]                                |
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1024)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize01C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '0 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '0 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '0 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1024             |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]                                |
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1024             |
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1024)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1024),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize02A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '0 * 1 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '0 * 1 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '0 * 1 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1024             |
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]                                |
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 1
+        ->
+        '0 * 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 1
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1024)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize02B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '0 * 1 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '0 * 1 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '0 * 1 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1024             |
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]                                |
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 1
+        ->
+        '0 * 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 1
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1024)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize02C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '0 * 1 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '0 * 1 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '0 * 1 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1024             |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]                                |
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 1
+        ->
+        '0 * 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 1
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1024)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1024),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize03A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '1 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '1 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '1 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1024             |
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]                                |
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 0
+        ->
+        '1 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1024)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize03B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '1 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '1 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '1 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1024             |
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]                                |
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 0
+        ->
+        '1 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1024)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize03C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '1 * 0 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '1 * 0 = 0'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '1 * 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1024             |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]                                |
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 0
+        ->
+        '1 * 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1024             |
+        """
+        
+        r0 : int = 1
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1024)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1024),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize04A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '1 * 1 = 1'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '1 * 1 = 1'
+        
+        'r0 * r1 = r2' with bitLength '1024, 1, 1' -> '1 * 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1024             |
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]                                |
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '1 * 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r2 = [0, 2];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 1
+        r2_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1024)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize04B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '1 * 1 = 1'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '1 * 1 = 1'
+        
+        'r0 * r1 = r2' with bitLength '1, 1024, 1' -> '1 * 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1024             |
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]                                |
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '1 * 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r2 = [0, 2];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 1
+        r2_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1024)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize04C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '1 * 1 = 1'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '1 * 1 = 1'
+        
+        'r0 * r1 = r2' with bitLength '1, 1, 1024' -> '1 * 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1024             |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]                                |
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '1 * 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r2 = [0, 2];                    value = 1; bitLength = 1024             |
+        """
+        
+        r0 : int = 1
+        r1 : int = 1
+        r2_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1024)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1024),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize05A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 8, 8' -> '0x80 * 0x80 = 0x00'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 8, 8' -> '0x80 * 0x80 = 0x00'
+        
+        'r0 * r1 = r2' with bitLength '1024, 8, 8' -> '0x80 * 0x80 = 0x00'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x80; bitLength = 1024          |
+        r1 = [0, 1];                    value = 0x80; bitLength = 8
+        r2 = [0, 2];                    value = 0x00; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]                                |
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0x80
+        registerB                       = 0x80
+        ->
+        '0x80 * 0x80 = 0x00'
+        -> # output
+        registerDestination             = 0x00
+        -> # written
+        r2 = [0, 2];                    value = 0x00; bitLength = 8
+        """
+        
+        r0 : int = 0x80
+        r1 : int = 0x80
+        r2_out : int = 0x00
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1024)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize05B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1024, 8' -> '0x80 * 0x80 = 0x00'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 1024, 8' -> '0x80 * 0x80 = 0x00'
+        
+        'r0 * r1 = r2' with bitLength '8, 1024, 8' -> '0x80 * 0x80 = 0x00'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x80; bitLength = 8
+        r1 = [0, 1];                    value = 0x80; bitLength = 1024          |
+        r2 = [0, 2];                    value = 0x00; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0x80
+        registerB                       = 0x80
+        ->
+        '0x80 * 0x80 = 0x00'
+        -> # output
+        registerDestination             = 0x00
+        -> # written
+        r2 = [0, 2];                    value = 0x00; bitLength = 8
+        """
+        
+        r0 : int = 0x80
+        r1 : int = 0x80
+        r2_out : int = 0x00
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1024)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize05C(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 1024' -> '0x80 * 0x80 = 0x04000'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 1024' -> '0x80 * 0x80 = 0x4000'
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 1024' -> '0x80 * 0x80 = 0x4000'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x80; bitLength = 8
+        r1 = [0, 1];                    value = 0x80; bitLength = 8
+        r2 = [0, 2];                    value = 0x00; bitLength = 1024          |
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]                                |
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0x80
+        registerB                       = 0x80
+        ->
+        '0x80 * 0x80 = 0x4000'
+        -> # output
+        registerDestination             = 0x4000                                |
+        -> # written
+        r2 = [0, 2];                    value = 0x4000; bitLength = 1024        |
+        """
+        
+        r0 : int = 0x80
+        r1 : int = 0x80
+        r2_out : int = 0x4000
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1024)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1024),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize06A(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 8, 8' -> '0xffff... * 0xff = 0x01'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '1024, 8, 8' -> '0xffff... * 0xff = 0x01'
+        
+        'r0 * r1 = r2' with bitLength '1024, 8, 8' -> '0xffff... * 0xff = 0x01'
+        -> # create registers
+        r0 = [0, 0];                    value = 0xffff...; bitLength = 1024
+        r1 = [0, 1];                    value = 0xff; bitLength = 8
+        r2 = [0, 2];                    value = 0x00; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0xffff...
+        registerB                       = 0xff
+        ->
+        '0xffff... * 0xff = 0x01'
+        -> # output
+        registerDestination             = 0x01
+        -> # written
+        r2 = [0, 2];                    value = 0x01; bitLength = 8
+        """
+        
+        r0 : int = 2**1024 - 1
+        r1 : int = 0xff
+        r2_out : int = 0x01
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1024)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_largeRegisterSize06B(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**18) * 2**(2**18) = (2**(2**19))'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**18) * 2**(2**18) = (2**(2**19))'
+        
+        'r0 * r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**18) * 2**(2**18) = (2**(2**19))'
+        -> # create registers
+        r0 = [0, 0];                    value = 2**(2**18); bitLength = 2**20
+        r1 = [0, 1];                    value = 2**(2**18); bitLength = 2**20
+        r2 = [0, 2];                    value = 0; bitLength = 2**20
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 2**(2**18)
+        registerB                       = 2**(2**18)
+        ->
+        '2**(2**18) * 2**(2**18) = (2**(2**19))'
+        -> # output
+        registerDestination             = 2**(2**19)
+        -> # written
+        r2 = [0, 2];                    value = 2**(2**19); bitLength = 2**20
+        """
+        
+        r0 : int = 2**(2**18)
+        r1 : int = 2**(2**18)
+        r2_out : int = 2**(2**19)
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2**20)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 2**20)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 2**20)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   2**20),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_zfighting01(self):
-        """tests opMultiply on 'r0 * r0 = r0' with bitLength '8, 8, 8' -> '0x08 * 0x08 = 0x40'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r0 = r0' with bitLength '8, 8, 8' -> '0x08 * 0x08 = 0x40'
+        
+        'r0 * r0 = r0' with bitLength '8, 8, 8' -> '0x08 * 0x08 = 0x40'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x08; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 0]
+            registerA                   = [0, 0]
+            registerB                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0x08
+        registerB                       = 0x08
+        ->
+        '0x08 * 0x08 = 0x40'
+        -> # output
+        registerDestination             = 0x40
+        -> # written
+        r0 = [0, 0];                    value = 0x40; bitLength = 8
+        """
+        
+        r0 : int = 0x08
+        r0_out : int = 0x40
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 0],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 0,                                   8),
+            ('write',                   0, 0,                                   r0_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0_out),                                    # input, output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_inputBitPattern1BitSweep01(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) * (1 << y) = 2**(x + y)' for x in range(8) for y in range(8)]"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) * (1 << y) = 2**(x + y) & (2**8 - 1)' for x in range(8) for y in range(8)]
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) * (1 << y) = 2**(x + y) & (2**8 - 1)' for x in range(8) for y in range(8)]
+        -> # create registers
+        r0 = [0, 0];                    value = (1 << x); bitLength = 8
+        r1 = [0, 1];                    value = (1 << y); bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = (1 << x)
+        registerB                       = (1 << y)
+        ->
+        '(1 << x) * (1 << y) = 2**(x + y) & (2**8 - 1)'
+        -> # output
+        registerDestination             = 2**(x + y) & (2**8 - 1)
+        -> # written
+        r2 = [0, 2];                    value = 2**(x + y) & (2**8 - 1); bitLength = 8
+        """
+        
+        for x, y in [(x, y) for x in range(8) for y in range(8)]:
+            with self.subTest(x=x, y=y):
+                r0 : int = (1 << x)
+                r1 : int = (1 << y)
+                r2_out : int = 2**(x + y) & (2**8 - 1)
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = r0, bitLength = 8)
+                MMMU.createRegister(    0, 1,                                   value = r1, bitLength = 8)
+                MMMU.createRegister(    0, 2,                                   value = 0, bitLength = 8)
+
+                returnValue : None = self.ISA.opMultiply(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 2],
+                    registerA                                                   = [0, 0],
+                    registerB                                                   = [0, 1]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   r0),
+                    ('read',            0, 1,                                   r1),
+                    ('getConfig',       0, 2,                                   8),
+                    ('write',           0, 2,                                   r2_out)
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              r0),                                    # input
+                    (0, 1,              r1),                                    # input
+                    (0, 2,              r2_out),                                # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_inputBitPattern1BitSweep02(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) * (1 << y) = 2**(x + y)' for x in range(512) for y in range(512)]"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) * (1 << y) = 2**(x + y) & (2**512 - 1)' for x in range(512) for y in range(512)]
+        
+        'r0 * r1 = r2' with bitLength '512, 512, 512' -> ['(1 << x) * (1 << y) = 2**(x + y) & (2**512 - 1)' for x in range(512) for y in range(512)]
+        -> # create registers
+        r0 = [0, 0];                    value = (1 << x); bitLength = 512
+        r1 = [0, 1];                    value = (1 << y); bitLength = 512
+        r2 = [0, 2];                    value = 0; bitLength = 512
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = (1 << x)
+        registerB                       = (1 << y)
+        ->
+        '(1 << x) * (1 << y) = 2**(x + y) & (2**512 - 1)'
+        -> # output
+        registerDestination             = 2**(x + y) & (2**512 - 1)
+        -> # written
+        r2 = [0, 2];                    value = 2**(x + y) & (2**512 - 1); bitLength = 512
+        """
+        
+        for x, y in [(x, y) for x in range(512) for y in range(512)]:
+            with self.subTest(x=x, y=y):
+                r0 : int = (1 << x)
+                r1 : int = (1 << y)
+                r2_out : int = 2**(x + y) & (2**512 - 1)
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = r0, bitLength = 512)
+                MMMU.createRegister(    0, 1,                                   value = r1, bitLength = 512)
+                MMMU.createRegister(    0, 2,                                   value = 0, bitLength = 512)
+
+                returnValue : None = self.ISA.opMultiply(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 2],
+                    registerA                                                   = [0, 0],
+                    registerB                                                   = [0, 1]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   r0),
+                    ('read',            0, 1,                                   r1),
+                    ('getConfig',       0, 2,                                   512),
+                    ('write',           0, 2,                                   r2_out)
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              r0),                                    # input
+                    (0, 1,              r1),                                    # input
+                    (0, 2,              r2_out),                                # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_inputBitPattern1BitSweep03(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) * (1 << y) = 2**(x + y)' for x in range(512) for y in range(512)]"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) * (1 << y) = 2**(x + y)' for x in range(512) for y in range(512)]
+        
+        'r0 * r1 = r2' with bitLength '512, 512, 2048' -> ['(1 << x) * (1 << y) = 2**(x + y)' for x in range(512) for y in range(512)]
+        -> # create registers
+        r0 = [0, 0];                    value = (1 << x); bitLength = 512
+        r1 = [0, 1];                    value = (1 << y); bitLength = 512
+        r2 = [0, 2];                    value = 0; bitLength = 2048
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = (1 << x)
+        registerB                       = (1 << y)
+        ->
+        '(1 << x) * (1 << y) = 2**(x + y)'
+        -> # output
+        registerDestination             = 2**(x + y)
+        -> # written
+        r2 = [0, 2];                    value = 2**(x + y); bitLength = 2048
+        """
+        
+        for x, y in [(x, y) for x in range(512) for y in range(512)]:
+            with self.subTest(x=x, y=y):
+                r0 : int = (1 << x)
+                r1 : int = (1 << y)
+                r2_out : int = 2**(x + y)
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = r0, bitLength = 512)
+                MMMU.createRegister(    0, 1,                                   value = r1, bitLength = 512)
+                MMMU.createRegister(    0, 2,                                   value = 0, bitLength = 2048)
+
+                returnValue : None = self.ISA.opMultiply(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 2],
+                    registerA                                                   = [0, 0],
+                    registerB                                                   = [0, 1]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   r0),
+                    ('read',            0, 1,                                   r1),
+                    ('getConfig',       0, 2,                                   2048),
+                    ('write',           0, 2,                                   r2_out)
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              r0),                                    # input
+                    (0, 1,              r1),                                    # input
+                    (0, 2,              r2_out),                                # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_inputBitPatternCheckerboardConstructive01(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... * 0b1010... = ?'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... * 0b1010... = ?'
+        
+        'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... * 0b1010... = ?'
+        -> # create registers
+        r0 = [0, 0];                    value = 0b1010...; bitLength = 2048
+        r1 = [0, 1];                    value = 0b1010...; bitLength = 2048
+        r2 = [0, 2];                    value = 0; bitLength = 2048
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0b1010...
+        registerB                       = 0b1010...
+        ->
+        '0b1010... * 0b1010... = ?'
+        -> # output
+        registerDestination             = ?
+        -> # written
+        r2 = [0, 2];                    value = ?; bitLength = 2048
+        """
+        
+        r0 : int = sum([2**i for i in range(2048) if i % 2 == 1])
+        r1 : int = sum([2**i for i in range(2048) if i % 2 == 1])
+        r2_out : int = (r0 * r1) & (2**2048 - 1)
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2048)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 2048)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 2048)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   2048),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out),                                # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_inputBitPatternCheckerboardConstructive02(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... * 0b0101... = ?'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... * 0b0101... = ?'
+        
+        'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... * 0b0101... = ?'
+        -> # create registers
+        r0 = [0, 0];                    value = 0b0101...; bitLength = 2048
+        r1 = [0, 1];                    value = 0b0101...; bitLength = 2048
+        r2 = [0, 2];                    value = 0; bitLength = 2048
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0b0101...
+        registerB                       = 0b0101...
+        ->
+        '0b0101... * 0b0101... = ?'
+        -> # output
+        registerDestination             = ?
+        -> # written
+        r2 = [0, 2];                    value = ?; bitLength = 2048
+        """
+        
+        r0 : int = sum([2**i for i in range(2048) if i % 2 == 0])
+        r1 : int = sum([2**i for i in range(2048) if i % 2 == 0])
+        r2_out : int = (r0 * r1) & (2**2048 - 1)
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2048)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 2048)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 2048)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   2048),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out),                                # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_inputBitPatternCheckerboardDestructive01(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... * 0b0101... = ?'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... * 0b0101... = ?'
+        
+        'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b1010... * 0b0101... = ?'
+        -> # create registers
+        r0 = [0, 0];                    value = 0b1010...; bitLength = 2048
+        r1 = [0, 1];                    value = 0b0101...; bitLength = 2048
+        r2 = [0, 2];                    value = 0; bitLength = 2048
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0b1010...
+        registerB                       = 0b0101...
+        ->
+        '0b1010... * 0b0101... = ?'
+        -> # output
+        registerDestination             = ?
+        -> # written
+        r2 = [0, 2];                    value = ?; bitLength = 2048
+        """
+        
+        r0 : int = sum([2**i for i in range(2048) if i % 2 == 1])
+        r1 : int = sum([2**i for i in range(2048) if i % 2 == 0])
+        r2_out : int = (r0 * r1) & (2**2048 - 1)
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2048)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 2048)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 2048)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   2048),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out),                                # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_inputBitPatternCheckerboardDestructive02(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... * 0b1010... = ?'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... * 0b1010... = ?'
+        
+        'r0 * r1 = r2' with bitLength '2048, 2048, 2048' -> '0b0101... * 0b1010... = ?'
+        -> # create registers
+        r0 = [0, 0];                    value = 0b0101...; bitLength = 2048
+        r1 = [0, 1];                    value = 0b1010...; bitLength = 2048
+        r2 = [0, 2];                    value = 0; bitLength = 2048
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0b0101...
+        registerB                       = 0b1010...
+        ->
+        '0b0101... * 0b1010... = ?'
+        -> # output
+        registerDestination             = ?
+        -> # written
+        r2 = [0, 2];                    value = ?; bitLength = 2048
+        """
+        
+        r0 : int = sum([2**i for i in range(2048) if i % 2 == 0])
+        r1 : int = sum([2**i for i in range(2048) if i % 2 == 1])
+        r2_out : int = (r0 * r1) & (2**2048 - 1)
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2048)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 2048)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 2048)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   2048),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out),                                # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_bitpattern8bit4Overlap(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0xfc * 0x3f = 0x3e04'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0xfc * 0x3f = 0x3e04'
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0xfc * 0x3f = 0x3e04'
+        -> # create registers
+        r0 = [0, 0];                    value = 0xfc; bitLength = 8
+        r1 = [0, 1];                    value = 0x3f; bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 16
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0xfc
+        registerB                       = 0x3f
+        ->
+        '0xfc * 0x3f = 0x3e04'
+        -> # output
+        registerDestination             = 0x3e04
+        -> # written
+        r2 = [0, 2];                    value = 0x3e04; bitLength = 16
+        """
+        
+        r0 : int = 0xfc
+        r1 : int = 0x3f
+        r2_out : int = 0x3e04
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 16)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   16),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out),                                # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_8bitFullCombination01(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> ['x * y = ?' for x in range(255) for y in range(255)]"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> ['x * y = ?' for x in range(255) for y in range(255)]
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 8' -> ['x * y = ?' for x in range(255) for y in range(255)]
+        -> # create registers
+        r0 = [0, 0];                    value = x; bitLength = 8
+        r1 = [0, 1];                    value = y; bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = x
+        registerB                       = y
+        ->
+        'x * y = ?'
+        -> # output
+        registerDestination             = ?
+        -> # written
+        r2 = [0, 2];                    value = ?; bitLength = 8
+        """
+        
+        for x, y in [(x, y) for x in range(256) for y in range(256)]:
+            with self.subTest(x=x, y=y):
+                r0 : int = x
+                r1 : int = y
+                r2_out : int = (x * y) & (2**8 - 1)
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = r0, bitLength = 8)
+                MMMU.createRegister(    0, 1,                                   value = r1, bitLength = 8)
+                MMMU.createRegister(    0, 2,                                   value = 0, bitLength = 8)
+
+                returnValue : None = self.ISA.opMultiply(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 2],
+                    registerA                                                   = [0, 0],
+                    registerB                                                   = [0, 1]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   r0),
+                    ('read',            0, 1,                                   r1),
+                    ('getConfig',       0, 2,                                   8),
+                    ('write',           0, 2,                                   r2_out)
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              r0),                                    # input
+                    (0, 1,              r1),                                    # input
+                    (0, 2,              r2_out),                                # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
     
     def test_opMultiply_8bitFullCombination02(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 18' -> ['x * y = x * y' for x in range(255) for y in range(255)]"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> ['x * y = x * y' for x in range(255) for y in range(255)]
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 16' -> ['x * y = x * y' for x in range(255) for y in range(255)]
+        -> # create registers
+        r0 = [0, 0];                    value = x; bitLength = 8
+        r1 = [0, 1];                    value = y; bitLength = 8
+        r2 = [0, 2];                    value = 0; bitLength = 16
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = x
+        registerB                       = y
+        ->
+        'x * y = x * y'
+        -> # output
+        registerDestination             = x * y
+        -> # written
+        r2 = [0, 2];                    value = x * y; bitLength = 16
+        """
+        
+        for x, y in [(x, y) for x in range(256) for y in range(256)]:
+            with self.subTest(x=x, y=y):
+                r0 : int = x
+                r1 : int = y
+                r2_out : int = (x * y)
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = r0, bitLength = 8)
+                MMMU.createRegister(    0, 1,                                   value = r1, bitLength = 8)
+                MMMU.createRegister(    0, 2,                                   value = 0, bitLength = 16)
+
+                returnValue : None = self.ISA.opMultiply(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 2],
+                    registerA                                                   = [0, 0],
+                    registerB                                                   = [0, 1]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   r0),
+                    ('read',            0, 1,                                   r1),
+                    ('getConfig',       0, 2,                                   16),
+                    ('write',           0, 2,                                   r2_out)
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              r0),                                    # input
+                    (0, 1,              r1),                                    # input
+                    (0, 2,              r2_out),                                # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_integration01(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> '0x08 * 0x08 = 0x40'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 8' -> '0x08 * 0x08 = 0x40'
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 8' -> '0x08 * 0x08 = 0x40'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x08; bitLength = 8
+        r1 = [0, 1];                    value = 0x08; bitLength = 8
+        r2 = [0, 2];                    value = 0x00; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0x08
+        registerB                       = 0x08
+        ->
+        '0x08 * 0x08 = 0x40'
+        -> # output
+        registerDestination             = 0x40
+        -> # written
+        r2 = [0, 2];                    value = 0x40; bitLength = 8
+        """
+        
+        r0 : int = 0x08
+        r1 : int = 0x08
+        r2_out : int = 0x40
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out),                                # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_integration02(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0x80 * 0x80 = 2**7 * 2**7 = 2**14'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0x80 * 0x80 = 2**7 * 2**7 = 2**14'
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0x80 * 0x80 = 2**7 * 2**7 = 2**14'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x80; bitLength = 8
+        r1 = [0, 1];                    value = 0x80; bitLength = 8
+        r2 = [0, 2];                    value = 0x00; bitLength = 16
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0x80
+        registerB                       = 0x80
+        ->
+        '0x80 * 0x80 = 2**7 * 2**7 = 2**14'
+        -> # output
+        registerDestination             = 2**14
+        -> # written
+        r2 = [0, 2];                    value = 2**14; bitLength = 16
+        """
+        
+        r0 : int = 0x80
+        r1 : int = 0x80
+        r2_out : int = 2**14
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 16)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   16),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out),                                # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_integration03(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '16, 16, 8' -> '0x80 * 0x80 = 2**7 * 2**7 = 0'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '16, 16, 8' -> '0x80 * 0x80 = 2**7 * 2**7 = 0'
+        
+        'r0 * r1 = r2' with bitLength '16, 16, 8' -> '0x80 * 0x80 = 2**7 * 2**7 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x80; bitLength = 16
+        r1 = [0, 1];                    value = 0x80; bitLength = 16
+        r2 = [0, 2];                    value = 0x00; bitLength = 8
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0x80
+        registerB                       = 0x80
+        ->
+        '0x80 * 0x80 = 2**7 * 2**7 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 8
+        """
+        
+        r0 : int = 0x80
+        r1 : int = 0x80
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 16)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 16)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+        
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out),                                # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opMultiply_integration04(self):
-        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0xff * 0xff = fe01'"""
-        raise NotImplementedError
+        """tests opMultiply on 'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0xff * 0xff = 0xfe01'
+        
+        'r0 * r1 = r2' with bitLength '8, 8, 16' -> '0xff * 0xff = 0xfe01'
+        -> # create registers
+        r0 = [0, 0];                    value = 0xff; bitLength = 8
+        r1 = [0, 1];                    value = 0xff; bitLength = 8
+        r2 = [0, 2];                    value = 0xfe01; bitLength = 16
+        ->
+        opMultiply(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0xff
+        registerB                       = 0xff
+        ->
+        '0xff * 0xff = 0xfe01'
+        -> # output
+        registerDestination             = 0xfe01
+        -> # written
+        r2 = [0, 2];                    value = 0xfe01; bitLength = 16
+        """
+        
+        r0 : int = 0xff
+        r1 : int = 0xff
+        r2_out : int = 0xfe01
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = r2_out, bitLength = 16)
+
+        returnValue : None = self.ISA.opMultiply(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   16),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out),                                # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     #TODO testing on opMultiplySignedMultiElement
 
     def test_opTwosCompliment_Exception_funcReadNotFunction(self):
         """tests opTwosCompliment raises an exception when funcRead is not a function"""
-        raise NotImplementedError
+        
+        functions : list[Any] = self.functionInvalid
+
+        function : Any
+        for function in functions:
+            with self.subTest(function=function):
+                self.assertRaises(AssertionError, self.ISA.opTwosCompliment, 
+                    funcRead                                                    = function, # test with invalid function
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = self.registerNull
+                )
 
     def test_opTwosCompliment_Exception_funcWriteNotFunction(self):
         """tests opTwosCompliment raises an exception when funcWrite is not a function"""
-        raise NotImplementedError
+        
+        functions : list[Any] = self.functionInvalid
+
+        function : Any
+        for function in functions:
+            with self.subTest(function=function):
+                self.assertRaises(AssertionError, self.ISA.opTwosCompliment,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = function, # test with invalid function
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = self.registerNull
+                )
 
     def test_opTwosCompliment_Exception_funcGetConfigNotFunction(self):
         """tests opTwosCompliment raises an exception when funcGetConfig is not a function"""
-        raise NotImplementedError
+        
+        functions : list[Any] = self.functionInvalid
+
+        function : Any
+        for function in functions:
+            with self.subTest(function=function):
+                self.assertRaises(AssertionError, self.ISA.opTwosCompliment,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = function, # test with invalid function
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = self.registerNull
+                )
 
     def test_opTwosCompliment_Exception_registerDestinationNotRegister(self):
         """tests opTwosCompliment raises an exception when registerDestination is not a register"""
-        raise NotImplementedError
+        
+        registers : list[Any] = self.registerInvalid
+
+        register : Any
+        for register in registers:
+            with self.subTest(register=register):
+                self.assertRaises(AssertionError, self.ISA.opTwosCompliment,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = register, # test with invalid register
+                    registerA                                                   = self.registerNull
+                )
 
     def test_opTwosCompliment_Exception_registerANotRegister(self):
         """tests opTwosCompliment raises an exception when registerA is not a register"""
-        raise NotImplementedError
+        
+        registers : list[Any] = self.registerInvalid
+
+        register : Any
+        for register in registers:
+            with self.subTest(register=register):
+                self.assertRaises(AssertionError, self.ISA.opTwosCompliment,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = register # test with invalid register
+                )
 
     def test_opTwosCompliment_Exception_registerDestinationNotInMMMU(self):
         """tests opTwosCompliment raises an exception when registerDestination is not in the MMMU"""
-        raise NotImplementedError
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
+
+        register : list[str | int, str | int] = [1, 1] # register not in MMMU
+
+        self.assertRaises(MMMUAccessError, self.ISA.opTwosCompliment,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = register, # test with invalid register
+            registerA                                                           = self.registerNull
+        )
 
     def test_opTwosCompliment_Exception_registerANotInMMMU(self):
         """tests opTwosCompliment raises an exception when registerA is not in the MMMU"""
-        raise NotImplementedError
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
+
+        register : list[str | int, str | int] = [1, 1] # register not in MMMU
+
+        self.assertRaises(MMMUAccessError, self.ISA.opTwosCompliment,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = self.registerNull,
+            registerA                                                           = register # test with invalid register
+        )
 
     def test_opTwosCompliment_singleRegister01(self):
-        """tests opTwosCompliment on 'Twos r0 = r0' with bitLength '1, 1' -> 'Twos 0 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r0' with bitLength '1, 1' -> 'Twos 0 = 0'
+        
+        'Twos r0 = r0' with bitLength '1, 1' -> 'Twos 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1                |
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 0]                                |
+            registerA                   = [0, 0]                                |
+        )
+        -> # input
+        registerA                       = 0 
+        ->
+        'Twos 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r0 = [0, 0];                    value = 0; bitLength = 1                |
+        """
+        
+        r0 : int = 0
+        r0_out : int = 0
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 0],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 0,                                   1),
+            ('write',                   0, 0,                                   r0_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0_out)                                 # input, output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_singleRegister02(self):
-        """tests opTwosCompliment on 'Twos r0 = r0' with bitLength '1, 1' -> 'Twos 1 = 1'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r0' with bitLength '1, 1' -> 'Twos 1 = 1'
+        
+        'Twos r0 = r0' with bitLength '1, 1' -> 'Twos 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 0]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 1
+        ->
+        'Twos 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r0_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 0],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 0,                                   1),
+            ('write',                   0, 0,                                   r0_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0_out)                                 # input, output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_multiRegister01(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1' -> 'Twos 0 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1' -> 'Twos 0 = 0'
+        
+        'Twos r0 = r1' with bitLength '1, 1' -> 'Twos 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0
+        ->
+        'Twos 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   1),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_multiRegister02(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1' -> 'Twos 1 = 1'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1' -> 'Twos 1 = 1'
+        
+        'Twos r0 = r1' with bitLength '1, 1' -> 'Twos 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 1
+        ->
+        'Twos 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   1),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_zeroBitLength01(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '0, 0' -> 'Twos 0 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '0, 0' -> 'Twos 0 = 0'
+        
+        'Twos r0 = r1' with bitLength '0, 0' -> 'Twos 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 0                |
+        r1 = [0, 1];                    value = 0; bitLength = 0                |
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]                                |
+            registerA                   = [0, 0]                                |
+        )
+        -> # input
+        registerA                       = 0
+        ->
+        'Twos 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0; bitLength = 0                |
+        """
+        
+        r0 : int = 0
+        r1_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 0)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 0)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   0),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_zeroBitLength02(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 1 = 0xff'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 1 = 0xff'
+        
+        'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 1 = 0xff'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0
+        ->
+        'Twos 1 = 0xff'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0xff; bitLength = 8
+        """
+        
+        r0 : int = 1
+        r1_out : int = 0xff
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_zeroBitLength03A(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '0, 8' -> 'Twos 0 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '0, 8' -> 'Twos 0 = 0'
+        
+        'Twos r0 = r1' with bitLength '0, 8' -> 'Twos 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 0                |
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]                                |
+        )
+        -> # input
+        registerA                       = 0
+        ->
+        'Twos 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        """
+        
+        r0 : int = 0
+        r1_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 0)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_zeroBitLength03B(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 0' -> 'Twos 1 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 0' -> 'Twos 1 = 0'
+        
+        'Twos r0 = r1' with bitLength '8, 0' -> 'Twos 1 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 0                |
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]                                |
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 1
+        ->
+        'Twos 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0; bitLength = 0                |
+        """
+        
+        r0 : int = 1
+        r1_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 0)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   0),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_variableBitLength01A(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 1' -> 'Twos 0 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 1' -> 'Twos 0 = 0'
+        
+        'Twos r0 = r1' with bitLength '8, 1' -> 'Twos 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0
+        ->
+        'Twos 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   1),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_variableBitLength01B(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 8' -> 'Twos 0 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 8' -> 'Twos 0 = 0'
+        
+        'Twos r0 = r1' with bitLength '1, 8' -> 'Twos 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0
+        ->
+        'Twos 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        """
+        
+        r0 : int = 0
+        r1_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_variableBitLength02A(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 1' -> 'Twos 0xff = 1'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 1' -> 'Twos 0xff = 1'
+        
+        'Twos r0 = r1' with bitLength '8, 1' -> 'Twos 0xff = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 0xff; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0xff
+        ->
+        'Twos 0xff = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 0xff
+        r1_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   1),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_variableBitLength02B(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 8' -> 'Twos 1 = 0xff'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 8' -> 'Twos 1 = 0xff'
+        
+        'Twos r0 = r1' with bitLength '1, 8' -> 'Twos 1 = 0xff'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 1
+        ->
+        'Twos 1 = 0xff'
+        -> # output
+        registerDestination             = 0xff
+        -> # written
+        r1 = [0, 1];                    value = 0xff; bitLength = 8
+        """
+        
+        r0 : int = 1
+        r1_out : int = 0xff
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+
+    def test_opTwosCompliment_variableBitLength03A(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 16' -> 'Twos 0xf0 = 0xff10'
+        
+        'Twos r0 = r1' with bitLength '8, 16' -> 'Twos 0xf0 = 0xff10'
+        -> # create registers
+        r0 = [0, 0];                    value = 0xf0; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 16
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0xf0
+        ->
+        'Twos 0xf0 = 0xff10'
+        -> # output
+        registerDestination             = 0xff10
+        -> # written
+        r1 = [0, 1];                    value = 0xff10; bitLength = 16
+        """
+        
+        r0 : int = 0xf0
+        r1_out : int = 0xff10
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 16)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   16),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+
+    def test_opTwosCompliment_variableBitLength03B(self):
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '16, 8' -> 'Twos 0xf0f0 = 0x10'
+        
+        'Twos r0 = r1' with bitLength '16, 8' -> 'Twos 0xf0f0 = 0x10'
+        -> # create registers
+        r0 = [0, 0];                    value = 0xf0f0; bitLength = 16
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0xf0f0
+        ->
+        'Twos 0xf0f0 = 0x10'
+        -> # output
+        registerDestination             = 0x10
+        -> # written
+        r1 = [0, 1];                    value = 0x10; bitLength = 8
+        """
+        
+        r0 : int = 0xf0f0
+        r1_out : int = 0x10
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 16)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterIndex01(self):
-        """tests opTwosCompliment on 'Twos r1024 = r1' with bitLength '8, 8' -> 'Twos 0x0f = 0xf0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r1024 = r1' with bitLength '8, 8' -> 'Twos 0x0f = 0xf1'
+        
+        'Twos r1024 = r1' with bitLength '8, 8' -> 'Twos 0x0f = 0xf0'
+        -> # create registers
+        r1024 = [0, 1024];              value = 0x0f; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 1024]
+        )
+        -> # input
+        registerA                       = 0x0f
+        ->
+        'Twos 0x0f = 0xf0'
+        -> # output
+        registerDestination             = 0xf1
+        -> # written
+        r1 = [0, 1];                    value = 0xf1; bitLength = 8
+        """
+        
+        r1024 : int = 0x0f
+        r1_out : int = 0xf1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 1024,                                value = r1024, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 1024]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 1024,                                r1024),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 1024,                   r1024),                                 # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterIndex02(self):
-        """tests opTwosCompliment on 'Twos r0 = r1024' with bitLength '8, 8' -> 'Twos 0x0f = 0xffff...f0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1024' with bitLength '8, 8' -> 'Twos 0x0f = 0xf1'
+        
+        'Twos r0 = r1024' with bitLength '8, 8' -> 'Twos 0x0f = 0xf1'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x0f; bitLength = 8
+        r1024 = [0, 1024];              value = 0; bitLength = 8                |
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1024]                             |
+            registerA                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0x0f
+        ->
+        'Twos 0x0f = 0xf1'
+        -> # output
+        registerDestination             = 0xf1
+        -> # written
+        r1 = [0, 1024];                 value = 0xf1; bitLength = 8
+        """
+        
+        r0 : int = 0x0f
+        r1024_out : int = 0xf1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1024,                                value = r1024, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1024],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 1,                                   r0),
+            ('getConfig',               0, 1024,                                8),
+            ('write',                   0, 1024,                                r1024_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 1,                      r0),                                    # input
+            (0, 1024,                   r1024_out)                              # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterSize01A(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1024, 1' -> 'Twos 0 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1024, 1' -> 'Twos 0 = 0'
+        
+        'Twos r0 = r1' with bitLength '1024, 1' -> 'Twos 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1024             |
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 0]
+            registerA                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        ->
+        'Twos 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1024)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   1),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterSize01B(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1024' -> 'Twos 0 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1024' -> 'Twos 0 = 0'
+        
+        'Twos r0 = r1' with bitLength '1, 1024' -> 'Twos 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1024             |
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]                                |
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0
+        ->
+        'Twos 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0; bitLength = 1024             |
+        """
+        
+        r0 : int = 0
+        r1_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 1024)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   1024),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterSize02A(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1024, 1' -> 'Twos 1 = 1'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1024, 1' -> 'Twos 1 = 1'
+        
+        'Twos r0 = r1' with bitLength '1024, 1' -> 'Twos 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1024             |
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]                                |
+        )
+        -> # input
+        registerA                       = 1
+        ->
+        'Twos 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1024)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   1),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterSize02B(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1024' -> 'Twos 1 = 0xffff...ff'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 1024' -> 'Twos 1 = 0xffff...ff'
+        
+        'Twos r0 = r1' with bitLength '1, 1024' -> 'Twos 1 = 0xffff...ff'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1024             |
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]                                |
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 1
+        ->
+        'Twos 1 = 0xffff...ff'
+        -> # output
+        registerDestination             = 2**1024 - 1
+        -> # written
+        r1 = [0, 1];                    value = 2**1024 - 1; bitLength = 1024
+        """
+        
+        r0 : int = 1
+        r1_out : int = 2**1024 - 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 1024)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   1024),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterSize03A(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 1' -> 'Twos 0xffff... = 1'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 1' -> 'Twos 0xffff... = 1'
+        
+        'Twos r0 = r1' with bitLength '2**20, 1' -> 'Twos 0xffff... = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 2**(2**20) - 1; bitLength = 2**20
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 2**(2**20) - 1
+        ->
+        'Twos 0xffff... = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 2**2**20 - 1
+        r1_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2**20)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   1),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterSize03B(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 2**20' -> 'Twos 1 = 0xffff...'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 2**20' -> 'Twos 1 = 0xffff...'
+        
+        'Twos r0 = r1' with bitLength '1, 2**20' -> 'Twos 1 = 0xffff...'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 2**20
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 1
+        ->
+        'Twos 1 = 0xffff...'
+        -> # output
+        registerDestination             = 2**2**20 - 1
+        -> # written
+        r1 = [0, 1];                    value = 2**2**20 - 1; bitLength = 2**20
+        """
+        
+        r0 : int = 1
+        r1_out : int = 2**2**20 - 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 2**20)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   2**20),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterSize04A(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 0xffff... = 1'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 0xffff... = 1'
+        
+        'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 0xffff... = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 2**2**20 - 1; bitLength = 2**20
+        r1 = [0, 1];                    value = 0; bitLength = 2**20
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 2**2**20 - 1
+        ->
+        'Twos 0xffff... = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r1 = [0, 1];                    value = 1; bitLength = 2**20
+        """
+        
+        r0 : int = 2**2**20 - 1
+        r1_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2**20)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 2**20)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   2**20),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_largeRegisterSize04B(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 1 = 0xffff...'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 1 = 0xffff...'
+        
+        'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 1 = 0xffff...'
+        -> # create registers
+        r0 = [0, 0];                    value = 2**2**20 - 1; bitLength = 2**20
+        r1 = [0, 1];                    value = 0; bitLength = 2**20
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 1
+        ->
+        'Twos 1 = 0xffff...'
+        -> # output
+        registerDestination             = 2**2**20 - 1
+        -> # written
+        r1 = [0, 1];                    value = 2**2**20 - 1; bitLength = 2**20
+        """
+        
+        r0 : int = 1
+        r1_out : int = 2**2**20 - 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2**20)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 2**20)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   2**20),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_inputBitPattern1BitSweep01(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> ['Twos (1 << x) = ?' for x in range(8)]"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> ['Twos (1 << x) = ?' for x in range(8)]
+        
+        'Twos r0 = r1' with bitLength '8, 8' -> ['Twos (1 << x) = ?' for x in range(8)]
+        -> # create registers
+        r0 = [0, 0];                    value = x; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = x
+        ->
+        'Twos (1 << x) = ?'
+        -> # output
+        registerDestination             = ?
+        -> # written
+        r1 = [0, 1];                    value = ?; bitLength = 8
+        """
+        
+        for x in range(8):
+            with self.subTest(x=x):
+                r0 : int = 1 << x
+                
+                bitArray : list[int] = [r0 >> i & 1 for i in range(8)] # Converts to bit array, index 0 is least significant bit
+                bitArray : list[int] = [not i for i in bitArray] # performs the bitwise NOT operation
+                number : int = sum([bit << i for i, bit in enumerate(bitArray)]) # converts back to integer
+                r1_out : int = (number + 1) & (2**8 - 1) # add one to be twos compliment, and trunk
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = r0, bitLength = 8)
+                MMMU.createRegister(    0, 1,                                   value = 0, bitLength = 8)
+
+                returnValue : None = self.ISA.opTwosCompliment(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 1],
+                    registerA                                                   = [0, 0]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   r0),
+                    ('getConfig',       0, 1,                                   8),
+                    ('write',           0, 1,                                   r1_out)
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              r0),                                    # input
+                    (0, 1,              r1_out)                                 # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+
 
     def test_opTwosCompliment_inputBitPattern1BitSweep02(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '512, 512' -> ['Twos (1 << x) = ?' for x in range(512)]"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '512, 512' -> ['Twos (1 << x) = ?' for x in range(512)]
+        
+        'Twos r0 = r1' with bitLength '512, 512' -> ['Twos (1 << x) = ?' for x in range(512)]
+        -> # create registers
+        r0 = [0, 0];                    value = x; bitLength = 512
+        r1 = [0, 1];                    value = 0; bitLength = 512
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = x
+        ->
+        'Twos (1 << x) = ?'
+        -> # output
+        registerDestination             = ?
+        -> # written
+        r1 = [0, 1];                    value = ?; bitLength = 512
+        """
+        
+        for x in range(512):
+            with self.subTest(x=x):
+                r0 : int = 1 << x
+
+                bitArray : list[int] = [r0 >> i & 1 for i in range(512)] # Converts to bit array, index 0 is least significant bit
+                bitArray : list[int] = [not i for i in bitArray] # performs the bitwise NOT operation
+                number : int = sum([bit << i for i, bit in enumerate(bitArray)]) # converts back to integer
+                r1_out : int = (number + 1) & (2**512 - 1) # add one to be twos compliment, and trunk
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = r0, bitLength = 512)
+                MMMU.createRegister(    0, 1,                                   value = 0, bitLength = 512)
+
+                returnValue : None = self.ISA.opTwosCompliment(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 1],
+                    registerA                                                   = [0, 0]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   r0),
+                    ('getConfig',       0, 1,                                   512),
+                    ('write',           0, 1,                                   r1_out)
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              r0),                                    # input
+                    (0, 1,              r1_out)                                 # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_inputBitPattern1BitSweep03(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '512, 2048' -> ['Twos (1 << x) = ?' for x in range(512)]"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '512, 2048' -> ['Twos (1 << x) = ?' for x in range(512)]
+        
+        'Twos r0 = r1' with bitLength '512, 2048' -> ['Twos (1 << x) = ?' for x in range(512)]
+        -> # create registers
+        r0 = [0, 0];                    value = x; bitLength = 512
+        r1 = [0, 1];                    value = 0; bitLength = 2048
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = x
+        ->
+        'Twos (1 << x) = ?'
+        -> # output
+        registerDestination             = ?
+        -> # written
+        r1 = [0, 1];                    value = ?; bitLength = 2048
+        """
+        
+        for x in range(512):
+            with self.subTest(x=x):
+                r0 : int = 1 << x
+
+                bitArray : list[int] = [r0 >> i & 1 for i in range(2048)] # Converts to bit array, index 0 is least significant bit
+                bitArray : list[int] = [not i for i in bitArray] # performs the bitwise NOT operation
+                number : int = sum([bit << i for i, bit in enumerate(bitArray)]) # converts back to integer
+                r1_out : int = (number + 1) & (2**2048 - 1) # add one to be twos compliment, and trunk
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = r0, bitLength = 512)
+                MMMU.createRegister(    0, 1,                                   value = 0, bitLength = 2048)
+
+                returnValue : None = self.ISA.opTwosCompliment(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 1],
+                    registerA                                                   = [0, 0]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   r0),
+                    ('getConfig',       0, 1,                                   2048),
+                    ('write',           0, 1,                                   r1_out)
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              r0),                                    # input
+                    (0, 1,              r1_out)                                 # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_inputBitPatternCheckerboard01(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2048, 2048' -> 'Twos 0b1010... = ?'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2048, 2048' -> 'Twos 0b1010... = 0b0101... + 1'
+        
+        'Twos r0 = r1' with bitLength '2048, 2048' -> 'Twos 0b1010... = 0b0101... + 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 0b1010...; bitLength = 2048
+        r1 = [0, 1];                    value = 0; bitLength = 2048
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0b1010...
+        ->
+        'Twos 0b1010... = 0b0101... + 1'
+        -> # output
+        registerDestination             = 0b0101... + 1
+        -> # written
+        r1 = [0, 1];                    value = 0b0101... + 1; bitLength = 2048
+        """
+        
+        r0 : int = sum([2**i for i in range(2048) if i % 2 == 1])
+        r1_out : int = sum([2**i for i in range(2048) if i % 2 == 0]) + 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2048)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 2048)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   2048),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+
 
     def test_opTwosCompliment_inputBitPatternCheckerboard02(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2048, 2048' -> 'Twos 0b0101... = ?'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2048, 2048' -> 'Twos 0b0101... = 0b1010... + 1'
+        
+        'Twos r0 = r1' with bitLength '2048, 2048' -> 'Twos 0b0101... = 0b1010... + 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 0b0101...; bitLength = 2048
+        r1 = [0, 1];                    value = 0; bitLength = 2048
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0b0101...
+        ->
+        'Twos 0b0101... = 0b1010... + 1'
+        -> # output
+        registerDestination             = 0b1010... + 1
+        -> # written
+        r1 = [0, 1];                    value = 0b1010... + 1; bitLength = 2048
+        """
+        
+        r0 : int = sum([2**i for i in range(2048) if i % 2 == 0])
+        r1_out : int = sum([2**i for i in range(2048) if i % 2 == 1]) + 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2048)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 2048)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   2048),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_8bitFullCombination(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> ['Twos x = ?' for x in range(255)]"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> ['Twos x = ?' for x in range(255)]
+        
+        'Twos r0 = r1' with bitLength '8, 8' -> ['Twos x = ?' for x in range(255)]
+        -> # create registers
+        r0 = [0, 0];                    value = x; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = x
+        ->
+        'Twos x = ?'
+        -> # output
+        registerDestination             = ?
+        -> # written
+        r1 = [0, 1];                    value = ?; bitLength = 8
+        """
+        
+        for x in range(256):
+            with self.subTest(x=x):
+                r0 : int = x
+
+                bitArray : list[int] = [r0 >> i & 1 for i in range(8)] # Converts to bit array, index 0 is least significant bit
+                bitArray : list[int] = [not i for i in bitArray] # performs the bitwise NOT operation
+                number : int = sum([bit << i for i, bit in enumerate(bitArray)]) # converts back to integer
+                r1_out : int = (number + 1) & (2**8 - 1) # add one to be twos compliment, and trunk
+
+                MMMU : self.dummyMMMU = self.dummyMMMU()
+                MMMU.createRegister(    0, 0,                                   value = r0, bitLength = 8)
+                MMMU.createRegister(    0, 1,                                   value = 0, bitLength = 8)
+
+                returnValue : None = self.ISA.opTwosCompliment(
+                    funcRead                                                    = MMMU.dummyReadWrapper,
+                    funcWrite                                                   = MMMU.dummyWriteWrapper,
+                    funcGetConfig                                               = MMMU.dummyGetConfigWrapper,
+                    registerDestination                                         = [0, 1],
+                    registerA                                                   = [0, 0]
+                )
+
+                expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+                    ('read',            0, 0,                                   r0),
+                    ('getConfig',       0, 1,                                   8),
+                    ('write',           0, 1,                                   r1_out)
+                ]
+
+                resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                    (0, 0,              r0),                                    # input
+                    (0, 1,              r1_out)                                 # output
+                ]
+
+                resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+                self.assertEqual(returnValue, None,
+                    f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+                self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+                    f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+                    f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+                self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+                    f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_integration01(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0 = 0'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0 = 0'
+        
+        'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0
+        ->
+        'Twos 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        """
+        
+        r0 : int = 0
+        r1_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_integration02(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 1 = 0xff'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 1 = 0xff'
+        
+        'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 1 = 0xff'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 1
+        ->
+        'Twos 1 = 0xff'
+        -> # output
+        registerDestination             = 0xff
+        -> # written
+        r1 = [0, 1];                    value = 0xff; bitLength = 8
+        """
+        
+        r0 : int = 1
+        r1_out : int = 0xff
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_integration03(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0xf0 = 0x10'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0xf0 = 0x10'
+        
+        'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0xf0 = 0x10'
+        -> # create registers
+        r0 = [0, 0];                    value = 0xf0; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0xf0
+        ->
+        'Twos 0xf0 = 0x10'
+        -> # output
+        registerDestination             = 0x10
+        -> # written
+        r1 = [0, 1];                    value = 0x10; bitLength = 8
+        """
+        
+        r0 : int = 0xf0
+        r1_out : int = 0x10
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_integration04(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0x02 = 0xfe'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0x02 = 0xfe'
+        
+        'Twos r0 = r1' with bitLength '8, 8' -> 'Twos 0x02 = 0xfe'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x02; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0x02
+        ->
+        'Twos 0x02 = 0xfe'
+        -> # output
+        registerDestination             = 0xfe
+        -> # written
+        r1 = [0, 1];                    value = 0xfe; bitLength = 8
+        """
+        
+        r0 : int = 0x02
+        r1_out : int = 0xfe
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_integration05(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 4' -> 'Twos 0xfe = 0x2'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '8, 4' -> 'Twos 0xfe = 0x2'
+        
+        'Twos r0 = r1' with bitLength '8, 4' -> 'Twos 0xfe = 0x2'
+        -> # create registers
+        r0 = [0, 0];                    value = 0xfe; bitLength = 8
+        r1 = [0, 1];                    value = 0; bitLength = 4
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0xfe
+        ->
+        'Twos 0xfe = 0x2'
+        -> # output
+        registerDestination             = 0x2
+        -> # written
+        r1 = [0, 1];                    value = 0x2; bitLength = 4
+        """
+        
+        r0 : int = 0xfe
+        r1_out : int = 0x2
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 4)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   4),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_integration06(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '4, 8' -> 'Twos 0x1 = 0xff'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '4, 8' -> 'Twos 0x1 = 0xff'
+        
+        'Twos r0 = r1' with bitLength '4, 8' -> 'Twos 0x1 = 0xff'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x1; bitLength = 4
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0x1
+        ->
+        'Twos 0x1 = 0xff'
+        -> # output
+        registerDestination             = 0xff
+        -> # written
+        r1 = [0, 1];                    value = 0xff; bitLength = 8
+        """
+        
+        r0 : int = 0x1
+        r1_out : int = 0xff
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 4)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opTwosCompliment_integration07(self):
-        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '4, 8' -> 'Twos 0x4 = 0x04'"""
-        raise NotImplementedError
+        """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '4, 8' -> 'Twos 0x4 = 0xfc'
+        
+        'Twos r0 = r1' with bitLength '4, 8' -> 'Twos 0x4 = 0xfc'
+        -> # create registers
+        r0 = [0, 0];                    value = 0x4; bitLength = 4
+        r1 = [0, 1];                    value = 0; bitLength = 8
+        ->
+        opTwosCompliment(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 1]
+            registerA                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0x4
+        ->
+        'Twos 0x4 = 0xfc'
+        -> # output
+        registerDestination             = 0xfc
+        -> # written
+        r1 = [0, 1];                    value = 0xfc; bitLength = 8
+        """
+        
+        r0 : int = 0x4
+        r1_out : int = 0xfc
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 4)
+        MMMU.createRegister(            0, 1,                                   value = 0, bitLength = 8)
+
+        returnValue : None = self.ISA.opTwosCompliment(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 1],
+            registerA                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 1,                                   8),
+            ('write',                   0, 1,                                   r1_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAND_Exception_funcReadNotFunction(self):
         """tests opAND raises an exception when funcRead is not a function"""
-        raise NotImplementedError
+        
+        functions : list[Any] = self.functionInvalid
+
+        function : Any
+        for function in functions:
+            with self.subTest(function=function):
+                self.assertRaises(AssertionError, self.ISA.opAND, 
+                    funcRead                                                    = function, # test with invalid function
+                    funcWrite                                                   = self.functionNull, 
+                    funcGetConfig                                               = self.functionNull, 
+                    registerDestination                                         = self.registerNull, 
+                    registerA                                                   = self.registerNull, 
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opAND_Exception_funcWriteNotFunction(self):
         """tests opAND raises an exception when funcWrite is not a function"""
-        raise NotImplementedError
+        
+        functions : list[Any] = self.functionInvalid
+
+        function : Any
+        for function in functions:
+            with self.subTest(function=function):
+                self.assertRaises(AssertionError, self.ISA.opAND,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = function, # test with invalid function
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = self.registerNull,
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opAND_Exception_funcGetConfigNotFunction(self):
         """tests opAND raises an exception when funcGetConfig is not a function"""
-        raise NotImplementedError
+        
+        functions : list[Any] = self.functionInvalid
+
+        function : Any
+        for function in functions:
+            with self.subTest(function=function):
+                self.assertRaises(AssertionError, self.ISA.opAND,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = function, # test with invalid function
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = self.registerNull,
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opAND_Exception_registerDestinationNotRegister(self):
         """tests opAND raises an exception when registerDestination is not a register"""
-        raise NotImplementedError
+        
+        registers : list[Any] = self.registerInvalid
+
+        register : Any
+        for register in registers:
+            with self.subTest(register=register):
+                self.assertRaises(AssertionError, self.ISA.opAND,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = register, # test with invalid register
+                    registerA                                                   = self.registerNull,
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opAND_Exception_registerANotRegister(self):
         """tests opAND raises an exception when registerA is not a register"""
-        raise NotImplementedError
+        
+        registers : list[Any] = self.registerInvalid
+
+        register : Any
+        for register in registers:
+            with self.subTest(register=register):
+                self.assertRaises(AssertionError, self.ISA.opAND,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = register, # test with invalid register
+                    registerB                                                   = self.registerNull
+                )
 
     def test_opAND_Exception_registerBNotRegister(self):
         """tests opAND raises an exception when registerB is not a register"""
-        raise NotImplementedError
+        
+        registers : list[Any] = self.registerInvalid
+
+        register : Any
+        for register in registers:
+            with self.subTest(register=register):
+                self.assertRaises(AssertionError, self.ISA.opAND,
+                    funcRead                                                    = self.functionNull,
+                    funcWrite                                                   = self.functionNull,
+                    funcGetConfig                                               = self.functionNull,
+                    registerDestination                                         = self.registerNull,
+                    registerA                                                   = self.registerNull,
+                    registerB                                                   = register # test with invalid register
+                )
 
     def test_opAND_Exception_registerDestinationNotInMMMU(self):
         """tests opAND raises an exception when registerDestination is not in the MMMU"""
-        raise NotImplementedError
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
+
+        register : list[str | int, str | int] = [1, 1] # register not in MMMU
+
+        self.assertRaises(MMMUAccessError, self.ISA.opAND,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = register, # test with invalid register
+            registerA                                                           = self.registerNull,
+            registerB                                                           = self.registerNull
+        )
 
     def test_opAND_Exception_registerANotInMMMU(self):
         """tests opAND raises an exception when registerA is not in the MMMU"""
-        raise NotImplementedError
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
+
+        register : list[str | int, str | int] = [1, 1] # register not in MMMU
+
+        self.assertRaises(MMMUAccessError, self.ISA.opAND,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = self.registerNull,
+            registerA                                                           = register, # test with invalid register
+            registerB                                                           = self.registerNull
+        )
 
     def test_opAND_Exception_registerBNotInMMMU(self):
         """tests opAND raises an exception when registerB is not in the MMMU"""
-        raise NotImplementedError
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
+
+        register : list[str | int, str | int] = [1, 1] # register not in MMMU
+
+        self.assertRaises(MMMUAccessError, self.ISA.opAND,
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = self.registerNull,
+            registerA                                                           = self.registerNull,
+            registerB                                                           = register # test with invalid register
+        )
 
     def test_opAND_singleRegister01(self):
-        """tests opAND on 'r0 & r0 = r0' with bitLength '1, 1, 1' -> '0 & 0 = 0'"""
-        raise NotImplementedError
+        """tests opAND on 'r0 & r0 = r0' with bitLength '1, 1, 1' -> '0 & 0 = 0'
+        
+        'r0 & r0 = r0' with bitLength '1, 1, 1' -> '0 & 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        ->
+        opAND(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 0]
+            registerA                   = [0, 0]
+            registerB                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 0 
+        registerB                       = 0
+        ->
+        '0 & 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r0_out : int = 0
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 0],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 0,                                   1),
+            ('write',                   0, 0,                                   r0_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0_out)                                 # input, output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAND_singleRegister02(self):
-        """tests opAND on 'r0 & r0 = r0' with bitLength '1, 1, 1' -> '1 & 1 = 1'"""
-        raise NotImplementedError
+        """tests opAND on 'r0 & r0 = r0' with bitLength '1, 1, 1' -> '1 & 1 = 1'
+        
+        'r0 & r0 = r0' with bitLength '1, 1, 1' -> '1 & 1 = 1'
+        -> # create registers
+        r0 = [1, 1];                    value = 1; bitLength = 1
+        ->
+        opAND(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 0]
+            registerA                   = [0, 0]
+            registerB                   = [0, 0]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '1 & 1 = 1'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r0 = [1, 1];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r0_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 0],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 0]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 0,                                   r0),
+            ('getConfig',               0, 0,                                   1),
+            ('write',                   0, 0,                                   r0_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0_out)                                 # input, output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAND_multiRegister01(self):
-        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '0 & 0 = 0'"""
-        raise NotImplementedError
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '0 & 0 = 0'
+        
+        'r0 & r1 = r2' with bitLength '1, 1, 1' -> '0 & 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opAdd(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 & 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+        
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAND_multiRegister02(self):
-        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '0 & 1 = 0'"""
-        raise NotImplementedError
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '0 & 1 = 0'
+        
+        'r0 & r1 = r2' with bitLength '1, 1, 1' -> '0 & 1 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opAdd(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 1
+        ->
+        '0 & 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 0
+        r1 : int = 1
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAND_multiRegister03(self):
-        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '1 & 0 = 0'"""
-        raise NotImplementedError
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '1 & 0 = 0'
+
+        'r0 & r1 = r2' with bitLength '1, 1, 1' -> '1 & 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 0; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opAdd(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 0
+        ->
+        '0 & 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAND_multiRegister04(self):
-        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '1 & 1 = 1'"""
-        raise NotImplementedError
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1' -> '1 & 1 = 1'
+        
+        'r0 & r1 = r2' with bitLength '1, 1, 1' -> '1 & 1 = 1'
+        -> # create registers
+        r0 = [0, 0];                    value = 1; bitLength = 1
+        r1 = [0, 1];                    value = 1; bitLength = 1
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        ->
+        opAdd(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 1
+        ->
+        '0 & 1 = 0'
+        -> # output
+        registerDestination             = 1
+        -> # written
+        r2 = [0, 2];                    value = 1; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 1
+        r2_out : int = 1
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAND_zeroBitLength01(self):
-        """tests opAND on 'r0 & r1 = r2' with bitLength '0, 0, 0' -> '0 & 0 = 0'"""
-        raise NotImplementedError
+        """tests opAND on 'r0 & r1 = r2' with bitLength '0, 0, 0' -> '0 & 0 = 0'
+        
+        'r0 & r1 = r2' with bitLength '0, 0, 0' -> '0 & 0 = 0'
+        -> # create registers
+        r0 = [0, 0];                    value = 0; bitLength = 0
+        r1 = [0, 1];                    value = 0; bitLength = 0
+        r2 = [0, 2];                    value = 0; bitLength = 0
+        ->
+        opAdd(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 0
+        ->
+        '0 & 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 0
+        """
+        
+        r0 : int = 0
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 0)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 0)
+        MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 0)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   0),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAND_zeroBitLength02(self):
-        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> '0xff & 0xff = 0xff'"""
-        raise NotImplementedError
+        """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> '0xff & 0xff = 0xff'
+        
+        'r0 & r1 = r2' with bitLength '8, 8, 8' -> '0xff & 0xff = 0xff'
+        -> # create registers
+        r0 = [0, 0];                    value = 0xff; bitLength = 8
+        r1 = [0, 1];                    value = 0xff; bitLength = 8
+        r2 = [0, 2];                    value = 0xff; bitLength = 8
+        ->
+        opAdd(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0xff
+        registerB                       = 0xff
+        ->
+        '0xff & 0xff = 0xff'
+        -> # output
+        registerDestination             = 0xff
+        -> # written
+        r2 = [0, 2];                    value = 0xff; bitLength = 8
+        """
+        
+        r0 : int = 0xff
+        r1 : int = 0xff
+        r2_out : int = 0xff
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 8)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
+        MMMU.createRegister(            0, 2,                                   value = r2_out, bitLength = 8)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
     def test_opAND_zeroBitLength03A(self):
         """tests opAND on 'r0 & r1 = r2' with bitLength '0, 8, 8' -> '0 & 0xff = 0'"""
@@ -29082,7 +36184,7 @@ if __name__ == "__main__":
     # runs all tests
     # to run a specific test module, use $> python .\CPUSimulator.py [test module ...]
     logging.basicConfig(level = logging.ERROR)
-    unittest.main(verbosity = 1, buffer = True, exit = False)
+    unittest.main(verbosity = 2, buffer = True, exit = False)
 
     # # run specific test from a specific testCase
     # suite = unittest.TestSuite()
