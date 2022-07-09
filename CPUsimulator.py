@@ -364,6 +364,7 @@ def debugHelper(frame : "Frame Object") -> str:
     Reference:
         https://docs.python.org/3/library/inspect.html#types-and-members
     """
+
     assert inspect.isframe(frame)
 
     global debugHighlight # Callable[[int], bool]
@@ -4515,6 +4516,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
     def append(self, node : ParseNode):
         """Adds a new node object to self as a child (at end of list)"""
+        
         assert type(node) is self.__class__
 
         if len(self.child) != 0:
@@ -4553,6 +4555,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
     def replace(self, oldNode : ParseNode, newNode : ParseNode):
         """Takes in an oldNode that is child of self, and replaces it with newNode. Deletes oldNode"""
+        
         assert type(oldNode) is self.__class__
         assert type(newNode) is self.__class__
 
@@ -4607,6 +4610,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
         
         deletes references to other nodes from Node, recursively removes child nodes of Node using remove()
         This is to make it easier to the python garbage collecter to destroy it, because cyclic references"""
+        
         assert type(node) is self.__class__
 
         index : int = None
@@ -4658,6 +4662,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
 
     def dataEqual(self, a : ParseNode) -> bool:
         """Compairs the data of a different node recursively, returns True if equal, False otherwise"""
+        
         assert type(a) is self.__class__
 
         result : bool = True
@@ -4685,6 +4690,7 @@ class NodeParse(ParseNode): # Named NodeParse instead of ParseNode to avoid conf
         """Recursivly composes a string representing the node hierarchy, returns a string.
         
         Called by print() to display the object"""
+        
         assert type(depth) is int
         assert depth >= 1
 
@@ -4820,6 +4826,7 @@ class CPUsim_v4:
         """#TODO
         
         """
+
         assert type(setup) is str or type(setup) is None
         assert setup in ["default", "defaultAdvanced", None]
 
@@ -4848,6 +4855,7 @@ class CPUsim_v4:
         
         #TODO pass through, needs proper implimentation
         """
+
         assert type(instructionSet_Instance) != None
         assert type(instructionSet_Instance.instructionSet) is dict
 
@@ -4858,6 +4866,7 @@ class CPUsim_v4:
         
         #TODO pass through, needs proper implimentation
         """
+
         assert type(parser_Instance) != None
         assert parser_Instance.parseCode
         assert callable(parser_Instance.parseCode)
@@ -4869,6 +4878,7 @@ class CPUsim_v4:
         
         #TODO pass through, needs proper implimentation
         """
+
         assert type(decoder_Instance) != None
 
         self._Decoder_Instance = decoder_Instance
@@ -4878,6 +4888,7 @@ class CPUsim_v4:
         
         #TODO pass through, needs proper implimentation
         """
+
         assert callable(postTickMemoryAdjust)
 
         self._postTickMemoryAdjuster = postTickMemoryAdjust
@@ -4887,6 +4898,7 @@ class CPUsim_v4:
         
         #TODO pass through, needs proper implimentation
         """
+
         assert type(MMMU_Instance) != None
 
         self._MMMU_Instance = MMMU_Instance
@@ -5176,6 +5188,7 @@ class CPUsim_v4:
 
         def assertEnvironment(self, funcRead : Callable[[int | str, int | str], int]) -> bool:
             """Checks if the memory layout is compatible by attempting to read necissary elements from memory, returns true is compatible"""
+
             assert callable(funcRead)
 
             try:
@@ -5189,6 +5202,7 @@ class CPUsim_v4:
             
             For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
             """
+
             assert type(bitLength) is int
             assert bitLength > 0
             assert type(number) is int
@@ -5201,6 +5215,7 @@ class CPUsim_v4:
 
         def bits2int(self, bitArray : list[int or bool]) -> int:
             """Takes in a bit (int or bool) array where zero index is least significant bit. Returns the positive number is represents"""
+
             assert type(bitArray) is list
             assert len(bitArray) > 0
             assert all([(type(i) is int or type(i) is bool) for i in bitArray])
@@ -5219,6 +5234,7 @@ class CPUsim_v4:
 
         def microEnforceAccess(self, register : tuple[int | str, int | str], key : str | int) -> tuple[int | str, int | str]:
             """returns register tuple iff register[0] matches key, raises exception otherwise"""
+
             assert type(register) is tuple or type(register) is list
             assert len(register) == 2
             assert type(register[0]) is int or type(register[0]) is str 
@@ -5233,6 +5249,7 @@ class CPUsim_v4:
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict,
             operation : str):
             """Takes in a string indicating what syscall to call, and passes that call to the engine"""
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -5350,6 +5367,7 @@ class CPUsim_v4:
                 -> # returned
                 ['_imm', 0]
             """
+
             assert callable(funcRead)
 
             assert callable(funcWrite)
@@ -5367,6 +5385,7 @@ class CPUsim_v4:
             
             Note: bit 0 is least significant bit
             """
+
             assert callable(funcRead)
             assert callable(funcWrite)
 
@@ -5392,6 +5411,7 @@ class CPUsim_v4:
         def opNop(self, 
             funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict):
             """The 'No Operation' instruction, it does nothing"""
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -5411,6 +5431,7 @@ class CPUsim_v4:
             registerB : tuple[int | str, int | str]
         ) -> None:
             """Adds registerA and registerB, stores result in registerDestination"""
+
             assert callable(funcRead)
 
             assert callable(funcWrite)
@@ -5628,6 +5649,7 @@ class CPUsim_v4:
                 r0 = [0, 0];                    value = 1                               |
                 r0 = [0, 0];                    value = 0                               |
             """
+
             assert callable(funcRead)
 
             assert callable(funcWrite)
@@ -5792,6 +5814,7 @@ class CPUsim_v4:
             
             #TODO if destination register is larger, should extend most significant bit to larger register size
             """
+
             assert callable(funcRead)
 
             assert callable(funcWrite)
@@ -5841,6 +5864,7 @@ class CPUsim_v4:
             registerB : tuple[int | str, int | str]
         ) -> None:
             """Performs AND operation between registerA and registerB, stores result in registerDestination"""
+
             assert callable(funcRead)
 
             assert callable(funcWrite)
@@ -5884,6 +5908,7 @@ class CPUsim_v4:
             registerB : tuple[int | str, int | str]
         ) -> None:
             """Performs OR operation between registerA and registerB, stores result in registerDestination"""
+
             assert callable(funcRead)
 
             assert callable(funcWrite)
@@ -5927,6 +5952,7 @@ class CPUsim_v4:
             registerB : tuple[int | str, int | str]
         ) -> None:
             """Performs XOR operation between registerA and registerB, stores result in registerDestination"""
+
             assert callable(funcRead)
 
             assert callable(funcWrite)
@@ -6018,6 +6044,7 @@ class CPUsim_v4:
                 ==                      - equal
                 !=                      - not equal
             """
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6124,6 +6151,7 @@ class CPUsim_v4:
             will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
                 a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly
             """
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6180,6 +6208,7 @@ class CPUsim_v4:
             
             will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
                 a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly"""
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6239,6 +6268,7 @@ class CPUsim_v4:
             elif trunkOrExtend == 'extend':
                 value from registerA is arithmatically extended to fit into registerDestination (IE: signed integer copy)
             """
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6317,6 +6347,7 @@ class CPUsim_v4:
                 c_out = (((a xor b) and c_in) or (a and b))
                 return s, c_out
             """
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6357,6 +6388,7 @@ class CPUsim_v4:
                 uses a shift of (energy = 1 * bitLength, latency = 1)
             This is a very simplistic and unoptimized algorithm
             """
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6397,6 +6429,7 @@ class CPUsim_v4:
                 uses a shift of (energy = 1 * bitLength, latency = 1)
             Since leading bits remain zero until after some shifts, and trailing bits remain unchanged after some shifts, it's only the middle bits that actually require computation.
             """
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6436,6 +6469,7 @@ class CPUsim_v4:
                 x = (a and b)
                 return x
             """
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6475,6 +6509,7 @@ class CPUsim_v4:
                 x = (not a)
                 return x
             """
+
             assert callable(funcRead)
             assert callable(funcWrite)
             assert callable(funcGetConfig)
@@ -6541,6 +6576,7 @@ class CPUsim_v4:
             
             #TODO
             """
+
             assert type(nameSpace) is dict
             assert all([type(i) is NameSpaceObject for _, i in nameSpace.items()])
 
@@ -6579,6 +6615,7 @@ class CPUsim_v4:
                     ('!',       2, 11)
                 ]
             """
+
             assert type(code) is str
             assert len(code) > 0
 
@@ -6621,6 +6658,7 @@ class CPUsim_v4:
             
             No characters are filtered out
             """
+
             assert type(code) is str
             assert len(code) > 0
 
@@ -6648,6 +6686,7 @@ class CPUsim_v4:
                     ' '
                     789                 |
             """
+
             assert type(tree) is self.Node
 
             root : ParseNode = tree.copyInfo()
@@ -6689,6 +6728,7 @@ class CPUsim_v4:
                     ' '
                     255                 |
             """
+
             assert type(tree) is self.Node
 
             root : ParseNode = tree.copyInfo()
@@ -6734,6 +6774,7 @@ class CPUsim_v4:
                     'test'               A
                     '\n'
             """
+
             assert type(tree) is self.Node
 
             root : ParseNode = tree.copyInfo()
@@ -6830,6 +6871,7 @@ class CPUsim_v4:
                     '\n'                _V_
                     'test'               A
             """
+
             assert type(tree) is self.Node
             assert type(whiteSpace) is list
             assert all([type(i) is str for i in whiteSpace])
@@ -6980,6 +7022,7 @@ class CPUsim_v4:
                 Node
                     None
             """
+
             assert type(tree) is self.Node
 
             root : ParseNode = tree.copyInfo()
@@ -7114,6 +7157,7 @@ class CPUsim_v4:
                     ' '
                     'test'
             """
+
             assert type(tree) is self.Node
             assert type(character) is str 
             assert len(character) == 1
@@ -7336,6 +7380,7 @@ class CPUsim_v4:
                 ->
                 Raises Exception 'ParserError'
             """
+
             assert type(tree) is self.Node
             assert type(containers) is dict
             assert len(containers) >= 1
@@ -7398,6 +7443,7 @@ class CPUsim_v4:
             """Takes in a Node Tree of depth 2, attempts to find a label that is immidiatly followed by a ":", returns a Node Tree of depth 2, and a dictionary of labels
             
             Does not recurse"""
+
             assert type(tree) is self.Node
 
             root : ParseNode = tree.copyInfo()
@@ -7430,6 +7476,7 @@ class CPUsim_v4:
             
             Does not recurse
             """
+
             assert type(tree) is self.Node
             assert type(nameSpace) is dict
             #TODO assert that all keys are strings
@@ -7542,6 +7589,7 @@ class CPUsim_v4:
                         3
                         ]
             """
+
             assert type(tree) is self.Node
             assert type(recurse) is bool
             
@@ -7624,6 +7672,7 @@ class CPUsim_v4:
                 ]
 
             """
+
             assert type(tree) is self.Node
             assert type(tokenType) is str
             assert type(splitToken) is str
@@ -7741,6 +7790,7 @@ class CPUsim_v4:
                     ' '
                     'test3'
             """
+
             assert type(tree) is self.Node
             assert type(tokenType) is str
             assert len(tokenType) > 0
@@ -7804,6 +7854,7 @@ class CPUsim_v4:
 
             Recurses by default            
             """
+
             assert type(tree) is self.Node
             assert type(nameSpace) is dict
             
@@ -7891,6 +7942,7 @@ class CPUsim_v4:
                         '123'
 
             """
+
             assert type(tree) is self.Node
             assert type(recurse) is bool
 
@@ -7951,6 +8003,7 @@ class CPUsim_v4:
                 ' '
                 'temp'
             """
+
             assert type(tree) is self.Node
             assert type(alias) is dict
             assert all([type(i) is str for i in alias.keys()])
@@ -8036,6 +8089,7 @@ class CPUsim_v4:
                                     2                                           |
             
             """
+
             assert type(tree) is self.Node
             assert type(filterTokens) is list
             assert len(filterTokens) > 0
@@ -8128,6 +8182,7 @@ class CPUsim_v4:
                     "label1"    :   0
                     "label2"    :   2
             """
+
             assert type(sourceCode) is str
 
             labels : dict = None
@@ -8509,6 +8564,7 @@ class CPUsim_v4:
             endianess           - the endianess of the binary data, used for properly storing data (64-bit int, 16-bit float, etc)
             memoryElementSize   - the size of the memory unit, used in case of odd unit sizes (7-bit system, or a system that enforces 64-bit aligned access)
             """
+
             assert type(endianess) is str
             assert endianess in ["big", "little"]
             assert type(memoryElementSize) is int
@@ -8721,6 +8777,7 @@ class CPUsim_v4:
             
             For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
             """
+
             assert type(bitLength) is int
             assert bitLength > 0
             assert type(number) is int
@@ -14833,6 +14890,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             value: int, bitLength: int
             ):
             """Creates a register with the specified key, index, value, and bitLength"""
+
             assert type(key) is str or type(key) is int
             assert type(index) is str or type(index) is int
             assert type(value) is str or type(value) is int
@@ -14850,6 +14908,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             
             Meant to be passed to the instruction as the interface to the MMMU
             """
+
             assert type(register) is tuple or type(register) is list
             assert len(register) == 2
             assert all([type(i) is str or type(i) is int for i in register])
@@ -14866,6 +14925,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 By allowing value to be negative for the '_imm' register creation
                 By having a return value iff the '_imm' register is created
             """
+
             assert type(register) is tuple or type(register) is list
             assert len(register) == 2
             assert all([type(i) is str or type(i) is int for i in register])
@@ -14881,6 +14941,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
             Meant to be passed to the instruction as the interface to the MMMU
             """
+
             assert type(register) is tuple or type(register) is list
             assert len(register) == 2
             assert all([type(i) is str or type(i) is int for i in register])
@@ -14908,6 +14969,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             IE: if an instruction writes a value to a register, it will show up with this function
             vs the dummyReadWrapper() function, which will only show the initial value of a register
             """
+
             assert type(key) is str or type(key) is int
             assert type(index) is str or type(index) is int
 
@@ -14974,6 +15036,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 this allows for the controlling of bitLength
                 including the non-sensical case of a zero-bitLength _imm register =S
             """
+
             assert type(value) is int
 
             # find lowest available _imm index
