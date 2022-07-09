@@ -319,6 +319,15 @@ Test Cases to impliment:
 Terminology: #TODO
     #TODO
 
+Reference:
+    https://www.youtube.com/watch?v=B_jUXiOvMo8&t=3073s     # "Talking Milan-X with Wendell: Level1Potato" [@ 3073 s] - TechTechPotato [2022-03-21]
+        Caching Latency impacts on performance
+    https://www.youtube.com/watch?v=5lFnKYCZT5o             # "What's Virtual Memory? - Computerphile" - Computerphile [2022-06-10]
+        Overview of virtual memory
+        How the ipad uses virtual memory
+            uses 16 kB pages
+            On initial program load, loads first few pages into memory, maps the rest of the program to virtual memory except the virtual memory refereances the program file instead of the system swap file
+
 #TODO Stack:
     create instruction helper that allows adding an immediate register (IE: you put in a number, and it passes out an immediate register address, AND adds an immediate register)
     allow ISA instructions to be referenced by a list. IE: ("add", "#") and ("add", "$") for the 6502 processor, shows two different addressing modes for the "add" instruction?
@@ -4822,13 +4831,13 @@ class CPUsim_v4:
 
     """
 
-    def __init__(self, setup : Literal["default", "defaultAdvanced", None] = "default"):
+    def __init__(self, setup : Optional[Literal["default", "default+", None]] = "default"):
         """#TODO
         
         """
 
         assert type(setup) is str or type(setup) is None
-        assert setup in ["default", "defaultAdvanced", None]
+        assert setup in ["default", "default+", None]
 
         self._InstructionSet_Instance : Type[self.InstructionSetDefault] = None
         self._Display_Instance : Type[self.DisplaySilent] = None
