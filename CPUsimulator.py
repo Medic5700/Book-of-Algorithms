@@ -5197,7 +5197,7 @@ class CPUsim_v4:
             except:
                 logging.info(debugHelper(inspect.currentframe()) + "InstructionSet not compatible with current Memory Layout")
             
-        def int2bits(self, number : int, bitLength : int) -> list[int]:
+        def int2bits(self, number : int, bitLength : int) -> list[Literal[0, 1]]:
             """Takes a bitLength, and a number where ((0 - 2**bitLength) // 2 <= number < 2**bitLength). Returns a bit int array representing the number, zero index is least significant bit
             
             For numbers < 0, twos compliment is applied (python represents negative numbers correctly when appling bitise operations)
@@ -5213,7 +5213,7 @@ class CPUsim_v4:
 
             return bitArray
 
-        def bits2int(self, bitArray : list[int or bool]) -> int:
+        def bits2int(self, bitArray : list[Literal[0, 1] or bool]) -> int:
             """Takes in a bit (int or bool) array where zero index is least significant bit. Returns the positive number is represents"""
 
             assert type(bitArray) is list
@@ -5726,7 +5726,11 @@ class CPUsim_v4:
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str]
         ) -> None:
-            """Multiplies registerA and registerB, stores result in registerDestination"""
+            """Multiplies registerA and registerB, stores result in registerDestination
+            
+            #TODO documentation
+            """
+
             assert callable(funcRead)
 
             assert callable(funcWrite)
@@ -5813,6 +5817,8 @@ class CPUsim_v4:
             """Takes value from registerA, performs twos compliment, stores result in registerDestination
             
             #TODO if destination register is larger, should extend most significant bit to larger register size
+            
+            #TODO documentation
             """
 
             assert callable(funcRead)
@@ -5863,7 +5869,10 @@ class CPUsim_v4:
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str]
         ) -> None:
-            """Performs AND operation between registerA and registerB, stores result in registerDestination"""
+            """Performs AND operation between registerA and registerB, stores result in registerDestination
+            
+            #TODO documentation
+            """
 
             assert callable(funcRead)
 
@@ -5907,7 +5916,10 @@ class CPUsim_v4:
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str]
         ) -> None:
-            """Performs OR operation between registerA and registerB, stores result in registerDestination"""
+            """Performs OR operation between registerA and registerB, stores result in registerDestination
+            
+            #TODO documentation
+            """
 
             assert callable(funcRead)
 
@@ -5951,7 +5963,10 @@ class CPUsim_v4:
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str]
         ) -> None:
-            """Performs XOR operation between registerA and registerB, stores result in registerDestination"""
+            """Performs XOR operation between registerA and registerB, stores result in registerDestination
+            
+            #TODO documentation
+            """
 
             assert callable(funcRead)
 
@@ -6069,7 +6084,7 @@ class CPUsim_v4:
                 assert len(registerB) == 2
                 assert type(registerB[0]) is int or type(registerB[0]) is str 
                 assert type(registerB[1]) is int or type(registerB[1]) is str
-            else: #mode == "goto"
+            else: # mode == "goto"
                 assert type(registerA) is type(None)
                 assert type(registerB) is type(None)
             
@@ -6207,7 +6222,8 @@ class CPUsim_v4:
             """Takes registerA, rotates bits left or right (depending on leftOrRight) by rigsterShiftOffset amount. Result is then trunked to fit into registerDestination
             
             will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
-                a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly"""
+                a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly
+            """
 
             assert callable(funcRead)
             assert callable(funcWrite)
@@ -15441,7 +15457,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 0,                 0),                                     # input, no change
         ]
 
@@ -15504,7 +15520,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 0,                 1),                                     # input, no change
         ]
 
@@ -15567,7 +15583,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 0,                 0),                                     # input, no change
         ]
 
@@ -15633,7 +15649,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 1,                 0),                                     # input, no change
         ]
 
@@ -15699,7 +15715,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 1,                 1),                                     # input, no change
         ]
 
@@ -15765,7 +15781,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 1,                 0),                                     # input, no change
         ]
 
@@ -15834,7 +15850,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 2,                 2),                                     # input, no change
         ]
 
@@ -15903,7 +15919,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 1,                 2),                                     # input, no change
         ]
 
@@ -15972,7 +15988,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 0,                 2),                                     # input, no change
         ]
 
@@ -16035,7 +16051,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 0,                 0xffffffff),                            # input, no change
         ]
 
@@ -16098,7 +16114,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 0,                 0xffffffff),                            # input, no change
         ]
 
@@ -16161,7 +16177,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 0,                 0x00000000),                            # input, no change
         ]
 
@@ -16224,7 +16240,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = copy.deepcopy(MMMU.getActivity())
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             ('_imm', 0,                 2**(2**20 - 1)),                        # input, no change
         ]
 
@@ -16350,7 +16366,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 )
 
     def test_opAdd_Exception_registerDestinationNotInMMMU(self):
-        """tests opAdd raises an exception when registerDestination is not in the MMMU"""
+        """tests opAdd passes through a raised MMMUAccessError exception when registerDestination is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -16367,7 +16383,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opAdd_Exception_registerANotInMMMU(self):
-        """tests opAdd raises an exception when registerA is not in the MMMU"""
+        """tests opAdd passes through a raised MMMUAccessError exception when registerA is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -16384,7 +16400,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opAdd_Exception_registerBNotInMMMU(self):
-        """tests opAdd raises an exception when registerB is not in the MMMU"""
+        """tests opAdd passes through a raised MMMUAccessError exception when registerB is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -16450,7 +16466,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -16515,7 +16531,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -16585,7 +16601,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -16657,7 +16673,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -16729,7 +16745,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -16801,7 +16817,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -16873,7 +16889,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -16945,7 +16961,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17017,7 +17033,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17089,7 +17105,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17161,7 +17177,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17233,7 +17249,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17305,7 +17321,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17377,7 +17393,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17449,7 +17465,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17521,7 +17537,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17593,7 +17609,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17665,7 +17681,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17737,7 +17753,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17809,7 +17825,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17881,7 +17897,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -17953,7 +17969,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18025,7 +18041,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18097,7 +18113,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 1024,                   r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18169,7 +18185,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1024,                   r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18241,7 +18257,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 1024,                   r2_out)                                 # output
@@ -18313,7 +18329,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18385,7 +18401,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18457,7 +18473,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18529,7 +18545,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18601,7 +18617,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18673,7 +18689,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18745,7 +18761,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18817,7 +18833,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18889,7 +18905,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -18961,7 +18977,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19033,7 +19049,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19105,7 +19121,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19177,7 +19193,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19249,7 +19265,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19321,7 +19337,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19393,7 +19409,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19465,7 +19481,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19537,7 +19553,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19611,7 +19627,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out)                                 # output
@@ -19685,7 +19701,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out)                                 # output
@@ -19759,7 +19775,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out)                                 # output
@@ -19831,7 +19847,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19903,7 +19919,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -19975,7 +19991,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -20047,7 +20063,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -20119,7 +20135,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -20193,7 +20209,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out)                                 # output
@@ -20267,7 +20283,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out)                                 # output
@@ -20339,7 +20355,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -20411,7 +20427,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -20483,7 +20499,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -20555,7 +20571,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -20627,7 +20643,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -20797,7 +20813,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 )
 
     def test_opAddCarryOverflow_Exception_registerDestinationNotInMMMU(self):
-        """tests opAddCarryOverflow raises an exception when registerDestination is not in the MMMU"""
+        """tests opAddCarryOverflow passes through a raised MMMUAccessError exception when registerDestination is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -20816,7 +20832,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opAddCarryOverflow_Exception_registerANotInMMMU(self):
-        """tests opAddCarryOverflow raises an exception when registerA is not in the MMMU"""
+        """tests opAddCarryOverflow passes through a raised MMMUAccessError exception when registerA is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -20835,7 +20851,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opAddCarryOverflow_Exception_registerBNotInMMMU(self):
-        """tests opAddCarryOverflow raises an exception when registerB is not in the MMMU"""
+        """tests opAddCarryOverflow passes through a raised MMMUAccessError exception when registerB is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -20854,7 +20870,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opAddCarryOverflow_Exception_registerCarryNotInMMMU(self):
-        """tests opAddCarryOverflow raises an exception when registerCarry is not in the MMMU"""
+        """tests opAddCarryOverflow passes through a raised MMMUAccessError exception when registerCarry is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -20873,7 +20889,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opAddCarryOverflow_Exception_registerOverflowNotInMMMU(self):
-        """tests opAddCarryOverflow raises an exception when registerOverflow is not in the MMMU"""
+        """tests opAddCarryOverflow passes through a raised MMMUAccessError exception when registerOverflow is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -20909,7 +20925,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             registerOverflow            = None
         )
         -> # input
-        registerA                       = 0 
+        registerA                       = 0
         registerB                       = 0
         ->
         '0 + 0 = 0'
@@ -20947,7 +20963,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -21018,7 +21034,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -21094,7 +21110,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out)                                 # output
@@ -21172,7 +21188,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out)                                 # output
@@ -21250,7 +21266,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out)                                 # output
@@ -21328,7 +21344,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out)                                 # output
@@ -21497,7 +21513,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -21582,7 +21598,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -21667,7 +21683,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -21752,7 +21768,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -21837,7 +21853,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -21922,7 +21938,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22007,7 +22023,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22098,7 +22114,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22190,7 +22206,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22282,7 +22298,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22374,7 +22390,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22466,7 +22482,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22558,7 +22574,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22650,7 +22666,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22742,7 +22758,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22834,7 +22850,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -22926,7 +22942,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23018,7 +23034,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23110,7 +23126,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23202,7 +23218,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23294,7 +23310,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23386,7 +23402,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23478,7 +23494,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23570,7 +23586,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23662,7 +23678,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23754,7 +23770,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23846,7 +23862,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -23938,7 +23954,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -24030,7 +24046,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 1024,                   r1024),                                 # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -24122,7 +24138,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1024,                   r1024),                                 # input, no change
             (0, 2,                      r2_out),                                # output
@@ -24214,7 +24230,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 1024,                   r1024_out),                             # output
@@ -24306,12 +24322,12 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
-            (0, 1,                      r1),                                     # input, no change
-            (0, 2,                      r2_out),                                    # output
-            ('c', 1024,                 c1024_out),                                     # output
-            ('o', 0,                    o0_out)                                      # output
+            (0, 1,                      r1),                                    # input, no change
+            (0, 2,                      r2_out),                                # output
+            ('c', 1024,                 c1024_out),                             # output
+            ('o', 0,                    o0_out)                                 # output
         ]
 
         resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
@@ -24398,7 +24414,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -24490,7 +24506,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -24582,7 +24598,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -24674,7 +24690,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -24766,7 +24782,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -24858,7 +24874,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -24950,7 +24966,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -25042,7 +25058,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -25123,7 +25139,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      0x0),                                   # result is undetermined, due to conflicting writes
         ]
 
@@ -25205,7 +25221,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 2,                      0x00),                                  # result is undetermined, due to conflicting writes
         ]
 
@@ -25290,7 +25306,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 2,                      r2_out),                                # output
             ('c', 0,                    c0_out),                                # output
@@ -25383,7 +25399,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input, no change
                     (0, 1,              r1),                                    # input, no change
                     (0, 2,              r2_out),                                # output
@@ -25477,7 +25493,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input, no change
                     (0, 1,              r1),                                    # input, no change
                     (0, 2,              r2_out),                                # output
@@ -25571,7 +25587,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input, no change
                     (0, 1,              r1),                                    # input, no change
                     (0, 2,              r2_out),                                # output
@@ -25663,7 +25679,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -25755,7 +25771,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -25847,7 +25863,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -25939,7 +25955,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -26030,7 +26046,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -26124,7 +26140,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input, no change
                     (0, 1,              r1),                                    # input, no change
                     (0, 2,              r2_out),                                # output
@@ -26204,7 +26220,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out)                                 # output
@@ -26282,7 +26298,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out)                                 # output
@@ -26360,7 +26376,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out)                                 # output
@@ -26440,7 +26456,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input, no change
                     (0, 1,              r1),                                    # input, no change
                     (0, 2,              r2_out)                                 # output
@@ -26517,7 +26533,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             registerOverflow                                                    = ['o', 0]
         )
 
-        expectedActivity : list[tuple[str, str | int, str | int, int]] = [ # order matters
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
             ('read',                    0, 0,                                   r0),
             ('read',                    0, 1,                                   r1),
             ('getConfig',               0, 2,                                   2),
@@ -26530,7 +26546,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input, no change
             (0, 1,                      r1),                                    # input, no change
             (0, 2,                      r2_out),                                # output
@@ -26652,7 +26668,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 )
 
     def test_opMultiply_Exception_registerDestinationNotInMMMU(self):
-        """tests opMultiply raises an exception when registerDestination is not in the MMMU"""
+        """tests opMultiply passes through a raised MMMUAccessError exception when registerDestination is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -26669,7 +26685,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opMultiply_Exception_registerANotInMMMU(self):
-        """tests opMultiply raises an exception when registerA is not in the MMMU"""
+        """tests opMultiply passes through a raised MMMUAccessError exception when registerA is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -26686,7 +26702,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opMultiply_Exception_registerBNotInMMMU(self):
-        """tests opMultiply raises an exception when registerB is not in the MMMU"""
+        """tests opMultiply passes through a raised MMMUAccessError exception when registerB is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -26752,7 +26768,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -26817,7 +26833,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -26887,7 +26903,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -26959,7 +26975,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27031,7 +27047,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27103,7 +27119,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27175,7 +27191,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27247,7 +27263,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27319,7 +27335,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27391,7 +27407,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27463,7 +27479,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27535,7 +27551,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27607,7 +27623,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27679,7 +27695,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27751,7 +27767,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27823,7 +27839,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27895,7 +27911,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -27967,7 +27983,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28039,7 +28055,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28111,7 +28127,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28183,7 +28199,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28255,7 +28271,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28327,7 +28343,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28399,7 +28415,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 1024,                   r1024),                                 # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28471,7 +28487,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1024,                   r1024),                                 # input
             (0, 2,                      r2_out)                                 # output
@@ -28543,7 +28559,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
         
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 1024,                   r1024_out)                              # output
@@ -28615,7 +28631,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28687,7 +28703,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28759,7 +28775,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28831,7 +28847,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28903,7 +28919,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -28975,7 +28991,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29047,7 +29063,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29119,7 +29135,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29191,7 +29207,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29263,7 +29279,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29335,7 +29351,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29407,7 +29423,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29479,7 +29495,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29551,7 +29567,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29623,7 +29639,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29695,7 +29711,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29767,7 +29783,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -29834,8 +29850,8 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
-            (0, 0,                      r0_out),                                    # input, output
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
+            (0, 0,                      r0_out),                                # input, output
         ]
 
         resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
@@ -29906,7 +29922,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out),                                # output
@@ -29980,7 +29996,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out),                                # output
@@ -30054,7 +30070,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out),                                # output
@@ -30126,7 +30142,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out),                                # output
@@ -30198,7 +30214,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out),                                # output
@@ -30270,7 +30286,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out),                                # output
@@ -30342,7 +30358,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out),                                # output
@@ -30414,7 +30430,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out),                                # output
@@ -30488,7 +30504,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out),                                # output
@@ -30562,7 +30578,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1),                                    # input
                     (0, 2,              r2_out),                                # output
@@ -30634,7 +30650,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out),                                # output
@@ -30706,7 +30722,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out),                                # output
@@ -30778,7 +30794,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
         
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out),                                # output
@@ -30850,7 +30866,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out),                                # output
@@ -30950,7 +30966,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 )
 
     def test_opTwosCompliment_Exception_registerDestinationNotInMMMU(self):
-        """tests opTwosCompliment raises an exception when registerDestination is not in the MMMU"""
+        """tests opTwosCompliment passes through a raised MMMUAccessError exception when registerDestination is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -30966,7 +30982,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opTwosCompliment_Exception_registerANotInMMMU(self):
-        """tests opTwosCompliment raises an exception when registerA is not in the MMMU"""
+        """tests opTwosCompliment passes through a raised MMMUAccessError exception when registerA is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -31027,7 +31043,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -31088,7 +31104,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -31151,7 +31167,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31215,7 +31231,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31279,7 +31295,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31343,7 +31359,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31407,7 +31423,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31471,7 +31487,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31535,7 +31551,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31599,7 +31615,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31663,7 +31679,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31727,7 +31743,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31791,7 +31807,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31855,7 +31871,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31919,7 +31935,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 1024,                   r1024),                                 # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -31983,8 +31999,8 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
             (0, 1,                      r0),                                    # input
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 1024,                   r1024_out)                              # output
         ]
 
@@ -32047,7 +32063,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32111,7 +32127,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32175,7 +32191,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32239,7 +32255,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32303,7 +32319,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32367,7 +32383,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32431,7 +32447,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32495,7 +32511,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32565,7 +32581,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1_out)                                 # output
                 ]
@@ -32636,7 +32652,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1_out)                                 # output
                 ]
@@ -32706,7 +32722,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1_out)                                 # output
                 ]
@@ -32770,7 +32786,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32785,7 +32801,6 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
-
 
     def test_opTwosCompliment_inputBitPatternCheckerboard02(self):
         """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2048, 2048' -> 'Twos 0b0101... = 0b1010... + 1'
@@ -32835,7 +32850,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -32905,7 +32920,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
                 resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters, and must match resultRegisters
+                expectedRegisters : list[tuple[str | int, str | int, int]] = [  # order matters
                     (0, 0,              r0),                                    # input
                     (0, 1,              r1_out)                                 # output
                 ]
@@ -32969,7 +32984,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -33033,7 +33048,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -33097,7 +33112,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -33161,7 +33176,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -33225,7 +33240,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -33289,7 +33304,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -33353,7 +33368,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1_out)                                 # output
         ]
@@ -33472,7 +33487,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
                 )
 
     def test_opAND_Exception_registerDestinationNotInMMMU(self):
-        """tests opAND raises an exception when registerDestination is not in the MMMU"""
+        """tests opAND passes through a raised MMMUAccessError exception when registerDestination is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -33489,7 +33504,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opAND_Exception_registerANotInMMMU(self):
-        """tests opAND raises an exception when registerA is not in the MMMU"""
+        """tests opAND passes through a raised MMMUAccessError exception when registerA is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -33506,7 +33521,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         )
 
     def test_opAND_Exception_registerBNotInMMMU(self):
-        """tests opAND raises an exception when registerB is not in the MMMU"""
+        """tests opAND passes through a raised MMMUAccessError exception when registerB is not in the MMMU"""
         
         MMMU : self.dummyMMMU = self.dummyMMMU()
         MMMU.createRegister(            0, 0,                                   value = 0, bitLength = 8) # creates registerNull
@@ -33572,7 +33587,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -33637,7 +33652,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0_out)                                 # input, output
         ]
 
@@ -33661,7 +33676,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 0; bitLength = 1
         r2 = [0, 2];                    value = 0; bitLength = 1
         ->
-        opAdd(
+        opAND(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -33707,7 +33722,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -33733,7 +33748,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 1; bitLength = 1
         r2 = [0, 2];                    value = 0; bitLength = 1
         ->
-        opAdd(
+        opAND(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -33779,7 +33794,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -33805,7 +33820,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 0; bitLength = 1
         r2 = [0, 2];                    value = 0; bitLength = 1
         ->
-        opAdd(
+        opAND(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -33817,7 +33832,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         registerA                       = 1
         registerB                       = 0
         ->
-        '0 & 1 = 0'
+        '1 & 0 = 0'
         -> # output
         registerDestination             = 0
         -> # written
@@ -33851,7 +33866,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -33877,7 +33892,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 1; bitLength = 1
         r2 = [0, 2];                    value = 0; bitLength = 1
         ->
-        opAdd(
+        opAND(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -33889,7 +33904,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         registerA                       = 1
         registerB                       = 1
         ->
-        '0 & 1 = 0'
+        '1 & 1 = 1'
         -> # output
         registerDestination             = 1
         -> # written
@@ -33923,7 +33938,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -33949,7 +33964,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 0; bitLength = 0
         r2 = [0, 2];                    value = 0; bitLength = 0
         ->
-        opAdd(
+        opAND(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -33961,7 +33976,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         registerA                       = 0
         registerB                       = 0
         ->
-        '0 & 1 = 0'
+        '0 & 0 = 0'
         -> # output
         registerDestination             = 0
         -> # written
@@ -33995,7 +34010,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
@@ -34021,7 +34036,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 0xff; bitLength = 8
         r2 = [0, 2];                    value = 0xff; bitLength = 8
         ->
-        opAdd(
+        opAND(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -34067,7 +34082,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
 
         resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
 
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters, and must match resultRegisters
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
             (0, 0,                      r0),                                    # input
             (0, 1,                      r1),                                    # input
             (0, 2,                      r2_out)                                 # output
