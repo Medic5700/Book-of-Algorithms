@@ -16277,11 +16277,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, expectedReturnValue,
             f'\nAssert function return value:\nExpected {expectedReturnValue}\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertEqual(expectedBitLength, resultBitLength,
-            f'\nAssert correct bitLength:\nExpected bitLength:\n\t{expectedBitLength}\nResult bitLength:\n\t{resultBitLength}')
+            # f'\nAssert correct bitLength:\nExpected bitLength:\n\t{expectedBitLength}\nResult bitLength:\n\t{resultBitLength}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     #TODO testing on microSelectBits
 
@@ -19516,11 +19519,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opAdd_zfighting01(self):
         """tests opAdd on 'r0 + r0 = r0' with bitLength '8, 8, 8' -> '0xff + 0xff = 0xfe'
@@ -25187,11 +25193,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opAddCarryOverflow_largeRegisterSize04B(self):
         """tests opAddCarryOverflow on 'r0 + r1 = r2, c = c0, o = o0' with bitLength '2**20, 2**20, 2**20, 2**20, 2**20' -> '2**(2**20 - 2) + 2**(2**20 - 2) = 2**(2**20 - 1), c = 0, o = 1'
@@ -25279,11 +25288,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opAddCarryOverflow_zfighting01(self):
         """tests opAddCarryOverflow on 'r0 + r0 = r0, c = r0, o = r0' with bitLength '8, 8, 8, 8, 8' -> '0xff + 0xff = 0x1fe = 0xfe, c = 1, o = 0'
@@ -30002,11 +30014,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opMultiply_zfighting01(self):
         """tests opMultiply on 'r0 * r0 = r0' with bitLength '8, 8, 8' -> '0x08 * 0x08 = 0x40'
@@ -32537,11 +32552,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opTwosCompliment_largeRegisterSize03B(self):
         """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '1, 2**20' -> 'Twos 1 = 0xffff...'
@@ -32601,11 +32619,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opTwosCompliment_largeRegisterSize04A(self):
         """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 0xffff... = 1'
@@ -32665,11 +32686,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opTwosCompliment_largeRegisterSize04B(self):
         """tests opTwosCompliment on 'Twos r0 = r1' with bitLength '2**20, 2**20' -> 'Twos 1 = 0xffff...'
@@ -36824,11 +36848,15 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
+
 
     def test_opAND_inputBitPattern1BitSweep01(self):
         """tests opAND on 'r0 & r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) & (1 << y) = ?' for x in range(8) for y in range(8)]
@@ -40932,11 +40960,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opOR_largeRegisterSize06B(self):
         """tests opOR on 'r0 | r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**20 - 1) | 2**(2**20 - 2) = 2**(2**20 - 1) + 2**(2**20 - 2)'
@@ -41004,11 +41035,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opOR_inputBitPattern1BitSweep01(self):
         """tests opAddCarryOverflow on 'r0 | r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) | (1 << y) = ?' for x in range(8) for y in range(8)]
@@ -45111,11 +45145,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opXOR_largeRegisterSize06B(self):
         """tests opXOR on 'r0 ^ r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**20 - 1) ^ 2**(2**20 - 2) = 2**(2**20 - 1) + 2**(2**20 - 2)'
@@ -45183,11 +45220,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opXOR_inputBitPattern1BitSweep01(self):
         """tests opXOR on 'r0 ^ r1 = r2' with bitLength '8, 8, 8' -> ['(1 << x) ^ (1 << y) = ?' for x in range(8) for y in range(8)]
@@ -47577,11 +47617,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opNOT_largeRegisterSize04B(self):
         """tests opNOT on '! r0 = r1' with bitLength '2**20, 2**20' -> '! 2**(2**20) - 1 = 0'
@@ -47641,11 +47684,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opNOT_largeRegisterSize04C(self):
         """tests opNOT on '! r0 = r1' with bitLength '2**20, 2**20' -> '! 2**(2**19) - 1 = 2**(2**20) - 1 - (2**(2**19) - 1)' # ! 0x00..00ff..ff = 0xff..ff00..00
@@ -47705,11 +47751,14 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertEqual(returnValue, None,
             f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
         self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            # f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            # f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+            '') # numbers contained are too large for str() method to parse and convert to string. This is a workaround
 
     def test_opNOT_largeRegisterSize04D(self):
         """tests opNOT on '! r0 = r1' with bitLength '2**20, 2**20' -> '! 2**(2**20) - 1 - (2**(2**19) - 1) = 2**(2**19) - 1' # ! 0xff..ff00..00 = 0x00..00ff..ff
