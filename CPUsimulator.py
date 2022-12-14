@@ -5885,8 +5885,11 @@ class CPUsim_v4:
             # also applies to and works with twos compliment subtraction
             #TODO figure out how arbritrary length input registers should affect it
             overflow : int = 0
-            if (a & 2**(bitLength - 1) == b & 2**(bitLength - 1)) and (a & 2**(bitLength - 1) != c & 2**(bitLength - 1)):
-                overflow = 1
+            if bitLength != 0:
+                # if bitLength == 0, 2**-1 will be a float, which is incompatable with '&' operation
+                if (a & 2**(bitLength - 1) == b & 2**(bitLength - 1)) and (a & 2**(bitLength - 1) != c & 2**(bitLength - 1)):
+                    overflow = 1
+
             if registerOverflow is not None:
                 overflowBitLength : int = funcGetConfig(registerOverflow)["bitLength"]
                 resultOverflow : int = overflow & (2**overflowBitLength - 1) # trunk result
@@ -5948,7 +5951,7 @@ class CPUsim_v4:
             registerA : tuple[int | str, int | str], 
             registerB : tuple[int | str, int | str],
             
-            endiness : Literal['big', 'little'] = 'little'
+            DestinationEndiness : Literal['big', 'little'] = 'little'
         ) -> None:
             assert callable(funcRead)
 
@@ -5976,8 +5979,8 @@ class CPUsim_v4:
             assert all([i >= 0 for i in registerB if type(i) is int])
             assert self.isISARegisterVector(registerB)
 
-            assert type(endiness) is str
-            assert endiness in ['big', 'little']
+            assert type(DestinationEndiness) is str
+            assert DestinationEndiness in ['big', 'little']
 
             raise NotImplementedError
 
@@ -6206,20 +6209,6 @@ class CPUsim_v4:
             # inputNumber : int = a & (2**bitLength - 1) # Cuts down number to correct bitLength BEFORE operating on it
             result : int = ((2**bitLength - 1) ^ a) # Performs Not inputNumber <= (bitmask xor inputNumber)
 
-            """
-            bitArray : list[Literal[0, 1]] = [inputNumber >> i & 1 for i in range(bitLength)] # Converts to bit array, index 0 is least significant bit
-            bitArray = [not i for i in bitArray] # performs the bitwise NOT operation
-            # This algorithm uses far less memory then using alternate method
-            result : int = 0
-            i : int
-            bit : Literal[0, 1]
-            for i, bit in enumerate(bitArray):
-                result |= bit << i
-            """
-
-            # This algorithm causes massive memory usage (>50GB) if bitLength is large (== 2**20)
-            # result : int = sum([bit << i for i, bit in enumerate(bitArray)])
-
             result = result & (2**bitLength - 1) # Cuts down number to correct bitLength again
 
             funcWrite(registerDestination, result)
@@ -6340,46 +6329,117 @@ class CPUsim_v4:
 
             funcWrite(registerDestination, result)
 
+        # def opShiftR(self, 
+        #     funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
+        #     registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerShiftOffset : tuple[int | str, int | str], arithmetic : bool = False):
+        #     """Takes registerA, shifts it right by registerShiftOffset (performs arithmetic right shift if arithmetic == True), stores result in registerDestination
+            
+        #     If registerDestination bitLength is greater then registerA bitLength:
+        #         registerA most significant bit is extended to registerDestiantion bitLength AFTER arithmetic shift right
+        #     will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
+        #         a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly
+        #     """
+
+        #     assert callable(funcRead)
+        #     assert callable(funcWrite)
+        #     assert callable(funcGetConfig)
+        #     assert type(engineFunc) is dict
+        #     assert all([callable(j) for _, j in engineFunc.items()])
+        #     assert type(engineStatus) is dict
+            
+        #     assert type(registerDestination) is tuple or type(registerDestination) is list
+        #     assert len(registerDestination) == 2
+        #     assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
+        #     assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+        #     assert type(registerA) is tuple or type(registerA) is list
+        #     assert len(registerA) == 2
+        #     assert type(registerA[0]) is int or type(registerA[0]) is str 
+        #     assert type(registerA[1]) is int or type(registerA[1]) is str
+        #     assert type(registerShiftOffset) is tuple or type(registerShiftOffset) is list
+        #     assert len(registerShiftOffset) == 2
+        #     assert type(registerShiftOffset[0]) is int or type(registerShiftOffset[0]) is str 
+        #     assert type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str
+        #     assert type(arithmetic) is bool
+
+        #     a : int = funcRead(registerA)
+        #     amount : int = funcRead(registerShiftOffset)
+
+        #     bitLengthSource : int = funcGetConfig(registerA)
+        #     bitLengthDestination : int = funcGetConfig(registerDestination)
+
+        #     if amount > 8 * max(256, bitLengthSource, bitLengthDestination):
+        #         raise Exception("Instruction input 'registerShiftOffset' is too large to be valid")
+
+        #     result : int = a
+        #     for _ in range(amount): # shift a right WITHIN bitLengthSource
+        #         msb : int = 0
+        #         if arithmetic:
+        #             msb = 2**(bitLengthSource - 1) & result
+        #         result = result >> 1
+        #         result = result | msb
+
+        #     if bitLengthSource < bitLengthDestination: # Takes msb, and extends it out to larger bitLength bitLengthDestination if needed
+        #         msb : int = 2**(bitLengthSource - 1) & result
+        #         for _ in range(bitLengthSource - 1, bitLengthDestination):
+        #             msb = msb | (msb << 1)
+        #         result = result | msb
+            
+        #     result = result & (2**bitLengthDestination - 1)
+
+        #     funcWrite(registerDestination, result)
+
         def opShiftR(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], engineFunc : dict[str, Callable[[Any], Any]], engineStatus : dict, 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerShiftOffset : tuple[int | str, int | str], arithmetic : bool = False):
+            funcRead : Callable[[tuple[int | str, int | str]], int], 
+            funcWrite : Callable[[tuple[int | str, int | str], int], None], 
+            funcGetConfig : Callable[[tuple[int | str, int | str]], dict[str, Any]],
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str], 
+            registerShiftOffset : tuple[int | str, int | str],
+
+            arithmetic : bool = False
+        ) -> None:
             """Takes registerA, shifts it right by registerShiftOffset (performs arithmetic right shift if arithmetic == True), stores result in registerDestination
             
             If registerDestination bitLength is greater then registerA bitLength:
                 registerA most significant bit is extended to registerDestiantion bitLength AFTER arithmetic shift right
-            will raise exception if value of registerShiftOffset > 8*max(256, registerDesintation bitLength, registerA bitLength) 
-                a wide margine of error is given as that value does need to be bounded, but a small enough margine of error could break user source code unexpectidly
+
+            #TODO documentation
             """
 
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
-            assert type(engineFunc) is dict
-            assert all([callable(j) for _, j in engineFunc.items()])
-            assert type(engineStatus) is dict
-            
+
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
             assert type(registerShiftOffset) is tuple or type(registerShiftOffset) is list
             assert len(registerShiftOffset) == 2
-            assert type(registerShiftOffset[0]) is int or type(registerShiftOffset[0]) is str 
-            assert type(registerShiftOffset[1]) is int or type(registerShiftOffset[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerShiftOffset])
+            assert all([i >= 0 for i in registerShiftOffset if type(i) is int])
+            assert self.isISARegisterVector(registerShiftOffset)
+
             assert type(arithmetic) is bool
 
             a : int = funcRead(registerA)
+            bitLengthSource : int = funcGetConfig(registerA)["bitLength"]
             amount : int = funcRead(registerShiftOffset)
+            bitLengthDestination : int = funcGetConfig(registerDestination)["bitLength"]
 
-            bitLengthSource : int = funcGetConfig(registerA)
-            bitLengthDestination : int = funcGetConfig(registerDestination)
-
-            if amount > 8 * max(256, bitLengthSource, bitLengthDestination):
-                raise Exception("Instruction input 'registerShiftOffset' is too large to be valid")
+            #TODO handle large numbers
+            #TODO extend a BEFORE shift
 
             result : int = a
             for _ in range(amount): # shift a right WITHIN bitLengthSource
