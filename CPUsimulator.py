@@ -22866,9 +22866,9 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
             ('read',                    0, 1,                                   r1),
             ('getConfig',               0, 2,                                   0),
             ('write',                   0, 2,                                   r2_out),
-            ('getConfig',               'c', 0,                                 1),
+            ('getConfig',               'c', 0,                                 8),
             ('write',                   'c', 0,                                 c0_out),
-            ('getConfig',               'o', 0,                                 0),
+            ('getConfig',               'o', 0,                                 8),
             ('write',                   'o', 0,                                 o0_out)
         ]
 
@@ -36110,6 +36110,150 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
             f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
 
+    def test_opAND_largeRegisterSize02C(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1, 1024' -> '0 & 1 = 0'
+        
+        'r0 & r1 = r2' with bitLength '1, 1, 1024' -> '0 & 1 = 0'
+        -> # create registers
+        r0    = [0, 0];                 value = 0; bitLength = 1
+        r1    = [0, 1];                 value = 1; bitLength = 1
+        r2    = [0, 2];                 value = 0; bitLength = 1024
+        ->
+        opAND(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 0
+        registerB                       = 1
+        ->
+        '0 & 1 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1024
+        """
+        
+        r0 : int = 0
+        r1 : int = 1
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = r2_out, bitLength = 1024)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   1),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+
+    def test_opAND_largeRegisterSize03A(self):
+        """tests opAND on 'r0 & r1 = r2' with bitLength '1024, 1, 1' -> '1 & 0 = 0'
+        
+        'r0 & r1 = r2' with bitLength '1024, 1, 1' -> '1 & 0 = 0'
+        -> # create registers
+        r0    = [0, 0];                 value = 1; bitLength = 1024
+        r1    = [0, 1];                 value = 0; bitLength = 1
+        r2    = [0, 2];                 value = 0; bitLength = 1
+        ->
+        opAND(
+            funcRead                    = funcDummyRead
+            funcWrite                   = funcDummyWrite
+            funcGetConfig               = funcDummyConfig
+            registerDestination         = [0, 2]
+            registerA                   = [0, 0]
+            registerB                   = [0, 1]
+        )
+        -> # input
+        registerA                       = 1
+        registerB                       = 0
+        ->
+        '1 & 0 = 0'
+        -> # output
+        registerDestination             = 0
+        -> # written
+        r2 = [0, 2];                    value = 0; bitLength = 1
+        """
+        
+        r0 : int = 1
+        r1 : int = 0
+        r2_out : int = 0
+
+        MMMU : self.dummyMMMU = self.dummyMMMU()
+        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 1024)
+        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
+        MMMU.createRegister(            0, 2,                                   value = r2_out, bitLength = 1)
+
+        returnValue : None = self.ISA.opAND(
+            funcRead                                                            = MMMU.dummyReadWrapper,
+            funcWrite                                                           = MMMU.dummyWriteWrapper,
+            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
+            registerDestination                                                 = [0, 2],
+            registerA                                                           = [0, 0],
+            registerB                                                           = [0, 1]
+        )
+
+        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
+            ('read',                    0, 0,                                   r0),
+            ('read',                    0, 1,                                   r1),
+            ('getConfig',               0, 2,                                   8),
+            ('write',                   0, 2,                                   r2_out)
+        ]
+
+        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
+
+        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
+            (0, 0,                      r0),                                    # input
+            (0, 1,                      r1),                                    # input
+            (0, 2,                      r2_out)                                 # output
+        ]
+
+        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
+
+        self.assertEqual(returnValue, None,
+            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
+        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
+            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
+            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
+        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
+            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
+
     def test_opAND_largeRegisterSize03B(self):
         """tests opAND on 'r0 & r1 = r2' with bitLength '1, 1024, 1' -> '1 & 0 = 0'
         
@@ -36159,7 +36303,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
             ('read',                    0, 0,                                   r0),
             ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   1),
+            ('getConfig',               0, 2,                                   1024),
             ('write',                   0, 2,                                   r2_out)
         ]
 
@@ -36375,7 +36519,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
             ('read',                    0, 0,                                   r0),
             ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   1),
+            ('getConfig',               0, 2,                                   8),
             ('write',                   0, 2,                                   r2_out)
         ]
 
@@ -36447,7 +36591,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
             ('read',                    0, 0,                                   r0),
             ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   1024),
+            ('getConfig',               0, 2,                                   8),
             ('write',                   0, 2,                                   r2_out)
         ]
 
@@ -36519,7 +36663,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
             ('read',                    0, 0,                                   r0),
             ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   8),
+            ('getConfig',               0, 2,                                   1),
             ('write',                   0, 2,                                   r2_out)
         ]
 
@@ -36591,7 +36735,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
             ('read',                    0, 0,                                   r0),
             ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   8),
+            ('getConfig',               0, 2,                                   2**20),
             ('write',                   0, 2,                                   r2_out)
         ]
 
@@ -36663,151 +36807,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
             ('read',                    0, 0,                                   r0),
             ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   1024),
-            ('write',                   0, 2,                                   r2_out)
-        ]
-
-        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
-
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
-            (0, 0,                      r0),                                    # input
-            (0, 1,                      r1),                                    # input
-            (0, 2,                      r2_out)                                 # output
-        ]
-
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
-
-        self.assertEqual(returnValue, None,
-            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
-        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
-        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
-        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
-
-    def test_opAND_largeRegisterSize06A(self):
-        """tests opAND on 'r0 & r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**20 - 1) & 2**(2**20 - 1) = 2**(2**20 - 1)'
-        
-        'r0 & r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**20 - 1) & 2**(2**20 - 1) = 2**(2**20 - 1)'
-        -> # create registers
-        r0    = [0, 0];                 value = 2**(2**20 - 1); bitLength = 2**20
-        r1    = [0, 1];                 value = 2**(2**20 - 1); bitLength = 2**20
-        r2    = [0, 2];                 value = 0; bitLength = 2**20
-        ->
-        opAND(
-            funcRead                    = funcDummyRead
-            funcWrite                   = funcDummyWrite
-            funcGetConfig               = funcDummyConfig
-            registerDestination         = [0, 2]
-            registerA                   = [0, 0]
-            registerB                   = [0, 1]
-        )
-        -> # input
-        registerA                       = 2**(2**20 - 1)
-        registerB                       = 2**(2**20 - 1)
-        ->
-        '2**(2**20 - 1) & 2**(2**20 - 1) = 2**(2**20 - 1)'
-        -> # output
-        registerDestination             = 2**(2**20 - 1)
-        -> # written
-        r2 = [0, 2];                    value = 2**(2**20 - 1); bitLength = 2**20
-        """
-        
-        r0 : int = 2**(2**20 - 1)
-        r1 : int = 2**(2**20 - 1)
-        r2_out : int = 2**(2**20 - 1)
-
-        MMMU : self.dummyMMMU = self.dummyMMMU()
-        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2**20)
-        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 2**20)
-        MMMU.createRegister(            0, 2,                                   value = r2_out, bitLength = 2**20)
-
-        returnValue : None = self.ISA.opAND(
-            funcRead                                                            = MMMU.dummyReadWrapper,
-            funcWrite                                                           = MMMU.dummyWriteWrapper,
-            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
-            registerDestination                                                 = [0, 2],
-            registerA                                                           = [0, 0],
-            registerB                                                           = [0, 1]
-        )
-
-        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
-            ('read',                    0, 0,                                   r0),
-            ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   2**20),
-            ('write',                   0, 2,                                   r2_out)
-        ]
-
-        resultActivity : list[tuple[str, str | int, str | int, int]] = MMMU.getActivity()
-
-        expectedRegisters : list[tuple[str | int, str | int, int]] = [          # order matters
-            (0, 0,                      r0),                                    # input
-            (0, 1,                      r1),                                    # input
-            (0, 2,                      r2_out)                                 # output
-        ]
-
-        resultRegisters : list[tuple[str | int, str | int, int]] = [(i, j, MMMU.readWrittenRegister(i, j)) for i, j, _ in expectedRegisters]
-
-        self.assertEqual(returnValue, None,
-            f'\nAssert function return value is None:\nExpected None\nResult {returnValue}')
-        self.assertTrue(all([i in resultActivity for i in expectedActivity]),
-            f'\nAssert Activities Done:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
-        self.assertTrue(all([i == j for i, j in zip(expectedActivity, resultActivity)]),
-            f'\nAssert Activities Done In Order:\nExpected activity:\n\t{expectedActivity}\nResult activity:\n\t{resultActivity}')
-        self.assertTrue(all([i == j for i, j in zip(expectedRegisters, resultRegisters)]),
-            f'\nAssert Registers Correct Value:\nExpected registers:\n\t{expectedRegisters}\nResult registers:\n\t{resultRegisters}')
-
-    def test_opAND_largeRegisterSize06B(self):
-        """tests opAND on 'r0 & r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**20 - 1) & 2**(2**20 - 2) = 0'
-        
-        'r0 & r1 = r2' with bitLength '2**20, 2**20, 2**20' -> '2**(2**20 - 1) & 2**(2**20 - 2) = 0'
-        -> # create registers
-        r0    = [0, 0];                 value = 2**(2**20 - 1); bitLength = 2**20
-        r1    = [0, 1];                 value = 2**(2**20 - 2); bitLength = 2**20
-        r2    = [0, 2];                 value = 0; bitLength = 2**20
-        ->
-        opAND(
-            funcRead                    = funcDummyRead
-            funcWrite                   = funcDummyWrite
-            funcGetConfig               = funcDummyConfig
-            registerDestination         = [0, 2]
-            registerA                   = [0, 0]
-            registerB                   = [0, 1]
-        )
-        -> # input
-        registerA                       = 2**(2**20 - 1)
-        registerB                       = 2**(2**20 - 2)
-        ->
-        '2**(2**20 - 1) & 2**(2**20 - 2) = 0'
-        -> # output
-        registerDestination             = 0
-        -> # written
-        r2 = [0, 2];                    value = 0; bitLength = 2**20
-        """
-        
-        r0 : int = 2**(2**20 - 1)
-        r1 : int = 2**(2**20 - 2)
-        r2_out : int = 0
-
-        MMMU : self.dummyMMMU = self.dummyMMMU()
-        MMMU.createRegister(            0, 0,                                   value = r0, bitLength = 2**20)
-        MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 2**20)
-        MMMU.createRegister(            0, 2,                                   value = r2_out, bitLength = 2**20)
-
-        returnValue : None = self.ISA.opAND(
-            funcRead                                                            = MMMU.dummyReadWrapper,
-            funcWrite                                                           = MMMU.dummyWriteWrapper,
-            funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
-            registerDestination                                                 = [0, 2],
-            registerA                                                           = [0, 0],
-            registerB                                                           = [0, 1]
-        )
-
-        expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
-            ('read',                    0, 0,                                   r0),
-            ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   2**20),
+            ('getConfig',               0, 2,                                   8),
             ('write',                   0, 2,                                   r2_out)
         ]
 
@@ -37389,7 +37389,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
             ('read',                    0, 0,                                   r0),
             ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   8),
+            ('getConfig',               0, 2,                                   1),
             ('write',                   0, 2,                                   r2_out)
         ]
 
@@ -37535,7 +37535,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         expectedActivity : list[tuple[str, str | int, str | int, int]] = [      # order matters
             ('read',                    0, 0,                                   r0),
             ('read',                    0, 1,                                   r1),
-            ('getConfig',               0, 2,                                   8),
+            ('getConfig',               0, 2,                                   1024),
             ('write',                   0, 2,                                   r2_out)
         ]
 
@@ -43754,7 +43754,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         
         'r1024 ^ r1 = r2' with bitLength '8, 8, 8' -> '0xff ^ 0x0f = 0xf0'
         -> # create registers
-        r1024 = [0, 0];                 value = 0xff; bitLength = 8
+        r1024 = [0, 1024];              value = 0xff; bitLength = 8
         r1 = [0, 1];                    value = 0x0f; bitLength = 8
         r2 = [0, 2];                    value = 0; bitLength = 8
         ->
@@ -43827,7 +43827,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         'r0 ^ r1024 = r2' with bitLength '8, 8, 8' -> '0xff ^ 0x0f = 0xf0'
         -> # create registers
         r0 = [0, 0];                    value = 0xff; bitLength = 8
-        r1024 = [0, 1];                 value = 0x0f; bitLength = 8
+        r1024 = [0, 1024];              value = 0x0f; bitLength = 8
         r2 = [0, 2];                    value = 0; bitLength = 8
         ->
         opXOR(
@@ -43900,7 +43900,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         -> # create registers
         r0 = [0, 0];                    value = 1; bitLength = 8
         r1 = [0, 1];                    value = 1; bitLength = 8
-        r1024 = [0, 2];                 value = 0; bitLength = 8
+        r1024 = [0, 1024];              value = 0; bitLength = 8
         ->
         opXOR(
             funcRead                    = funcDummyRead
@@ -49043,7 +49043,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 0; bitLength = 1
         r2 = [0, 2];                    value = 0; bitLength = 1
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49071,7 +49071,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49115,7 +49115,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 1; bitLength = 1
         r2 = [0, 2];                    value = 0; bitLength = 1
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49143,7 +49143,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49187,7 +49187,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 0; bitLength = 1
         r2 = [0, 2];                    value = 0; bitLength = 1
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49215,7 +49215,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49259,7 +49259,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 1; bitLength = 1
         r2 = [0, 2];                    value = 0; bitLength = 1
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49287,7 +49287,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 1)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 1)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49331,7 +49331,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 1; bitLength = 8
         r2 = [0, 2];                    value = 0; bitLength = 8
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49359,7 +49359,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49403,7 +49403,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 0; bitLength = 0
         r2 = [0, 2];                    value = 0; bitLength = 0
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49431,7 +49431,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 0)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 0)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49475,7 +49475,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 1; bitLength = 8
         r2 = [0, 2];                    value = 0; bitLength = 8
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49503,7 +49503,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49547,7 +49547,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 1; bitLength = 8
         r2 = [0, 2];                    value = 0; bitLength = 8
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49575,7 +49575,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49619,7 +49619,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 0; bitLength = 0
         r2 = [0, 2];                    value = 0; bitLength = 8
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49647,7 +49647,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 0)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 8)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49691,7 +49691,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 1; bitLength = 8
         r2 = [0, 2];                    value = 0; bitLength = 0
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
@@ -49719,7 +49719,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         MMMU.createRegister(            0, 1,                                   value = r1, bitLength = 8)
         MMMU.createRegister(            0, 2,                                   value = 0, bitLength = 0)
 
-        returnValue : None = self.ISA.opAddCarryOverflow(
+        returnValue : None = self.ISA.opShiftL(
             funcRead                                                            = MMMU.dummyReadWrapper,
             funcWrite                                                           = MMMU.dummyWriteWrapper,
             funcGetConfig                                                       = MMMU.dummyGetConfigWrapper,
@@ -49763,7 +49763,7 @@ class Test_InstructionSetDefault_BuildingBlocks(unittest.TestCase):
         r1 = [0, 1];                    value = 0; bitLength = 1
         r2 = [0, 2];                    value = 0; bitLength = 1
         ->
-        opAddCarryOverflow(
+        opShiftL(
             funcRead                    = funcDummyRead
             funcWrite                   = funcDummyWrite
             funcGetConfig               = funcDummyConfig
