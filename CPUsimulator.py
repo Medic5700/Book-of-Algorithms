@@ -5016,11 +5016,15 @@ class CPUsim_v4:
         Note: when adding instructions, use opAddCarryOverflow() as a reference for adding a function
         """
 
-        def __init__(self):
+        def __init__(self, fudgeEnergy : Decimal | int = 1, fudgeLatency : Decimal | int = 1):
             """Initializes instruction set
-
-            bitLength is used to caluculate energy and latency of instructions.
             """
+
+            assert type(fudgeEnergy) is Decimal or type(fudgeEnergy) is int
+            assert fudgeEnergy > 0
+
+            assert type(fudgeLatency) is Decimal or type(fudgeLatency) is int
+            assert fudgeLatency > 0
 
             self.instructionSet :   dict[
                                         tuple[str, ...],                                        # Instruction 'op-code', will automatically (#TODO) get converted to a Tuple on import
@@ -5035,10 +5039,10 @@ class CPUsim_v4:
                                                         Callable[[Any], Any]                                                    
                                                     ],                                   
                                                     dict,                                       # Engine info
-                                                    tuple[int | str, int | str],                # Optional Additional register arguments passed to instruction
-                                                    Any
-                                                ],                                              # Optional Additional register arguments passed to instruction
-                                                None
+                                                    tuple[int | str, int | str],                # Required register arguments passed to instruction
+                                                    Any                                         # Optional Additional arguments passed to instruction
+                                                ],                                              
+                                                None                                            # ISA instruction functions should not have a return value
                                             ]
                                         ]
                                     ]
@@ -5069,112 +5073,268 @@ class CPUsim_v4:
                 #"addTest"  : (lambda fRead, fWrite, fConfig, EFunc, EStatus,       des, a, b               : self.opAdd(fRead, fWrite, fConfig, EFunc, EStatus,        des, ("m", fRead(a)), b))   #Indirect Memory Addressing
             }
 
-            self.instructionEnergy :    dict[
+            self.instructionMeta :      dict[
                                             tuple[str, ...],
-                                            tuple[
+                                            dict[
+                                                Literal[
+                                                    "energyRegisterBased",                          # : Callable[]
+                                                    "latencyRegisterBased",                         # : Callable[]
+                                                    "energyValueBased",                             # : Callable[]
+                                                    "latencyValueBased",                            # : Callable[]
+                                                    "executionUnit"                                 # : str
+                                                ],
                                                 Callable[
                                                     [
-                                                        Callable[[int | str, int | str], int],          # MMMU read function
-                                                        Callable[[int | str, int | str], None],         # MMMU write function
-                                                        Callable[[int | str, int | str], dict],         # MMMU get config function
-                                                        tuple[int | str, int | str],                    # Optional Additional register arguments passed to instruction
-                                                        Any
-                                                    ],
-                                                    dict[                                               # Returns energy/latency info to engine for tabulation
-                                                        Literal["energy", "latency"],
-                                                        int | Decimal
-                                                    ]
-                                                ]
+                                                        Callable[[int | str, int | str], int],      # MMMU read function
+                                                        Callable[[int | str, int | str], None],     # MMMU write function
+                                                        Callable[[int | str, int | str], dict],     # MMMU get config function
+                                                        dict[                                       # Engine Functions
+                                                            str,
+                                                            Callable[[Any], Any]                                                    
+                                                        ],                                   
+                                                        dict,                                       # Engine info
+                                                        tuple[int | str, int | str],                # Required register arguments passed to instruction
+                                                        Any                                         # Optional Additional arguments passed to instruction
+                                                    ],                                              
+                                                    Decimal | int                                   # the returned value, representing energy or time used by instruction
+                                                ] | str
                                             ]
                                         ]
-            self.instructionEnergy = {
-                ("nop",)        : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0}),
+            self.instructionMeta = {
+                ("nop",)                : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeEnergy             * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeEnergy             * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeLatency            * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeLatency            * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : None
+                },
 
-                ("add",)        : self.englatAdd_RippleCarry,
-                ("mult",)       : self.englatMultiply_ShiftAdd2,
-                ("twos",)       : (lambda fRead, fWrite, fConfig,       des, a                  : { 
-                    "energy"    : self.englatAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["energy"] + self.englatNOT(fRead, fWrite, fConfig, des, a)["energy"], 
-                    "latency"   : self.englatAdd_RippleCarry(fRead, fWrite, fConfig, des, a, a)["latency"] + self.englatNOT(fRead, fWrite, fConfig, des, a)["latency"]
-                    }),
-                ("copy",)       : self.englatAND,
+                ("add",)                : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyRegister_AddRippleCarry(fRead, fWrite, fConfig,                des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyValue_AddRippleCarry(fRead, fWrite, fConfig,                   des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyRegister_AddRippleCarry(fRead, fWrite, fConfig,               des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyValue_AddRippleCarry(fRead, fWrite, fConfig,                  des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "alu"
+                },
+                ("mult",)               : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyRegister_MultiplyShiftAdd2(fRead, fWrite, fConfig,             des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyRegister_MultiplyShiftAdd2(fRead, fWrite, fConfig,             des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyRegister_MultiplyShiftAdd2(fRead, fWrite, fConfig,            des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyRegister_MultiplyShiftAdd2(fRead, fWrite, fConfig,            des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "multiply"
+                },
+                ("twos",)               : {     # (NOT + Add)
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeEnergy             * (self.energyRegister_AddRippleCarry(fRead, fWrite, fConfig,               des, a, a) +
+                                                self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                   des, a))                            * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeEnergy             * (self.energyRegister_AddRippleCarry(fRead, fWrite, fConfig,               des, a, a) +
+                                                self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                   des, a))                            * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeLatency            * (self.latencyRegister_AddRippleCarry(fRead, fWrite, fConfig,              des, a, a) +
+                                                self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                  des, a))                            * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeLatency            * (self.latencyRegister_AddRippleCarry(fRead, fWrite, fConfig,              des, a, a) +
+                                                self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                  des, a))                            * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "alu"
+                },
+                ("copy",)               : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeEnergy             * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeEnergy             * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeLatency            * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeLatency            * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "copyLoad"
+                },
 
-                ("and",)        : self.englatAND,
-                ("or",)         : self.englatAND,
-                ("xor",)        : self.englatAND,
-                ("not",)        : self.englatNOT,
+                ("and",)                : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "alu"
+                },
+                ("or",)                 : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "alu"
+                },
+                ("xor",)                : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a, b                           : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a, b)                          * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "alu"
+                },
+                ("not",)                : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a)                             * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a)                             * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a)                             * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a)                             * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "alu"
+                },
 
-                ("jumpeq",)     : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.englatAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
-                ("jumpne",)     : (lambda fRead, fWrite, fConfig,       pointer, a, b           : self.englatAdd_RippleCarry(fRead, fWrite, fConfig,            a, b)),
-                ("jump",)       : (lambda fRead, fWrite, fConfig,       pointer                 : self.englatNOT(fRead, fWrite, fConfig,            pointer, pointer)),
+                ("jumpeq",)             : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer, a, b                       : 
+                        fudgeEnergy             * self.energyRegister_AddRippleCarry(fRead, fWrite, fConfig,                pointer, a, b)                      * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer, a, b                       : 
+                        fudgeEnergy             * self.energyValue_AddRippleCarry(fRead, fWrite, fConfig,                   pointer, a, b)                      * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer, a, b                       : 
+                        fudgeLatency            * self.latencyRegister_AddRippleCarry(fRead, fWrite, fConfig,               pointer, a, b)                      * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer, a, b                       : 
+                        fudgeLatency            * self.latencyValue_AddRippleCarry(fRead, fWrite, fConfig,                  pointer, a, b)                      * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "branch"
+                },
+                ("jumpne",)             : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer, a, b                       : 
+                        fudgeEnergy             * self.energyRegister_AddRippleCarry(fRead, fWrite, fConfig,                pointer, a, b)                      * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer, a, b                       : 
+                        fudgeEnergy             * self.energyValue_AddRippleCarry(fRead, fWrite, fConfig,                   pointer, a, b)                      * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer, a, b                       : 
+                        fudgeLatency            * self.latencyRegister_AddRippleCarry(fRead, fWrite, fConfig,               pointer, a, b)                      * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer, a, b                       : 
+                        fudgeLatency            * self.latencyValue_AddRippleCarry(fRead, fWrite, fConfig,                  pointer, a, b)                      * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "branch"
+                },
+                ("jump",)               : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer                             : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 pointer, pointer)                   * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer                             : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 pointer, pointer)                   * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer                             : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                pointer, pointer)                   * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           pointer                             : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                pointer, pointer)                   * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "branch"
+                },
 
-                ("shiftl",)     : self.englatNOT,
-                ("shiftr",)     : self.englatNOT,
-
-                ("halt",)       : (lambda fRead, fWrite, fConfig,                               : {"energy" : 0, "latency" : 0})
-            }
-
-            """
-            #self.instructionStats is optional, and will be automatically (#TODO) filled in when loaded
-            #for energy and latency, 1 is normalized to 1-ish logic gates-ish
-            #length is unused, but is for the assembler to compute how much memory each instruction takes, 1 is 1 byte (don't know all the edge cases that could break a simple assignment like this)
-            self.instructionStats :     dict[
-                                            tuple[str, ...],
-                                            dict[
-                                                Literal["energy", "latency", "cycles", "length", "executionUnit"],
-                                                int or str or Literal["none", "alu", "int", "float", "branch", "load", "vector"]
-                                            ]
-                                        ] = {
-                "nop"       : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "none"            },
-
-                "add"       : {"energy"         : 5 * bitLength,    "latency"       : 3 * bitLength,    "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
-                "mult"      : {"energy"         : (5*bitLength)**2, "latency"       : (4*bitLength)*2,  "cycles"        : bitLength,        "length"        : 4,                "executionUnit" : "alu"             },
-                "twos"      : {"energy"         : 6 * bitLength,    "latency"       : 3 * bitLength,    "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
-
-                "and"       : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
-                "or"        : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
-                "xor"       : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
-                "not"       : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
-
-                "jumpeq"    : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "branch"          },
-                "jumpne"    : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "branch"          },
-                "jump"      : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "branch"          },
-
-                "shiftl"    : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
-                "shiftr"    : {"energy"         : 1 * bitLength,    "latency"       : 1,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "alu"             },
-
-                "halt"      : {"energy"         : 0,                "latency"       : 0,                "cycles"        : 1,                "length"        : 4,                "executionUnit" : "none"            },
-            }
-            """
-
-            # self.instructionStats is optional, and will be automatically (#TODO) filled in when loaded
-            # for energy and latency, 1 is normalized to 1-ish logic gates-ish
-            self.instructionStats :     dict[
-                                            tuple[str, ...],
-                                            dict[
-                                                Literal["cycles", "executionUnit"],
-                                                None | str | Literal["none", "alu", "int", "float", "branch", "load", "vector"]
-                                            ]
-                                        ]
-            self.instructionStats = {
-                "nop"       : {"cycles"         : 1,                "executionUnit" : None              },
-
-                "add"       : {"cycles"         : 1,                "executionUnit" : "alu"             },
-                "mult"      : {"cycles"         : None,             "executionUnit" : "alu"             },
-                "twos"      : {"cycles"         : 1,                "executionUnit" : "alu"             },
-                "copy"      : {"cycles"         : 1,                "executionUnit" : "alu"             },
-
-                "and"       : {"cycles"         : 1,                "executionUnit" : "alu"             },
-                "or"        : {"cycles"         : 1,                "executionUnit" : "alu"             },
-                "xor"       : {"cycles"         : 1,                "executionUnit" : "alu"             },
-                "not"       : {"cycles"         : 1,                "executionUnit" : "alu"             },
-
-                "jumpeq"    : {"cycles"         : 1,                "executionUnit" : "branch"          },
-                "jumpne"    : {"cycles"         : 1,                "executionUnit" : "branch"          },
-                "jump"      : {"cycles"         : 1,                "executionUnit" : "branch"          },
-                "shiftl"    : {"cycles"         : 1,                "executionUnit" : "alu"             },
-                "shiftr"    : {"cycles"         : 1,                "executionUnit" : "alu"             },
-
-                "halt"      : {"cycles"         : 1,                "executionUnit" : None            },
+                ("shiftl",)             : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a)                             * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a)                             * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a)                             * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a)                             * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "alu"
+                },
+                ("shiftr",)             : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a)                             * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeEnergy             * self.energyRegister_MonoLogicGate(fRead, fWrite, fConfig,                 des, a)                             * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a)                             * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                           des, a                              : 
+                        fudgeLatency            * self.latencyRegister_MonoLogicGate(fRead, fWrite, fConfig,                des, a)                             * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : "alu"
+                },
+                
+                ("halt",)               : {
+                    "energyRegisterBased"       : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeEnergy             * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "energyValueBased"          : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeEnergy             * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "latencyRegisterBased"      : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeLatency            * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "latencyValueBased"         : (lambda fRead, fWrite, fConfig, EFunc, EStatus,                                                               : 
+                        fudgeLatency            * 0                                                                                                             * Decimal("1E-12")
+                        ), 
+                    "executionUnit"             : None
+                },
             }
 
         def isISARegisterVector(self, register : Any) -> bool:
@@ -6371,15 +6531,133 @@ class CPUsim_v4:
             """
             raise NotImplementedError
 
-        def englatAdd_RippleCarry(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
-        ) -> dict[Literal["energy", "latency"], int]:
-            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of ripple carry add operation on those registers. Returns the energy and latency as a dictionary
+        def energyRegister_MonoLogicGate(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : Optional[tuple[int | str, int | str]] = None
+        ) -> Decimal:
+            """Takes in registerA, and registerDestination, and compute the energy  of NOT operation on those registers. Returns the energy
+            
+            The value of the registers are not used, only the size of the smallest register
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
+            
+            Circuit used:
+            def (a) -> x:
+                x = (not a)
+                return x
+            """
+
+            assert callable(funcRead)
+
+            assert callable(funcWrite)
+
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
+            if registerB != None:
+                assert type(registerB) is tuple or type(registerB) is list
+                assert len(registerB) == 2
+                assert all([type(i) is str or type(i) is int for i in registerB])
+                assert all([i >= 0 for i in registerB if type(i) is int])
+                assert self.isISARegisterVector(registerB)
+
+            bitLengthSourceA : int = funcGetConfig(registerA)
+            bitLengthSourceB : int = bitLengthSourceA
+            if registerB != None:
+                bitLengthSourceB = funcGetConfig(registerB)
+            bitLengthDestination : int = funcGetConfig(registerDestination)
+            
+            energy : Decimal = Decimal(min(max(bitLengthSourceA, bitLengthSourceB), bitLengthDestination))
+
+            return energy
+
+        def latencyRegister_MonoLogicGate(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : Optional[tuple[int | str, int | str]] = None
+        ) -> Decimal:
+            """Takes in registerA, and registerDestination, and compute the energy  of NOT operation on those registers. Returns the latency 
+            
+            The value of the registers are not used
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
+            
+            Circuit used:
+            def (a) -> x:
+                x = (not a)
+                return x
+            """
+
+            assert callable(funcRead)
+
+            assert callable(funcWrite)
+
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
+            if registerB != None:
+                assert type(registerB) is tuple or type(registerB) is list
+                assert len(registerB) == 2
+                assert all([type(i) is str or type(i) is int for i in registerB])
+                assert all([i >= 0 for i in registerB if type(i) is int])
+                assert self.isISARegisterVector(registerB)
+
+            return Decimal(1)
+
+        def energyRegister_AddRippleCarry(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy of ripple carry add operation on those registers. Returns the energy
             
             The value of the registers are not used, only the size of the registers
-            energy = 1 is normalized to one logic gate
-            latency = 1 is normalized to one logic gate
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
             
             Circuit used:
             def (a, b, c_in) -> s, c_out:
@@ -6389,186 +6667,631 @@ class CPUsim_v4:
             """
 
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is int or type(registerB[0]) is str 
-            assert type(registerB[1]) is int or type(registerB[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
 
-            bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB))
+            bitLengthSourceA : int = funcGetConfig(registerA)
+            bitLengthSourceB : int = funcGetConfig(registerB)
+            bitLengthDestination : int = funcGetConfig(registerDestination)
 
-            energy : int = bitLength * 5
-            latency : int = bitLength * 3
+            energy : Decimal = Decimal(min(bitLengthDestination, max(bitLengthSourceA, bitLengthSourceB)) * 5)
 
-            return {"energy" : energy, "latency" : latency}
+            return energy
 
-        def englatMultiply_ShiftAdd1(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
-        ) -> dict[Literal["energy", "latency"], int]:
-            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
+        def energyValue_AddRippleCarry(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
 
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy of ripple carry add operation on those registers. Returns the energy
+            
+            The value of the registers are used
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
+            
+            Circuit used:
+            def (a, b, c_in) -> s, c_out:
+                s = ((a xor b) xor c_in)
+                c_out = (((a xor b) and c_in) or (a and b))
+                return s, c_out
+            """
+
+            assert callable(funcRead)
+
+            assert callable(funcWrite)
+
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
+
+            a : int = funcRead(registerA)
+            b : int = funcRead(registerB)
+            bitLengthDestination : int = funcGetConfig(registerDestination)
+
+            #aBitLength : int = a.bit_length() # The built-in way to determin bitlength of int, but I don't trust it
+            #bBitLength : int = b.bit_length() # The built-in way to determin bitlength of int, but I don't trust it
+            aBitLength : int = 0
+            while a > 0:
+                a = a >> 1
+                aBitLength += 1
+            bBitLength : int = 0
+            while b > 0:
+                b = b >> 1
+                bBitLength += 1
+
+            energy : Decimal = Decimal(min(bitLengthDestination, max(aBitLength, bBitLength)) * 5)
+
+            return energy
+
+        def latencyRegister_AddRippleCarry(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the latency of ripple carry add operation on those registers. Returns the latency
+            
             The value of the registers are not used, only the size of the registers
-            energy = 1 is normalized to one logic gate
-            latency = 1 is normalized to one logic gate
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
+            
+            Circuit used:
+            def (a, b, c_in) -> s, c_out:
+                s = ((a xor b) xor c_in)
+                c_out = (((a xor b) and c_in) or (a and b))
+                return s, c_out
+            """
+
+            assert callable(funcRead)
+
+            assert callable(funcWrite)
+
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
+
+            bitLengthSourceA : int = funcGetConfig(registerA)
+            bitLengthSourceB : int = funcGetConfig(registerB)
+            bitLengthDestination : int = funcGetConfig(registerDestination)
+
+            latency : Decimal = Decimal(min(bitLengthDestination, max(bitLengthSourceA, bitLengthSourceB)) * 3)
+
+            return latency
+
+        def latencyValue_AddRippleCarry(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the latency of ripple carry add operation on those registers. Returns the latency
+            
+            The value of the registers are used
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
+            
+            Circuit used:
+            def (a, b, c_in) -> s, c_out:
+                s = ((a xor b) xor c_in)
+                c_out = (((a xor b) and c_in) or (a and b))
+                return s, c_out
+            """
+
+            assert callable(funcRead)
+
+            assert callable(funcWrite)
+
+            assert callable(funcGetConfig)
+
+            assert type(registerDestination) is tuple or type(registerDestination) is list
+            assert len(registerDestination) == 2
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
+
+            a : int = funcRead(registerA)
+            b : int = funcRead(registerB)
+            bitLengthDestination : int = funcGetConfig(registerDestination)
+
+            #aBitLength : int = a.bit_length() # The built-in way to determin bitlength of int, but I don't trust it
+            #bBitLength : int = b.bit_length() # The built-in way to determin bitlength of int, but I don't trust it
+            aBitLength : int = 0
+            while a > 0:
+                a = a >> 1
+                aBitLength += 1
+            bBitLength : int = 0
+            while b > 0:
+                b = b >> 1
+                bBitLength += 1
+
+            latency : Decimal = Decimal(min(bitLengthDestination, max(aBitLength, bBitLength)) * 3)
+
+            return latency
+
+        def energyRegister_MultiplyShiftAdd01(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy of multiply via shift add. Returns the energy
+
+            The value of the registers are used
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
 
             Doubles the length of input registers
             for every bit:
-                uses an ripple carry add of (energy = 5 * bitLength, latency = 3)
-                uses a shift of (energy = 1 * bitLength, latency = 1)
+                uses an ripple carry add of (energy = 5 * bitLength)
+                uses a shift of (energy = 1 * bitLength)
             This is a very simplistic and unoptimized algorithm
             """
 
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is int or type(registerB[0]) is str 
-            assert type(registerB[1]) is int or type(registerB[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
 
-            bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB)) * 2
+            bitLengthSourceA : int = funcGetConfig(registerA)
+            bitLengthSourceB : int = funcGetConfig(registerB)
 
-            energy : int = (bitLength * (5 + 1)) * bitLength
-            latency : int = (bitLength * (3 + 1)) * 2
-            
-            return {"energy" : energy, "latency" : latency}
+            bitLength : int = max(bitLengthSourceA, bitLengthSourceB) * 2
 
-        def englatMultiply_ShiftAdd2(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
-        ) -> dict[Literal["energy", "latency"], int]:
-            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of multiply via shift add. Returns the energy and latency as a dictionary
+            energy : Decimal = Decimal((bitLength * (5 + 1 + 1)) * bitLength) # add = 5, shift = 1, and = 1
 
-            The value of the registers are not used, only the size of the registers
-            energy = 1 is normalized to one logic gate
-            latency = 1 is normalized to one logic gate
+            return energy
+
+        def energyRegister_MultiplyShiftAdd02(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy of multiply via shift add. Returns the energy
+
+            The value of the registers are used
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
 
             Doubles the length of input registers
             for every bit:
-                uses an ripple carry add of (energy = 5 * bitLength, latency = 3)
-                uses a shift of (energy = 1 * bitLength, latency = 1)
+                uses an ripple carry add of (energy = 5 * bitLength)
+                uses a shift of (energy = 1 * bitLength)
             Since leading bits remain zero until after some shifts, and trailing bits remain unchanged after some shifts, it's only the middle bits that actually require computation.
             """
 
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is int or type(registerB[0]) is str 
-            assert type(registerB[1]) is int or type(registerB[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
 
-            bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB))
+            bitLengthSourceA : int = funcGetConfig(registerA)
+            bitLengthSourceB : int = funcGetConfig(registerB)
 
-            energy : int = (bitLength * (5 + 1)) * bitLength
-            latency : int = (bitLength * (3 + 1)) * 2
-            
-            return {"energy" : energy, "latency" : latency}
+            bitLength : int = max(bitLengthSourceA, bitLengthSourceB)
 
-        def englatAND(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str], registerB : tuple[int | str, int | str]
-        ) -> dict[Literal["energy", "latency"], int]:
-            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
-            
-            The value of the registers are not used, only the size of the registers
-            energy = 1 is normalized to one logic gate
-            latency = 1 is normalized to one logic gate
-            
-            Circuit used:
-            def (a, b) -> x:
-                x = (a and b)
-                return x
+            energy : Decimal = Decimal((bitLength * (5 + 1 + 1)) * bitLength) # add = 5, shift = 1, and = 1
+
+            return energy
+
+        def latencyRegister_MultiplyShiftAdd01(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the latency of multiply via shift add. Returns the latency
+
+            The value of the registers are used
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
+
+            Doubles the length of input registers
+            for every step:
+                uses an ripple carry add of (latency = 3)
+                uses a shift of (latency = 1)
+            for every bit:
+                uses an ripple carry add of (latency = 3)
+            This is a very simplistic and unoptimized algorithm
             """
 
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
             assert type(registerB) is tuple or type(registerB) is list
             assert len(registerB) == 2
-            assert type(registerB[0]) is int or type(registerB[0]) is str 
-            assert type(registerB[1]) is int or type(registerB[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
 
-            bitLength : int = max(funcGetConfig(registerA), funcGetConfig(registerB))
+            bitLengthSourceA : int = funcGetConfig(registerA)
+            bitLengthSourceB : int = funcGetConfig(registerB)
 
-            energy : int = bitLength
-            latency : int = 1
+            bitLength : int = max(bitLengthSourceA, bitLengthSourceB) * 2
 
-            return {"energy" : energy, "latency" : latency}
+            latency : Decimal = Decimal((bitLength * (3 + 1)) + (bitLength * 3)) # add = 3, shift = 0, and = 1
 
-        def englatNOT(self, 
-            funcRead : Callable[[int | str, int | str], int], funcWrite : Callable[[int | str, int | str], None], funcGetConfig : Callable[[int | str, int | str], dict], 
-            registerDestination : tuple[int | str, int | str], registerA : tuple[int | str, int | str]
-        ) -> dict[Literal["energy", "latency"], int]:
-            """Takes in registerA, registerB, and registerDestination, and compute the energy and latency of AND operation on those registers. Returns the energy and latency as a dictionary
-            
-            The value of the registers are not used, only the size of the registers
-            energy = 1 is normalized to one logic gate
-            latency = 1 is normalized to one logic gate
-            
-            Circuit used:
-            def (a) -> x:
-                x = (not a)
-                return x
+            return latency
+
+        def latencyRegister_MultiplyShiftAdd02(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerDestination : tuple[int | str, int | str], 
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the latency of multiply via shift add. Returns the latency
+
+            The value of the registers are used
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
+
+            Doubles the length of input registers
+            for every step:
+                uses an ripple carry add of (latency = 3)
+                uses a shift of (latency = 1)
+            for every bit:
+                uses an ripple carry add of (latency = 3)
+            Since leading bits remain zero until after some shifts, and trailing bits remain unchanged after some shifts, it's only the middle bits that actually require computation.
             """
 
             assert callable(funcRead)
+
             assert callable(funcWrite)
+
             assert callable(funcGetConfig)
 
             assert type(registerDestination) is tuple or type(registerDestination) is list
             assert len(registerDestination) == 2
-            assert type(registerDestination[0]) is int or type(registerDestination[0]) is str 
-            assert type(registerDestination[1]) is int or type(registerDestination[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerDestination])
+            assert all([i >= 0 for i in registerDestination if type(i) is int])
+            assert self.isISARegisterVector(registerDestination)
+
             assert type(registerA) is tuple or type(registerA) is list
             assert len(registerA) == 2
-            assert type(registerA[0]) is int or type(registerA[0]) is str 
-            assert type(registerA[1]) is int or type(registerA[1]) is str
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
 
-            bitLength : int = funcGetConfig(registerA)
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
 
-            energy : int = bitLength
-            latency : int = 1
+            bitLengthSourceA : int = funcGetConfig(registerA)
+            bitLengthSourceB : int = funcGetConfig(registerB)
 
-            return {"energy" : energy, "latency" : latency}
+            bitLength : int = max(bitLengthSourceA, bitLengthSourceB)
+
+            latency : Decimal = Decimal((bitLength * (3 + 1 + 1)) + (bitLength * 3)) # add = 3, shift = 1, and = 1
+
+            return latency
+
+        def energyRegister_MultiplyKaratsubaSingleDepth01(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the energy of multiply via shift add. Returns the energy
+
+            The value of the registers are used
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
+
+            Reference:          
+                Youtube -> Nemean -> How Karatsuba's algorithm gave us new ways to multiply [ https://www.youtube.com/watch?v=cCKOl5li6YM ]  [accessed 2022-10-07-00-42]
+                Wikipedia -> Karatsuba algorithm [ https://en.wikipedia.org/wiki/Karatsuba_algorithm ] [accessed 2022-10-07-00-42]
+            """
+
+            assert callable(funcRead)
+
+            assert callable(funcWrite)
+
+            assert callable(funcGetConfig)
+
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
+
+            bitLengthSourceA : int = funcGetConfig(registerA)
+            bitLengthSourceB : int = funcGetConfig(registerB)
+
+            bitLength : int = max(bitLengthSourceA, bitLengthSourceB)
+            assert bitLength % 2 == 0
+
+            # two half length additions
+            # -> (2 * (addition [ripple carry] of n // 2 length))
+            # -> 2 * ((bitLength // 2) * 5)
+            # = bitLength * 5
+            additions : Decimal = Decimal(bitLength * 5)
+
+            # three multiplications of (bitLength / 2) using dumb shift add
+            # -> bitLength = (bitLength * 2) // 2, due to muliplication doubleing the size of number, but Karatsuba halving the size of the number
+            # -> (muliplication of n length) * (3)
+            # -> ((addition [ripple carry] of n length) + (shift of 1) + (and)) * (n length times) * 3
+            # -> ((bitLength * 5) + (bitLength * 1) + (bitLength * 1)) * bitLength * 3
+            # -> (bitLegnth * (5 + 1 + 1)) * bitLength * 3
+            # -> (bitLength ^ 2) * 7 * 3
+            # = bitLength ^ 2 * 21
+            multiplications : Decimal = Decimal((bitLength ** 2) * 21)
+
+            # two full length subtractions
+            # -> 2 * (subtraction of n * 2 length)
+            # -> 2 * ((twos compliment of n * 2 length) + (addition of n * 2 length))
+            # -> 2 * ((addition [ripple carry] of n * 2 length + not operation of n * 2 length) + (addition [ripple carry] of n * 2 length))
+            # -> 2 * (2 * (addition [ripple carry] of n * 2 length) + (not operation of n * 2 length)))
+            # -> 2 * (2 * (bitLength * 2 * (5)) + (bitLength * 2 * (1)))
+            # -> 2 * (20 * bitLength + bitLength * 2)
+            # -> 2 * 22 * bitLength
+            # = 44 * bitLength
+            subtractions : Decimal = Decimal((bitLength * 44))
+
+            # The carries and any housekeeping
+            # -> one double length addition
+            # -> (addition [ripple carry] of n * 2 length)
+            # -> ((bitLength * 2) * 5)
+            # = bitLength * 10
+            carries : Decimal = Decimal(bitLength * 10)
+
+            energy : Decimal = additions + multiplications + subtractions + carries
+            return energy
+
+    def latencyRegister_MultiplyKaratsubaSingleDepth01(self,
+            funcRead : Callable[[int | str, int | str], int], 
+            funcWrite : Callable[[int | str, int | str], None], 
+            funcGetConfig : Callable[[int | str, int | str], dict], 
+
+            registerA : tuple[int | str, int | str],
+            registerB : tuple[int | str, int | str]
+        ) -> Decimal:
+            """Takes in registerA, registerB, and registerDestination, and compute the latency of multiply via shift add. Returns the latency
+
+            The value of the registers are used
+            Energy/Time Reference:
+                energy = 1 is normalized to one logic gate
+                energy ~= 1 picoJoule = 10 ^ -12 Joule
+                latency = 1 is normalized to one logic gate
+                latency ~= 1 picoSecond = 10 ^ -12 Second
+
+            Reference:          
+                Youtube -> Nemean -> How Karatsuba's algorithm gave us new ways to multiply [ https://www.youtube.com/watch?v=cCKOl5li6YM ]  [accessed 2022-10-07-00-42]
+                Wikipedia -> Karatsuba algorithm [ https://en.wikipedia.org/wiki/Karatsuba_algorithm ] [accessed 2022-10-07-00-42]
+            """
+
+            assert callable(funcRead)
+
+            assert callable(funcWrite)
+
+            assert callable(funcGetConfig)
+
+            assert type(registerA) is tuple or type(registerA) is list
+            assert len(registerA) == 2
+            assert all([type(i) is str or type(i) is int for i in registerA])
+            assert all([i >= 0 for i in registerA if type(i) is int])
+            assert self.isISARegisterVector(registerA)
+
+            assert type(registerB) is tuple or type(registerB) is list
+            assert len(registerB) == 2
+            assert all([type(i) is str or type(i) is int for i in registerB])
+            assert all([i >= 0 for i in registerB if type(i) is int])
+            assert self.isISARegisterVector(registerB)
+
+            bitLengthSourceA : int = funcGetConfig(registerA)
+            bitLengthSourceB : int = funcGetConfig(registerB)
+
+            bitLength : int = max(bitLengthSourceA, bitLengthSourceB)
+            assert bitLength % 2 == 0
+
+            # two half length additions in parallel
+            # -> one half length addition
+            # -> (addition [ripple carry] of n / 2 length)
+            # = (bitLength // 2) * 3
+            additions : Decimal = Decimal(bitLength // 2 * 3)
+
+            # three multiplications of (bitLength / 2) length using dumb shift-add in parallel
+            # -> one multiplication of (bitLength / 2) length using dumb shift-add
+            # ->_((bitLength / 2) * 2 due to multiplication doubling length)
+            # -> ((addition [ripple carry] of n length) + (shift of 1) + (and)) * (n length times)
+            # -> ((bitLength * 3) + (bitLength * 1) + (bitLength * 1)) * bitLength
+            # -> (bitLegnth * (3 + 1 + 1)) * bitLength
+            # -> (bitLength ^ 2) * 5
+            multiplications : Decimal = Decimal((bitLength ** 2) * 5)
+
+            # two full length subtractions in parallel
+            # -> one full length subtraction
+            # -> subtraction of n * 2 length
+            # -> (twos compliment of n * 2 length) + (addition of n * 2 length)
+            # -> (addition [ripple carry] of n * 2 length + not operation of n * 2 length) + (addition [ripple carry] of n * 2 length)
+            # -> 2 * (addition [ripple carry] of n * 2 length) + (not operation of n * 2 length))
+            # -> 2 * (bitLength * 2 * (3)) + (bitLength * 2 * (1))
+            # -> 2 * bitLength * 6 + bitLength * 2
+            # -> bitLength * 12 + bitLength * 2
+            # = 14 * bitLength
+            subtractions : Decimal = Decimal(bitLength * 14)
+
+            # The carries and any housekeeping
+            # -> one double length addition
+            # -> (addition [ripple carry] of n * 2 length)
+            # -> ((bitLength * 2) * 3)
+            # = bitLength * 6
+            carries : Decimal = Decimal(bitLength * 6)
+
+            energy : Decimal = additions + multiplications + subtractions + carries
+            return energy
 
     class ParserDefault(ParserAbstract):
         """Parses strings into an (almost) execution tree.
