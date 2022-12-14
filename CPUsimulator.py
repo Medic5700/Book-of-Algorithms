@@ -327,6 +327,10 @@ Reference:
         How the ipad uses virtual memory
             uses 16 kB pages
             On initial program load, loads first few pages into memory, maps the rest of the program to virtual memory except the virtual memory refereances the program file instead of the system swap file
+    Capability Hardware Enhanced RISC Instructions: CHERI Instruction-Set Architecture
+        https://www.cl.cam.ac.uk/research/security/ctsrd/cheri/cheri-risc-v.html    #overview of project website
+        https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-951.pdf     # technical document on it's implimentation over various architectures
+        https://youtu.be/osOEsllH-cs?t=868                  # "Why I Like Talking Chips: A Hot Chips 34 Recap" [@ 868 s] - TechTechPotato [2022-09-13]
 
 #TODO Stack:
     create instruction helper that allows adding an immediate register (IE: you put in a number, and it passes out an immediate register address, AND adds an immediate register)
@@ -4825,10 +4829,11 @@ class CPUsim_v4:
         1 bitflip = k * T * ln(2); k = Boltzmann constant @ 1.38 * 10 ^ -23 J/K, T = Temperature in Kelvin
         1 bitflip = (1.38 * 10 ^ -23 J/K) * (2.73 K) * ln(2) = 2.611 * 10 ^ -23 Joules
         1 bitflip = 2.611 * 10 ^ -23 Joules
-        
         https://youtu.be/__YWDi78Mco?t=847
         https://en.wikipedia.org/wiki/Landauer%27s_principle#Equation
 
+        1 quantum orthogonalization ('bitflip') = 1.666 * 10 ^ -34 Joules
+        https://en.wikipedia.org/wiki/Margolus%E2%80%93Levitin_theorem
     """
 
     def __init__(self, setup : Optional[Literal["default", "default+", None]] = "default"):
