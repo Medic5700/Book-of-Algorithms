@@ -1,6 +1,6 @@
 """
-By: Medic5700
-A series a bubble sort algorithms, visualized
+Author: Medic5700
+A series a sorting algorithms, visualized
 """
 
 import random
@@ -139,9 +139,21 @@ def bubbleSort2(A : list[int]) -> list[int]:
 def bubbleSort3(A : list[int]) -> list[int]:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
-    Reference:
-        https://en.wikipedia.org/wiki/Bubble_sort
+    Reference({
+        'Number': None,
+        'Accessed': '2024-02-12',
+        'Author': [
+        ],
+        'Title': 'Bubble sort - Wikipedia',
+        'Host': 'Wikipedia',
+        'URL': [
+            'https://en.wikipedia.org/wiki/Bubble_sort'
+        ],
+        'Revised': '2024-01-29',
+        'Note': None
+    })
     """
+    
     assert type(A) is list
     assert all([type(i) is int for i in A])
 
@@ -176,8 +188,19 @@ def bubbleSort3(A : list[int]) -> list[int]:
 def cocktailShakerSort1(A : list[int]) -> list[int]:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
-    Reference:
-        https://en.wikipedia.org/wiki/Cocktail_shaker_sort
+    Reference({
+        'Number': None,
+        'Accessed': '2024-02-12',
+        'Author': [
+        ],
+        'Title': 'Cocktail shaker sort - Wikipedia',
+        'Host': 'Wikipedia',
+        'URL': [
+            'https://en.wikipedia.org/wiki/Cocktail_shaker_sort'
+        ],
+        'Revised': '2023-11-25',
+        'Note': None
+    })
     """
     assert type(A) is list
     assert all([type(i) is int for i in A])
@@ -218,8 +241,19 @@ def cocktailShakerSort1(A : list[int]) -> list[int]:
 def cocktailShakerSort2(A : list[int]) -> list[int]:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
-    Reference:
-        https://en.wikipedia.org/wiki/Cocktail_shaker_sort
+    Reference({
+        'Number': None,
+        'Accessed': '2024-02-12',
+        'Author': [
+        ],
+        'Title': 'Cocktail shaker sort - Wikipedia',
+        'Host': 'Wikipedia',
+        'URL': [
+            'https://en.wikipedia.org/wiki/Cocktail_shaker_sort'
+        ],
+        'Revised': '2023-11-25',
+        'Note': None
+    })
     """
     assert type(A) is list
     assert all([type(i) is int for i in A])
@@ -267,8 +301,19 @@ def cocktailShakerSort2(A : list[int]) -> list[int]:
 def gnomeSort1(A : list[int]) -> list[int]:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
-    Reference:
-        https://en.wikipedia.org/wiki/Gnome_sort
+    Reference({
+        'Number': None,
+        'Accessed': '2024-02-12',
+        'Author': [
+        ],
+        'Title': 'Gnome sort - Wikipedia',
+        'Host': 'Wikipedia',
+        'URL': [
+            'https://en.wikipedia.org/wiki/Gnome_sort'
+        ],
+        'Revised': '2023-11-01',
+        'Note': None
+    })
     """
     assert type(A) is list
     assert all([type(i) is int for i in A])
@@ -304,8 +349,19 @@ def gnomeSort1(A : list[int]) -> list[int]:
 def combSort1(A : list[int]) -> list[int]:
     """Takes an unsorted array of integers, A -> returns an array of sorted integers
 
-    Reference:
-        https://en.wikipedia.org/wiki/Comb_sort
+    Reference({
+        'Number': None,
+        'Accessed': '2024-02-12',
+        'Author': [
+        ],
+        'Title': 'Comb sort - Wikipedia',
+        'Host': 'Wikipedia',
+        'URL': [
+            'https://en.wikipedia.org/wiki/Comb_sort'
+        ],
+        'Revised': '2023-11-11',
+        'Note': None
+    })
     """
     assert type(A) is list
     assert all([type(i) is int for i in A])
